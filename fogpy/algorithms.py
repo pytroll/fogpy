@@ -19,22 +19,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""The fogpy test suite.
-"""
+"""This module implements an base satellite algorithm class"""
 
-from fogpy.test import (test_lowwatercloud,
-                        test_filters
-                        )
+class BaseSatelliteAlgorithm(object):
+    def __init__(self):
+        pass
 
-import unittest
+    def run(self):
+        raise NotImplementedError
 
-def suite():
-    """The global test suite.
-    """
-
-    mysuite = unittest.TestSuite()
-    mysuite.addTests(test_lowwatercloud.suite())
-    mysuite.addTests(test_filters.suite())
-    #mysuite.addTests(test_fogpy.suite())
-
-    return mysuite
+    def isprocessible(self):
+        raise NotImplementedError
+    
+    def procedure(self):
+        raise NotImplementedError
+    

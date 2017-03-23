@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from lowwatercloud import LowWaterCloud
 """ This module implements a satellite image based fog and low stratus
 detection and forecasting algorithm as a PyTROLL custom composite object.
 """
@@ -35,7 +34,7 @@ from scipy.ndimage import measurements
 from scipy import ndimage
 from numpy.lib.stride_tricks import as_strided
 from scipy.signal import find_peaks_cwt
-from lowwatercloud import LowWaterCloud
+from fogpy.lowwatercloud import LowWaterCloud
 from mpop.tools import estimate_cth
 
 logger = logging.getLogger(__name__)
