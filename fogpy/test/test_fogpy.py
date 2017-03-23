@@ -3,6 +3,22 @@
 # Copyright (c) 2017
 # Author(s):
 #   Thomas Leppelt <thomas.leppelt@dwd.de>
+
+# This file is part of the fogpy package.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """ This module test fog detection and forecasting algorithmns implemented in
 mpop/satpy"""
 
@@ -21,6 +37,7 @@ from track_cb import get_time_period
 from PIL import Image as PILimage
 from pyresample import utils
 from mpop.imageo.geo_image import GeoImage
+from fogpy.utils.import_synop import read_synop
 
 #debug_on()
 
@@ -220,7 +237,6 @@ for time in time_period:
     bufr_file = "result_{}".format(time.strftime("%Y%m%d"))
 
     inbufr = os.path.join(bufr_dir, bufr_file)
-    from import_synop import read_synop
     stations = read_synop(inbufr, 'visibility')
     currentstations = stations[time.strftime("%Y%m%d%H0000")]
     lats = [i[1] for i in currentstations]

@@ -1,0 +1,9 @@
+build
+doc/build
+*.so
+*.pyc
+*~
+RELEASE-VERSION
+dist
+fogpy.egg-info
+

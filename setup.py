@@ -1,56 +1,46 @@
-from __future__ import print_function
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Copyright (c) 2017
+# Author(s):
+#   Thomas Leppelt <thomas.leppelt@dwd.de>
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+""" Setup file for fogpy"""
+
 from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
-import io
-import codecs
 import os
-import sys
+import imp
 
-import fogpy
+BASE_PATH = os.path.sep.join(os.path.dirname(
+    os.path.realpath(__file__)).split(os.path.sep))
 
-here = os.path.abspath(os.path.dirname(__file__))
-
-def read(*filenames, **kwargs):
-    encoding = kwargs.get('encoding', 'utf-8')
-    sep = kwargs.get('sep', '\n')
-    buf = []
-    for filename in filenames:
-        with io.open(filename, encoding=encoding) as f:
-            buf.append(f.read())
-    return sep.join(buf)
-
-long_description = read('README.txt', 'CHANGES.txt')
-
-class PyTest(TestCommand):
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
-
-    def run_tests(self):
-        import pytest
-        errcode = pytest.main(self.test_args)
-        sys.exit(errcode)
+version = imp.load_source('fogpy.version', 'fogpy/version.py')
+#here = os.path.abspath(os.path.dirname(__file__))
 
 setup(
     name='fogpy',
-    version=fogpy.__version__,
+    version=version.__version__,
     url='https://github.com/m4sth0/fogpy',
     license='GNU general public license version 3',
     author='Thomas Leppelt',
-    tests_require=['pytest'],
-    install_requires=['Flask>=0.10.1',
-                    'Flask-SQLAlchemy>=1.0',
-                    'SQLAlchemy==0.8.2',
-                    ],
-    cmdclass={'test': PyTest},
     author_email='thomas.leppelt@gmail.com',
     description='Satellite based fog and low stratus detection and nowcasting',
-    long_description=long_description,
     packages=['fogpy'],
     include_package_data=True,
     platforms='any',
-    test_suite='fogpy.test.test_fogpy',
+    test_suite='fogpy.test.suite',
     classifiers = [
         'Programming Language :: Python',
         'Development Status :: 4 - Beta',
@@ -62,7 +52,14 @@ setup(
         'Topic :: Scientific/Engineering :: Atmospheric Science',
         'Topic :: Scientific/Engineering :: Physics',
         ],
-    extras_require={
-        'testing': ['pytest'],
-    }
+    install_requires=['numpy >=1.4.1',
+                    'scipy >=0.17.0',
+                    'matplotlib >=1.4.2',
+                    'mpop >=v1.3.1',
+                    'pyorbital >= v0.2.3'
+                    ],
+    tests_require=[],
+    #extras_require={
+    #    'testing': ['pytest'],
+    #}
 )

@@ -3,14 +3,30 @@
 # Copyright (c) 2017
 # Author(s):
 #   Thomas Leppelt <thomas.leppelt@dwd.de>
+
+# This file is part of the fogpy package.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """ This module test the low cloud water class """
 
 import unittest
-from lowwatercloud import LowWaterCloud
-from lowwatercloud import CloudLayer
+from fogpy.lowwatercloud import LowWaterCloud
+from fogpy.lowwatercloud import CloudLayer
 
 
-class Test(unittest.TestCase):
+class Test_LowWaterCloud(unittest.TestCase):
 
     def setUp(self):
         self.lwc = LowWaterCloud(2000., 255., 400.)
@@ -170,6 +186,15 @@ class Test(unittest.TestCase):
         ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertAlmostEqual(round(ret_brute, 1), 421.)
         self.assertAlmostEqual(round(ret_basin, 1), 379.1)
+
+def suite():
+    """The test suite for test_lowwatercloud.
+    """
+    loader = unittest.TestLoader()
+    mysuite = unittest.TestSuite()
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_LowWaterCloud))
+    
+    return mysuite
 
 if __name__ == "__main__":
     unittest.main()
