@@ -22,7 +22,13 @@
 """This module implements an basic algorithm filter class
 and several class instances for satellite fog detection applications"""
 
+import logging
+import matplotlib.pyplot as plt
 import numpy as np
+
+from scipy.signal import find_peaks_cwt
+
+logger = logging.getLogger(__name__)
 
 
 class NotApplicableError(Exception):
@@ -53,11 +59,12 @@ class BaseArrayFilter(object):
         """Apply the given filter function"""
         if self.isapplicable():
             self.filter_function()
-            self.check()
+            self.check_results()
         else:
             raise NotApplicableError('Array filter <{}> is not applicable'
                                      .format(self.__class__.__name__))
-        return(self.result)
+
+        return(self.result, self.mask)
 
     def isapplicable(self):
         """Test filter applicability"""
@@ -66,16 +73,92 @@ class BaseArrayFilter(object):
 
     def filter_function(self):
         """Filter routine"""
-        self.mask = np.ones(self.arr.shape)
-         
+        self.mask = np.ones(self.arr.shape) == 1
+
         self.result = np.ma.array(self.arr, mask=self.mask)
-        
+
         return(True)
 
-    def check(self):
+    def check_results(self):
         """Check filter results for plausible results"""
         ret = True
         return(ret)
 
 
+class CloudFilter(BaseArrayFilter):
+    """Cloud filtering for satellite images.
+    """
+    def isapplicable(self):
+        """Test filter applicability"""
+        attrlist = ['ir108', 'ir039']
+        ret = []
+        for attr in attrlist:
+            if hasattr(self, attr):
+                ret.append(True)
+            else:
+                ret.append(False)
 
+        return(all(ret))
+
+    def filter_function(self):
+        """Cloud Filter routine
+
+        Given the combination of a solar and a thermal signal at 3.9 μm,
+        the difference in radiances to the 10.8 μm must be larger for a
+        cloud-contaminated pixel than for a clear pixel.
+        In the histogram of the difference the clear sky peak is identified
+        within a certain range. The nearest significant relative minimum in the
+        histogram towards more negative values is detected and used as a
+        threshold to separate clear from cloudy pixels in the image.
+        """
+        logger.info("### Applying fog cloud filters to input arrays ###")
+
+        # Infrared channel difference
+        self.cm_diff = np.ma.asarray(self.ir108 - self.ir039)
+
+        # Create histogram
+        self.hist = (np.histogram(self.cm_diff.compressed(), bins='auto'))
+
+        # Find local min and max values
+        peaks = np.sign(np.diff(self.hist[0]))
+        localmin = (np.diff(peaks) > 0).nonzero()[0] + 1
+        localmax = (np.diff(peaks) < 0).nonzero()[0] + 1
+
+        # Utilize scipy signal funciton to find peaks
+        peakind = find_peaks_cwt(self.hist[0],
+                                 np.arange(1, len(self.hist[1]) / 10))
+        peakrange = self.hist[1][peakind][(self.hist[1][peakind] >= -10) &
+                                          (self.hist[1][peakind] < 10)]
+        self.minpeak = np.min(peakrange)
+        self.maxpeak = np.max(peakrange)
+
+        # Determine threshold
+        logger.debug("Histogram range for cloudy/clear sky pixels: {} - {}"
+                     .format(self.minpeak, self.maxpeak))
+        thres_index = localmin[(self.hist[1][localmin] <= self.maxpeak) &
+                               (self.hist[1][localmin] >= self.minpeak) &
+                               (self.hist[1][localmin] < 0.5)]
+        self.thres = np.max(self.hist[1][thres_index])
+
+        if self.thres > 0 or self.thres < -5:
+            logger.warning("Cloud maks difference threshold {} outside normal"
+                           " range (from -5 to 0)".format(self.thres))
+        else:
+            logger.debug("Cloud mask difference threshold set to %s"
+                         .format(self.thres))
+        # Create cloud mask for image array
+        self.mask = self.cm_diff > self.thres
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return(True)
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        ret = True
+        return(ret)
+
+    def plot_cloud_hist(self):
+        plt.bar(self.hist[1][:-1], self.hist[0])
+        plt.title("Histogram with 'auto' bins")
+        plt.show()

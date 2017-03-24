@@ -23,13 +23,7 @@
 """
 
 import os
+from mpop.version import __version__
 
 BASE_PATH = os.path.sep.join(os.path.dirname(
     os.path.realpath(__file__)).split(os.path.sep)[:-1])
-
-CONFIG_PATH = (os.environ.get('PPP_CONFIG_DIR', '') or
-               os.path.join(BASE_PATH, 'etc'))
-
-
-from mpop.version import __version__
-

@@ -23,10 +23,12 @@
 """
 
 from fogpy.test import (test_lowwatercloud,
-                        test_filters
+                        test_filters,
+                        test_algorithms
                         )
 
 import unittest
+
 
 def suite():
     """The global test suite.
@@ -35,6 +37,7 @@ def suite():
     mysuite = unittest.TestSuite()
     mysuite.addTests(test_lowwatercloud.suite())
     mysuite.addTests(test_filters.suite())
+    mysuite.addTests(test_algorithms.suite())
     #mysuite.addTests(test_fogpy.suite())
 
     return mysuite

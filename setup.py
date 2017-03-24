@@ -29,7 +29,7 @@ BASE_PATH = os.path.sep.join(os.path.dirname(
     os.path.realpath(__file__)).split(os.path.sep))
 
 version = imp.load_source('fogpy.version', 'fogpy/version.py')
-#here = os.path.abspath(os.path.dirname(__file__))
+# here = os.path.abspath(os.path.dirname(__file__))
 
 setup(
     name='fogpy',
@@ -41,9 +41,11 @@ setup(
     description='Satellite based fog and low stratus detection and nowcasting',
     packages=['fogpy'],
     include_package_data=True,
+    data_files=[(os.path.join('etc'),
+                 [os.path.join('etc', 'fog_testdata.npy')])],
     platforms='any',
     test_suite='fogpy.test.suite',
-    classifiers = [
+    classifiers=[
         'Programming Language :: Python',
         'Development Status :: 4 - Beta',
         'Natural Language :: English',
@@ -55,13 +57,10 @@ setup(
         'Topic :: Scientific/Engineering :: Physics',
         ],
     install_requires=['numpy >=1.4.1',
-                    'scipy >=0.17.0',
-                    'matplotlib >=1.4.2',
-                    'mpop >=v1.3.1',
-                    'pyorbital >= v0.2.3'
-                    ],
+                      'scipy >=0.17.0',
+                      'matplotlib >=1.4.2',
+                      'mpop >=v1.3.1',
+                      'pyorbital >= v0.2.3'
+                      ],
     tests_require=[],
-    #extras_require={
-    #    'testing': ['pytest'],
-    #}
 )

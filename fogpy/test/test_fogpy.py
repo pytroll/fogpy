@@ -39,7 +39,7 @@ from pyresample import utils
 from mpop.imageo.geo_image import GeoImage
 from fogpy.utils.import_synop import read_synop
 
-#debug_on()
+debug_on()
 
 
 def nc_import(infile, inputdir=os.getcwd()):
