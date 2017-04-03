@@ -26,8 +26,14 @@ import numpy as np
 import os
 import unittest
 
+from datetime import datetime
 from fogpy.algorithms import BaseSatelliteAlgorithm
 from fogpy.algorithms import FogLowStratusAlgorithm
+
+# Test data array order:
+# ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
+# lat, lon
+# Use indexing and np.dsplit(testdata, 13) to extract specific products
 
 # Import test data
 base = os.path.split(fogpy.__file__)
@@ -59,9 +65,33 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        self.ir108, self.ir039 = np.dsplit(testdata, 11)[:2]
-        self.input = {'ir108': self.ir108,
-                      'ir039': self.ir039}
+        inputs = np.dsplit(testdata, 13)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.cwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+
+        self.input = {'vis006': self.vis006,
+                      'vis008': self.vis008,
+                      'ir108': self.ir108,
+                      'nir016': self.nir016,
+                      'ir039': self.ir039,
+                      'ir120': self.ir120,
+                      'ir087': self.ir087,
+                      'lat': self.lat,
+                      'lon': self.lon,
+                      'time': self.time}
 
     def tearDown(self):
         pass
@@ -69,6 +99,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
     def test_fls_algorithm(self):
         flsalgo = FogLowStratusAlgorithm(**self.input)
         ret, mask = flsalgo.run()
+        flsalgo.plot_result()
         self.assertEqual(flsalgo.ir108.shape, (141, 298, 1))
         self.assertEqual(ret.shape, (141, 298, 1))
         self.assertEqual(flsalgo.shape, (141, 298, 1))

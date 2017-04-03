@@ -22,8 +22,14 @@
 """This module implements an base satellite algorithm class"""
 
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
+
+from matplotlib.cm import get_cmap
 from filters import CloudFilter
+from filters import SnowFilter
+from filters import IceCloudFilter
+from filters import CirrusCloudFilter
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +102,13 @@ class BaseSatelliteAlgorithm(object):
         return({key: self.__getattribute__(key) for key in self.attributes
                 if key in keys})
 
+    def plot_result(self):
+        """Plotting the filter result"""
+        cmap = get_cmap('gray')
+        cmap.set_bad('goldenrod', 1.)
+        imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
+        plt.show()
+
 
 class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
     """This algorithm implements a fog and low stratus detection and forecasting
@@ -145,44 +158,73 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                     |
                 1.  Cloud masking -------------------    yes
                                                     |
-                2.  Spatial clustering---------------
+                2.  Snow masking --------------------    yes
                                                     |
-                3.  Maximum margin elevation --------
+                3.  Ice cloud masking ---------------    yes
                                                     |
-                4.  Surface homogenity check --------
+                4.  Thin cirrus masking -------------    ---
                                                     |
-                5.  Microphysics plausibility check -
+                5.  Droplet radius test -------------    ---
                                                     |
-                6.  Differenciate fog - low status --
+                6.  Spatial clustering---------------
                                                     |
-                7.  Fog dissipation -----------------
+                7.  Maximum margin elevation --------
                                                     |
-                8.  Nowcasting ----------------------
+                8.  Surface homogenity check --------
+                                                    |
+                9.  Microphysics plausibility check -
+                                                    |
+                10.  Differenciate fog - low status -
+                                                    |
+                11.  Fog dissipation ----------------
+                                                    |
+                12.  Nowcasting ---------------------
                                                     |
             Output: fog and low stratus mask <-------
      """
     def isprocessible(self):
         """Test runability here"""
-        attrlist = ['ir108', 'ir039']
+        attrlist = ['ir108', 'ir039', 'vis008', 'nir016', 'vis006', 'ir087',
+                    'ir120', 'lat', 'lon', 'time']
         ret = []
         for attr in attrlist:
             if hasattr(self, attr):
                 ret.append(True)
             else:
                 ret.append(False)
+                logger.warning("Missing input attribute: {}".format(attr))
 
         return(all(ret))
 
     def procedure(self):
-        """Define algorithm procedure here"""
+        """ Apply different filters and low cloud model to input data"""
+        logger.info("Starting fog and low cloud detection algorithm")
         # 1. Cloud filtering
         cloud_input = self.get_kwargs(['ir108', 'ir039'])
         cloudfilter = CloudFilter(cloud_input['ir108'], **cloud_input)
         cloudfilter.apply()
 
+        # 2. Snow filtering
+        snow_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006'])
+        snowfilter = SnowFilter(cloudfilter.result, **snow_input)
+        snowfilter.apply()
+
+        # 3. Ice cloud detection
+        # Ice cloud exclusion - Only warm fog (i.e. clouds in the water phase)
+        # are considered. Warning: No ice fog detection wiht this filter option
+        ice_input = self.get_kwargs(['ir120', 'ir087', 'ir108'])
+        icefilter = IceCloudFilter(snowfilter.result, **ice_input)
+        icefilter.apply()
+
+        # 4. Cirrus cloud filtering
+        cirrus_input = self.get_kwargs(['ir120', 'ir087', 'ir108', 'lat',
+                                        'lon', 'time'])
+        cirrusfilter = CirrusCloudFilter(icefilter.result, **cirrus_input)
+        cirrusfilter.apply()
+
         # Set results
-        self.result = cloudfilter.result
-        self.mask = cloudfilter.mask
+        self.result = cirrusfilter.result
+        self.mask = cirrusfilter.mask
 
         return(True)
 

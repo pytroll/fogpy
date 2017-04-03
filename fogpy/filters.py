@@ -26,6 +26,8 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 
+from matplotlib.cm import get_cmap
+from pyorbital import astronomy
 from scipy.signal import find_peaks_cwt
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,7 @@ class BaseArrayFilter(object):
             self.inmask = arr.mask
         elif isinstance(arr, np.ndarray):
             self.arr = arr
+            self.inmask = None
         else:
             raise ImportError('The filter <{}> needs a valid 2d numpy array '
                               'as input'.format(self.__class__.__name__))
@@ -54,6 +57,8 @@ class BaseArrayFilter(object):
                 self.__setattr__(key, value)
             self.result = None
             self.mask = None
+        # Get class name
+        self.name = self.__str__().split(' ')[0].split('.')[-1]
 
     def apply(self):
         """Apply the given filter function"""
@@ -64,12 +69,19 @@ class BaseArrayFilter(object):
             raise NotApplicableError('Array filter <{}> is not applicable'
                                      .format(self.__class__.__name__))
 
-        return(self.result, self.mask)
+        return self.result, self.mask
 
     def isapplicable(self):
         """Test filter applicability"""
-        ret = True
-        return(ret)
+        ret = []
+        for attr in self.attrlist:
+            if hasattr(self, attr):
+                ret.append(True)
+            else:
+                ret.append(False)
+                logger.warning("Missing input attribute: {}".format(attr))
+
+        return all(ret)
 
     def filter_function(self):
         """Filter routine"""
@@ -77,31 +89,52 @@ class BaseArrayFilter(object):
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 
-        return(True)
+        return True
 
     def check_results(self):
         """Check filter results for plausible results"""
         ret = True
-        return(ret)
+        return ret
+
+    def filter_stats(self):
+        self.filter_size = self.mask.size
+        self.filter_num = np.nansum(self.mask)
+        if self.inmask is None:
+            self.inmask_num = 0
+            self.new_masked = self.filter_num
+            self.remain_num = self.filter_size - self.filter_num
+        else:
+            self.inmask_num = np.nansum(self.inmask)
+            self.new_masked = np.nansum(~self.inmask & self.mask)
+            self.remain_num = np.nansum(~self.mask & ~self.inmask)
+
+        logger.info("""---- Filter results for {} ---- \n
+                    {}
+                    Array size:              {}
+                    Masking:                 {}
+                    Previous masked:         {}
+                    New filtered:            {}
+                    Remaining:               {}"""
+                    .format(self.name, self.__doc__,
+                            self.filter_size, self.filter_num, self.inmask_num,
+                            self.new_masked, self.remain_num))
+
+    def plot_filter(self):
+        """Plotting the filter result"""
+        cmap = get_cmap('gray')
+        cmap.set_bad('goldenrod', 1.)
+        imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
+        plt.show()
 
 
 class CloudFilter(BaseArrayFilter):
     """Cloud filtering for satellite images.
     """
-    def isapplicable(self):
-        """Test filter applicability"""
-        attrlist = ['ir108', 'ir039']
-        ret = []
-        for attr in attrlist:
-            if hasattr(self, attr):
-                ret.append(True)
-            else:
-                ret.append(False)
-
-        return(all(ret))
+    # Required inputs
+    attrlist = ['ir108', 'ir039']
 
     def filter_function(self):
-        """Cloud Filter routine
+        """Cloud filter routine
 
         Given the combination of a solar and a thermal signal at 3.9 μm,
         the difference in radiances to the 10.8 μm must be larger for a
@@ -111,7 +144,7 @@ class CloudFilter(BaseArrayFilter):
         histogram towards more negative values is detected and used as a
         threshold to separate clear from cloudy pixels in the image.
         """
-        logger.info("### Applying fog cloud filters to input arrays ###")
+        logger.info("Applying Cloud Filter")
 
         # Infrared channel difference
         self.cm_diff = np.ma.asarray(self.ir108 - self.ir039)
@@ -151,14 +184,246 @@ class CloudFilter(BaseArrayFilter):
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 
-        return(True)
+        return True
 
     def check_results(self):
         """Check filter results for plausible results"""
+        self.filter_stats()
         ret = True
-        return(ret)
+        return ret
 
     def plot_cloud_hist(self):
         plt.bar(self.hist[1][:-1], self.hist[0])
         plt.title("Histogram with 'auto' bins")
         plt.show()
+
+
+class SnowFilter(BaseArrayFilter):
+    """Snow filtering for satellite images.
+    """
+    # Required inputs
+    attrlist = ['vis006', 'vis008', 'nir016', 'ir108']
+
+    def filter_function(self):
+        """Snow filter routine
+
+        Snow has a certain minimum reflectance (0.11 at 0.8 μm) and snow has a
+        certain minimum temperature (256 K)
+        Snow displays a lower reflectivity than water clouds at 1.6 μm,
+        combined with a slightly higher level of absorption
+        (Wiscombe and Warren, 1980)
+        thresholds are applied in combination with the Normalized Difference
+        Snow Index
+        """
+        logger.info("Applying Snow Filter")
+        # Calculate Normalized Difference Snow Index
+        self.ndsi = (self.vis006 - self.nir016) / (self.vis006 + self.nir016)
+
+        # Where the NDSI exceeds a certain threshold (0.4) and the two other
+        # criteria are met, a pixel is rejected as snow-covered.
+        # Create snow mask for image array
+        temp_thres = (self.vis008 / 100 >= 0.11) & (self.ir108 >= 256)
+        ndsi_thres = self.ndsi >= 0.4
+        # Create snow mask for image array
+        self.mask = temp_thres & ndsi_thres
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        self.filter_stats()
+        ret = True
+        return ret
+
+
+class IceCloudFilter(BaseArrayFilter):
+    """Ice cloud filtering for satellite images.
+    """
+    # Required inputs
+    attrlist = ['ir120', 'ir087', 'ir108']
+
+    def filter_function(self):
+        """Ice cloud filter routine
+
+        Difference of brightness temperatures in the 12.0 and 8.7 μm channels
+        is used as an indicator of cloud phase (Strabala et al., 1994).
+        Where it exceeds 2.5 K, a water-cloud-covered pixel is assumed with a
+        large degree of certainty. This is combined with a straightforward
+        temperature test, cutting off at very low 10.8 μm brightness
+        temperatures (250 K).
+        """
+        logger.info("Applying Snow Filter")
+        # Apply infrared channel difference
+        self.ic_diff = self.ir120 - self.ir087
+        # Create ice cloud mask
+        ice_mask = (self.ic_diff < 2.5) | (self.ir108 < 250)
+        # Create snow mask for image array
+        self.mask = ice_mask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        self.filter_stats()
+        ret = True
+        return ret
+
+
+class CirrusCloudFilter(BaseArrayFilter):
+    """Thin cirrus cloud filtering for satellite images.
+    """
+    # Required inputs
+    attrlist = ['ir120', 'ir087', 'ir108', 'lat', 'lon']
+
+    def filter_function(self):
+        """Ice cloud filter routine
+
+        Thin cirrus is detected by means of the split-window IR channel
+        brightness temperature difference (T10.8 –T12.0 ). This difference is
+        compared to a threshold dynamically interpolated from a lookup table
+        based on satellite zenith angle and brightness temperature at 10.8 μm
+        (Saunders and Kriebel, 1988)
+        In addtion a second strong cirrus test (T8.7–T10.8), founded on the
+        relatively strong cirrus signal at the former wavelength is applied
+        (Wiegner et al.1998). Where the difference is greater than 0 K, cirrus
+        is assumed to be present.
+        """
+        logger.info("Applying Cirrus Filter")
+        # Get infrared channel difference
+        self.bt_diff = self.ir108 - self.ir120
+        # Calculate sun zenith angles
+        sza = astronomy.sun_zenith_angle(self.time, self.lon, self.lat)
+        minsza = np.min(sza)
+        maxsza = np.max(sza)
+        logger.debug("Found solar zenith angles from %s to %s°" % (minsza,
+                                                                   maxsza))
+        # Calculate secant of sza
+        secsza = 1 / np.cos(np.deg2rad(sza))
+
+        # Apply lut to BT and sza values
+        # Vectorize LUT functions for numpy arrays
+        vfind_nearest_lut_sza = np.vectorize(self.find_nearest_lut_sza)
+        vfind_nearest_lut_bt = np.vectorize(self.find_nearest_lut_bt)
+        vapply_lut = np.vectorize(self.apply_lut)
+
+        secsza_lut = vfind_nearest_lut_sza(secsza)
+        chn108_ma_lut = vfind_nearest_lut_bt(self.ir108)
+
+        self.bt_thres = vapply_lut(secsza_lut, chn108_ma_lut)
+        logger.debug("Set BT difference thresholds for cirrus: {} to {} K"
+                     .format(np.min(self.bt_thres), np.max(self.bt_thres)))
+        # Create thin cirrus mask
+        self.bt_ci_mask = self.bt_diff > self.bt_thres
+
+        # Strong cirrus test
+        self.strong_ci_diff = self.ir087 - self.ir108
+        self.strong_ci_mask = self.strong_ci_diff > 0
+        cirrus_mask = self.bt_ci_mask | self.strong_ci_mask
+
+        # Create snow mask for image array
+        self.mask = cirrus_mask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        self.filter_stats()
+        ret = True
+        return ret
+
+    def find_nearest_lut_sza(self, sza):
+        """ Get nearest look up table key value for given ssec(sza)"""
+        sza_opt = [1.0, 1.25, 1.50, 1.75, 2.0]
+        sza_idx = np.array([np.abs(sza - i) for i in sza_opt]).argmin()
+        return(sza_opt[sza_idx])
+
+    def find_nearest_lut_bt(self, bt):
+        """ Get nearest look up table key value for given BT"""
+        bt_opt = [260, 270, 280, 290, 300, 310]
+        bt_idx = np.array([np.abs(bt - i) for i in bt_opt]).argmin()
+        return(bt_opt[bt_idx])
+
+    def apply_lut(self, sza, bt):
+        """ Apply LUT to given BT and sza values"""
+        return(self.lut[bt][sza])
+    # Lookup table for BT difference thresholds at certain sec(sun zenith
+    # angles) and 10.8 μm BT
+    lut = {260: {1.0: 0.55, 1.25: 0.60, 1.50: 0.65, 1.75: 0.90, 2.0: 1.10},
+           270: {1.0: 0.58, 1.25: 0.63, 1.50: 0.81, 1.75: 1.03, 2.0: 1.13},
+           280: {1.0: 1.30, 1.25: 1.61, 1.50: 1.88, 1.75: 2.14, 2.0: 2.30},
+           290: {1.0: 3.06, 1.25: 3.72, 1.50: 3.95, 1.75: 4.27, 2.0: 4.73},
+           300: {1.0: 5.77, 1.25: 6.92, 1.50: 7.00, 1.75: 7.42, 2.0: 8.43},
+           310: {1.0: 9.41, 1.25: 11.22, 1.50: 11.03, 1.75: 11.60, 2.0: 13.39}}
+
+
+class WaterCloudFilter(BaseArrayFilter):
+    """Water cloud filtering for satellite images.
+    """
+    # Required inputs
+    attrlist = ['ir120', 'ir087', 'ir108']
+
+    def filter_function(self):
+        """Water cloud filter routine
+
+        Apply a weaker cloud phase test in order to get an estimate regarding
+        their phase. This test uses the NDSI introduced above. Where it falls
+        below 0.1, a water cloud is assumed to be present. 
+        Afterwards a small droplet proxy tes is being performed. Fog generally
+        has a stronger signal at 3.9 μm than clear ground, which in turn
+        radiates more than other clouds. The 3.9 μm radiances for cloud-free
+        land areas are averaged over 50 rows at a time to obtain an
+        approximately latitudinal value. Wherever a cloud-covered pixel
+        exceeds this value, it is flagged.
+        """
+        logger.info("Applying Water Cloud Filter")
+        # Weal water cloud test
+        self.ndsi_ci = (self.vis006 - self.vis016) / (self.vis006 +
+                                                      self.vis016)
+        water_mask = self.ndsi_ci > 0.1
+        # Small droplet proxy test
+        cloud_free_ma = np.ma.masked_where(~cloud_mask, chn39)
+        chn39_ma = np.ma.masked_where(cloud_mask | snow_mask | ice_mask |
+                                      cirrus_mask | water_mask, chn39)
+        # Latitudinal average cloud free radiances
+        lat_cloudfree = np.ma.mean(cloud_free_ma, 1)
+        logger.debug("Mean latitudinal threshold for cloudfree areas: %.2f K"
+                     % np.mean(lat_cloudfree))
+        global line
+        line = 0
+
+        def find_watercloud(lat, thres):
+            """Funciton to compare row of BT with given latitudinal thresholds"""
+            global line
+            if all(lat.mask):
+                res = lat.mask
+            elif np.ma.is_masked(thres[line]):
+                res = lat <= np.mean(lat_cloudfree)
+            else:
+                res = lat <= thres[line]
+            line += 1
+
+            return(res)
+
+        # Apply latitudinal threshold to cloudy areas
+        drop_mask = np.apply_along_axis(find_watercloud, 1, chn39,
+                                        lat_cloudfree)
+
+        fog_mask = fog_mask | drop_mask
+        # Create snow mask for image array
+        self.mask = ice_mask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        self.filter_stats()
+        ret = True
+        return ret

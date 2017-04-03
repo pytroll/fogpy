@@ -25,12 +25,18 @@ import unittest
 import numpy as np
 import os
 import fogpy
+
+from datetime import datetime
 from fogpy.filters import BaseArrayFilter
 from fogpy.filters import CloudFilter
+from fogpy.filters import SnowFilter
+from fogpy.filters import IceCloudFilter
+from fogpy.filters import CirrusCloudFilter
 
 # Test data array order:
-# ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp
-# Use indexing and np.dsplit(testdata, 11) to extract specific products
+# ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
+# lat, lon
+# Use indexing and np.dsplit(testdata, 13) to extract specific products
 
 # Import test data
 base = os.path.split(fogpy.__file__)
@@ -50,12 +56,14 @@ class Test_ArrayFilter(unittest.TestCase):
 
     def test_array_filter(self):
         newfilter = BaseArrayFilter(self.testarray)
+        newfilter.attrlist = []
         ret, mask = newfilter.apply()
         self.assertEqual(newfilter.arr.shape, (4, 4))
         self.assertEqual(ret.shape, (4, 4))
 
     def test_marray_filter(self):
         newfilter = BaseArrayFilter(self.testmarray)
+        newfilter.attrlist = []
         ret, mask = newfilter.apply()
         self.assertEqual(newfilter.arr.shape, (4, 4))
         self.assertEqual(ret.shape, (4, 4))
@@ -65,6 +73,7 @@ class Test_ArrayFilter(unittest.TestCase):
     def test_array_filter_param(self):
         param = {'test1': 'test1', 'test2': 0, 'test3': 0.1, 'test4': True}
         newfilter = BaseArrayFilter(self.testarray, **param)
+        newfilter.attrlist = []
         ret, mask = newfilter.apply()
         self.assertEqual(len(newfilter.test1), 5)
         self.assertEqual(newfilter.test2, 0)
@@ -79,7 +88,7 @@ class Test_CloudFilter(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        self.ir108, self.ir039 = np.dsplit(testdata, 11)[:2]
+        self.ir108, self.ir039 = np.dsplit(testdata, 13)[:2]
         self.input = {'ir108': self.ir108,
                       'ir039': self.ir039}
 
@@ -88,16 +97,161 @@ class Test_CloudFilter(unittest.TestCase):
 
     def test_cloud_filter(self):
         # Create cloud filter
-        cloudfilter = CloudFilter(self.input['ir108'], **self.input)
-        ret, mask = cloudfilter.apply()
+        testfilter = CloudFilter(self.input['ir108'], **self.input)
+        ret, mask = testfilter.apply()
 
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
         self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)
-        self.assertAlmostEqual(cloudfilter.minpeak, -8.7346406259)
-        self.assertAlmostEqual(cloudfilter.maxpeak, 1.11645277953)
-        self.assertAlmostEqual(cloudfilter.thres, -3.51935588185)
-        self.assertEqual(np.sum(cloudfilter.mask), 20551)
+        self.assertAlmostEqual(testfilter.minpeak, -8.7346406259)
+        self.assertAlmostEqual(testfilter.maxpeak, 1.11645277953)
+        self.assertAlmostEqual(testfilter.thres, -3.51935588185)
+        self.assertEqual(np.sum(testfilter.mask), 20551)
+
+    def test_masked_cloud_filter(self):
+        # Create cloud filter
+        inarr = np.ma.masked_greater(self.input['ir108'], 275)
+        testfilter = CloudFilter(inarr, **self.input)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
+        self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)
+        self.assertAlmostEqual(testfilter.minpeak, -8.7346406259)
+        self.assertAlmostEqual(testfilter.maxpeak, 1.11645277953)
+        self.assertAlmostEqual(testfilter.thres, -3.51935588185)
+        self.assertEqual(np.sum(testfilter.mask), 20551)
+        self.assertEqual(np.sum(testfilter.inmask), 4653)
+        self.assertEqual(testfilter.new_masked, 15922)
+
+
+class Test_SnowFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 13)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.cwp = inputs[10]
+
+        self.input = {'vis006': self.vis006,
+                      'vis008': self.vis008,
+                      'ir108': self.ir108,
+                      'nir016': self.nir016}
+
+    def tearDown(self):
+        pass
+
+    def test_snow_filter(self):
+        # Create cloud filter
+        testfilter = SnowFilter(self.input['ir108'], **self.input)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
+        self.assertAlmostEqual(self.vis008[25, 100], 13.40515625)
+        self.assertAlmostEqual(testfilter.ndsi[30, 214], 0.12547279)
+        self.assertAlmostEqual(testfilter.ndsi[135, 170], 0.62573861)
+        self.assertEqual(np.sum(testfilter.mask), 577)
+
+
+class Test_IceCloudFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 13)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.cwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+
+        self.input = {'ir108': self.ir108,
+                      'ir120': self.ir120,
+                      'ir087': self.ir087}
+
+    def tearDown(self):
+        pass
+
+    def test_ice_cloud_filter(self):
+        # Create cloud filter
+        testfilter = IceCloudFilter(self.input['ir108'], **self.input)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
+        self.assertAlmostEqual(self.vis008[25, 100], 13.40515625)
+        self.assertAlmostEqual(testfilter.ic_diff[50, 50], -0.91323156)
+        self.assertAlmostEqual(testfilter.ic_diff[110, 70], 3.05561071)
+        self.assertAlmostEqual(testfilter.ic_diff[126, 144], 3.05652842)
+        self.assertEqual(np.sum(testfilter.mask), 36632)
+
+
+class Test_CirrusCloudFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 13)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.cwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+
+        self.input = {'ir108': self.ir108,
+                      'ir120': self.ir120,
+                      'ir087': self.ir087,
+                      'lat': self.lat,
+                      'lon': self.lon,
+                      'time': self.time}
+
+    def tearDown(self):
+        pass
+
+    def test_cirrus_cloud_filter(self):
+        # Create cloud filter
+        testfilter = CirrusCloudFilter(self.input['ir108'], **self.input)
+        ret, mask = testfilter.apply()
+        testfilter.plot_filter()
+        # Evaluate results
+        self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
+        self.assertAlmostEqual(self.vis008[25, 100], 13.40515625)
+        self.assertEqual(np.sum(testfilter.bt_ci_mask |
+                                testfilter.strong_ci_mask),
+                         np.sum(testfilter.mask))
+        self.assertAlmostEqual(testfilter.bt_thres[50, 50], 1.1)
+        self.assertGreater(testfilter.bt_diff[50, 50], testfilter.bt_thres[50,
+                                                                           50])
+        self.assertLess(testfilter.strong_ci_diff[110, 70], 0)
+        self.assertLess(testfilter.bt_diff[110, 70], testfilter.bt_thres[50,
+                                                                         50])
+        self.assertEqual(np.sum(testfilter.mask), 9398)
 
 
 def suite():
@@ -107,6 +261,9 @@ def suite():
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(Test_ArrayFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CloudFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_SnowFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_IceCloudFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_CirrusCloudFilter))
 
     return mysuite
 
