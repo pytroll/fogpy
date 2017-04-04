@@ -35,8 +35,9 @@ from filters import IceCloudFilter
 from filters import CirrusCloudFilter
 from filters import WaterCloudFilter
 from filters import SpatialCloudTopHeightFilter
-from filters import SpatialHomogenityFilter
+from filters import SpatialHomogeneityFilter
 from filters import CloudPhysicsFilter
+from filters import LowCloudFilter
 
 logger = logging.getLogger(__name__)
 
@@ -194,9 +195,9 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                     |
                 8.  Surface homogenity check --------    yes
                                                     |
-                9.  Microphysics plausibility check -
+                9.  Microphysics plausibility check -    yes
                                                     |
-                10.  Differenciate fog - low status -
+                10.  Differenciate fog - low status -    ...
                                                     |
                 11.  Fog dissipation ----------------
                                                     |
@@ -207,7 +208,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
     def isprocessible(self):
         """Test runability here"""
         attrlist = ['ir108', 'ir039', 'vis008', 'nir016', 'vis006', 'ir087',
-                    'ir120', 'lat', 'lon', 'time', 'elev']
+                    'ir120', 'lat', 'lon', 'time', 'elev', 'lwp']
         ret = []
         for attr in attrlist:
             if hasattr(self, attr):
@@ -265,9 +266,6 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                        snowfilter.mask),
                                       self.ir108)
         bt_cloud = np.ma.masked_where(self.mask, self.ir108)
-        elev_cloudfree = np.ma.masked_where((~cloudfilter.mask |
-                                             snowfilter.mask),
-                                            self.elev)
         self.cluster_z = self.get_lowcloud_cth(clusters, bt_clear, bt_cloud,
                                                self.elev)
         # Apply cloud top height filter
@@ -279,22 +277,32 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         self.cluster_cth = cthfilter.cluster_cth
         self.add_mask(cthfilter.mask)
 
-        # 8. Test spatial inhomogenity
-        stdevfilter = SpatialHomogenityFilter(cthfilter.result,
-                                              ir108=self.ir108,
-                                              clusters=clusters)
+        # 8. Test spatial inhomogeneity
+        stdevfilter = SpatialHomogeneityFilter(cthfilter.result,
+                                               ir108=self.ir108,
+                                               clusters=clusters)
         stdevfilter.apply()
         self.add_mask(stdevfilter.mask)
 
-        # 9. Apply clolud mircophysics filter
+        # 9. Apply cloud microphysical filter
         physic_input = self.get_kwargs(['cot', 'reff'])
         physicfilter = CloudPhysicsFilter(stdevfilter.result,
                                           **physic_input)
         physicfilter.apply()
         self.add_mask(physicfilter.mask)
 
+        # 10. Fog - low stratus cloud differentiation
+        # Recalculate clusters
+        clusters = self.get_cloud_cluster(self.mask)
+        lowcloudfilter = LowCloudFilter(physicfilter.result,
+                                        lwp=self.lwp,
+                                        cth=self.cluster_cth,
+                                        ir108=self.ir108,
+                                        clusters=clusters)
+        lowcloudfilter.apply()
+
         # Set results
-        self.result = physicfilter.result
+        self.result = lowcloudfilter.cbh
         self.mask = physicfilter.mask
 
         return True
@@ -387,7 +395,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                      if k != icell or l != jcell]
         center = value[i, j]  # Get center cell value from additional array
 
-        return(center, neighbors)
+        return center, neighbors
 
     def get_lowcloud_cth(self, cluster, cf_arr, bt_cc, elevation):
         """Get neighboring cloud free BT and elevation values of potenital
@@ -421,10 +429,10 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                     maxd = np.nanargmax(tcf_diff)
                 except ValueError:
                     continue
-                # Compute cloud top height with constant athmospere temperature
+                # Compute cloud top height with constant atmosphere temperature
                 # lapse rate
                 rate = 0.65
                 cth = tcf_diff[maxd] / rate * 100 - zcf_diff[maxd]
                 result[val].append(cth)
 
-        return(result)
+        return result

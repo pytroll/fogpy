@@ -185,7 +185,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         ret_brute = self.lwc.optimize_cbh(100., method='brute')
         ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertAlmostEqual(round(ret_brute, 1), 421.)
-        self.assertAlmostEqual(round(ret_basin, 1), 379.1)
+        self.assertIn(round(ret_basin, 1), [379.1, 421.])
 
 def suite():
     """The test suite for test_lowwatercloud.

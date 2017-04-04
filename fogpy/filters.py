@@ -26,10 +26,13 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 
+from collections import defaultdict
 from matplotlib.cm import get_cmap
 from pyorbital import astronomy
 from scipy.signal import find_peaks_cwt
 from scipy import ndimage
+
+from lowwatercloud import LowWaterCloud
 
 logger = logging.getLogger(__name__)
 
@@ -468,7 +471,7 @@ class SpatialCloudTopHeightFilter(BaseArrayFilter):
         return ret
 
 
-class SpatialHomogenityFilter(BaseArrayFilter):
+class SpatialHomogeneityFilter(BaseArrayFilter):
     """Filtering cloud clusters by StDev for satellite images.
     """
     # Required inputs
@@ -482,8 +485,8 @@ class SpatialHomogenityFilter(BaseArrayFilter):
         cloud clusters. Cloud top height standard deviation less than 2.5 are
         filtered.
         """
-        logger.info("Applying Spatial Clustering Inhomogenity Filter")
-        # Surface homogenity test
+        logger.info("Applying Spatial Clustering Inhomogeneity Filter")
+        # Surface homogeneity test
         cluster_mask = self.inmask
         cluster, nlbl = ndimage.label(~self.clusters.mask)
         cluster_ma = np.ma.masked_where(self.inmask, self.clusters)
@@ -491,7 +494,7 @@ class SpatialHomogenityFilter(BaseArrayFilter):
         cluster_sd = ndimage.standard_deviation(self.ir108, cluster_ma,
                                                 index=np.arange(1, nlbl+1))
 
-        # 4. Mask potential fog clouds with high spatial inhomogenity
+        # 4. Mask potential fog clouds with high spatial inhomogeneity
         sd_mask = cluster_sd > 2.5
         cluster_dict = {key: sd_mask[key - 1] for key in np.arange(1, nlbl+1)}
         for val in np.arange(1, nlbl+1):
@@ -548,3 +551,83 @@ class CloudPhysicsFilter(BaseArrayFilter):
         self.filter_stats()
         ret = True
         return ret
+
+
+class LowCloudFilter(BaseArrayFilter):
+    """Filtering low clouds for satellite images.
+    """
+    # Required inputs
+    attrlist = ['lwp', 'cth', 'ir108', 'clusters']
+
+    def filter_function(self):
+        """Cloud microphysics filter routine
+
+        The filter separate low stratus clouds from ground fog clouds
+        by computing the cloud base height with a 1D low cloud model for
+        each cloud cluster
+        """
+        logger.info("Applying Low Cloud Filter")
+        cbh = self.clusters
+        self.cbh = cbh.view('float32')
+        self.cbh[:] = cbh
+        # Compute mean values for cloud clusters
+        lwp_cluster = self.get_cluster_mean(self.clusters, self.lwp * 1000,
+                                            exclude=[0])
+        cth_cluster = self.get_cluster_mean(self.clusters, self.cth,
+                                            exclude=[0])
+        ctt_cluster = self.get_cluster_mean(self.clusters, self.ir108)
+
+        for key in lwp_cluster.keys():
+            try:
+                cbh = self.get_cloud_base_height(lwp_cluster[key],
+                                                 cth_cluster[key],
+                                                 ctt_cluster[key])
+            except KeyError:
+                cbh = np.nan
+
+            self.cbh[self.cbh == key] = cbh
+
+        # Create cloud physics mask for image array
+        self.mask = self.inmask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        self.filter_stats()
+        ret = True
+        return ret
+
+    def get_cloud_base_height(self, lwp, cth, ctt):
+        """ Calculate cloud base heights for low cloud pixels with a
+        numerical 1-D low cloud model and known liquid water path, cloud top
+        height and temperature from satellite retrievals"""
+
+        lowcloud = LowWaterCloud(cth, ctt, lwp)
+        cbh = lowcloud.optimize_cbh(0., method='basin')
+
+        return cbh
+
+    def get_cluster_mean(self, clusters, values, exclude=[0], noneg=True):
+        """Calculate the mean of an array of values for given cluster
+        structures
+        """
+        result = defaultdict(list)
+        if np.ma.isMaskedArray(clusters):
+            clusters = clusters.filled(0)
+        # Calculate mean liquid water potential for clusters
+        for index, key in np.ndenumerate(clusters):
+            if key != 0:
+
+                val = values[index]
+                if val in exclude:
+                    continue
+                elif val < 0 and noneg:
+                    continue
+                else:
+                    result[key].append(val)
+        result = {k: np.mean(v) for k, v in result.iteritems()}
+
+        return result

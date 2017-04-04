@@ -76,7 +76,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
         self.elev = inputs[7]
         self.cot = inputs[8]
         self.reff = inputs[9]
-        self.cwp = inputs[10]
+        self.lwp = inputs[10]
         self.lat = inputs[11]
         self.lon = inputs[12]
 
@@ -94,7 +94,8 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
                       'time': self.time,
                       'elev': self.elev,
                       'cot': self.cot,
-                      'reff': self.reff}
+                      'reff': self.reff,
+                      'lwp': self.lwp}
 
     def tearDown(self):
         pass
