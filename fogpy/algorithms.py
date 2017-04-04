@@ -290,6 +290,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         physic_input = self.get_kwargs(['cot', 'reff'])
         physicfilter = CloudPhysicsFilter(stdevfilter.result,
                                           **physic_input)
+        physicfilter.apply()
         self.add_mask(physicfilter.mask)
 
         # Set results

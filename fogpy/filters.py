@@ -529,14 +529,13 @@ class CloudPhysicsFilter(BaseArrayFilter):
         the range it will now be flagged as a non-fog pixel.
         """
         logger.info("Applying Spatial Clustering Inhomogenity Filter")
+
         if np.ma.isMaskedArray(self.cot):
                 self.cot = self.cot.base
         if np.ma.isMaskedArray(self.reff):
             self.reff = self.reff.base
-
         # Add mask by microphysical thresholds
-        cpp_mask = self.cot > 30 | self.reff > 20e-6
-        print(cpp_mask)
+        cpp_mask = (self.cot > 30) | (self.reff > 20e-6)
         # Create cloud physics mask for image array
         self.mask = cpp_mask
 
