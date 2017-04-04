@@ -29,6 +29,7 @@ import numpy as np
 from matplotlib.cm import get_cmap
 from pyorbital import astronomy
 from scipy.signal import find_peaks_cwt
+from scipy import ndimage
 
 logger = logging.getLogger(__name__)
 
@@ -425,3 +426,86 @@ class WaterCloudFilter(BaseArrayFilter):
                 self.line += 1
 
                 return(res)
+
+
+class SpatialCloudTopHeightFilter(BaseArrayFilter):
+    """Filtering cloud clusters by height for satellite images.
+    """
+    # Required inputs
+    attrlist = ['ir108', 'clusters', 'cluster_z']
+
+    def filter_function(self):
+        """Cloud cluster filter routine
+
+        This filter utilizes spatially clustered cloud objects and their
+        cloud top height to mask cloud clusters with cloud top height above
+        2000 m.
+        """
+        logger.info("Applying Spatial Clustering Cloud Top Height Filter")
+        # Apply maximum threshold for cluster height to identify low fog clouds
+        cluster_mask = self.clusters.mask
+        for key, item in self.cluster_z.iteritems():
+            if any([c > 2000 for c in item]):
+                cluster_mask[self.clusters == key] = True
+
+        # Create additional fog cluster map
+        self.cluster_cth = np.ma.masked_where(cluster_mask, self.clusters)
+        for key, item in self.cluster_z.iteritems():
+            if all([c <= 2000 for c in item]):
+                self.cluster_cth[self.cluster_cth == key] = np.mean(item)
+
+        # Create cluster mask for image array
+        self.mask = cluster_mask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        self.filter_stats()
+        ret = True
+        return ret
+
+
+class SpatialHomogenityFilter(BaseArrayFilter):
+    """Filtering cloud clusters by StDev for satellite images.
+    """
+    # Required inputs
+    attrlist = ['ir108', 'clusters']
+
+    def filter_function(self):
+        """Cloud cluster filter routine
+
+        This filter utilizes spatially clustered cloud objects and their
+        cloud top height to mask cloud clusters with  with spatial inhomogen
+        cloud clusters. Cloud top height standard deviation less than 2.5 are
+        filtered.
+        """
+        logger.info("Applying Spatial Clustering Inhomogenity Filter")
+        # Surface homogenity test
+        cluster_mask = self.inmask
+        cluster, nlbl = ndimage.label(~self.clusters.mask)
+        cluster_ma = np.ma.masked_where(self.inmask, self.clusters)
+
+        cluster_sd = ndimage.standard_deviation(self.ir108, cluster_ma,
+                                                index=np.arange(1, nlbl+1))
+
+        # 4. Mask potential fog clouds with high spatial inhomogenity
+        sd_mask = cluster_sd > 2.5
+        cluster_dict = {key: sd_mask[key - 1] for key in np.arange(1, nlbl+1)}
+        for val in np.arange(1, nlbl+1):
+            cluster_mask[cluster_ma == val] = cluster_dict[val]
+
+        # Create cluster mask for image array
+        self.mask = cluster_mask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        self.filter_stats()
+        ret = True
+        return ret

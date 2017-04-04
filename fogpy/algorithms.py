@@ -34,6 +34,8 @@ from filters import SnowFilter
 from filters import IceCloudFilter
 from filters import CirrusCloudFilter
 from filters import WaterCloudFilter
+from filters import SpatialCloudTopHeightFilter
+from filters import SpatialHomogenityFilter
 
 logger = logging.getLogger(__name__)
 
@@ -187,9 +189,9 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                     |
                 6.  Spatial clustering---------------    yes
                                                     |
-                7.  Maximum margin elevation --------
+                7.  Maximum margin elevation --------    yes
                                                     |
-                8.  Surface homogenity check --------
+                8.  Surface homogenity check --------    yes
                                                     |
                 9.  Microphysics plausibility check -
                                                     |
@@ -267,23 +269,24 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                             self.elev)
         self.cluster_z = self.get_lowcloud_cth(clusters, bt_clear, bt_cloud,
                                                self.elev)
+        # Apply cloud top height filter
+        cthfilter = SpatialCloudTopHeightFilter(waterfilter.result,
+                                                ir108=self.ir108,
+                                                clusters=clusters,
+                                                cluster_z=self.cluster_z)
+        cthfilter.apply()
+        self.cluster_cth = cthfilter.cluster_cth
+        self.add_mask(cthfilter.mask)
 
-        # Apply maximum threshold for cluster height to identify low fog clouds
-        cluster_mask = clusters.mask
-        for key, item in self.cluster_z.iteritems():
-            if any([c > 2000 for c in item]):
-                cluster_mask[clusters == key] = True
-
-        # Create additional fog cluster map
-        self.cluster_cth = np.ma.masked_where(cluster_mask, clusters)
-        for key, item in self.cluster_z.iteritems():
-            if all([c <= 2000 for c in item]):
-                self.cluster_cth[self.cluster_cth == key] = np.mean(item)
-        self.add_mask(cluster_mask)
-
+        # 8. Test spatial inhomogenity
+        stdevfilter = SpatialHomogenityFilter(cthfilter.result,
+                                              ir108=self.ir108,
+                                              clusters=clusters)
+        stdevfilter.apply()
+        self.add_mask(stdevfilter.mask)
         # Set results
-        self.result = self.cluster_cth
-        self.mask = cluster_mask
+        self.result = stdevfilter.result
+        self.mask = stdevfilter.mask
 
         return True
 
@@ -402,8 +405,6 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                 zcc, zneigh = self.cell_neighbors(elevation, i=index[0],
                                                   j=index[1], d=1,
                                                   value=elevation)
-                #print(tcc, tneigh)
-                #print(zcc, zneigh)
                 tcf_diff = np.array([tcf - tcc for tcf in tneigh])
                 zcf_diff = np.array([zcf - zcc for zcf in zneigh])
                 # Get maximum bt difference
