@@ -91,7 +91,8 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
                       'ir087': self.ir087,
                       'lat': self.lat,
                       'lon': self.lon,
-                      'time': self.time}
+                      'time': self.time,
+                      'elev': self.elev}
 
     def tearDown(self):
         pass
@@ -100,10 +101,50 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
         flsalgo = FogLowStratusAlgorithm(**self.input)
         ret, mask = flsalgo.run()
         flsalgo.plot_result()
-        self.assertEqual(flsalgo.ir108.shape, (141, 298, 1))
-        self.assertEqual(ret.shape, (141, 298, 1))
-        self.assertEqual(flsalgo.shape, (141, 298, 1))
+        self.assertEqual(flsalgo.ir108.shape, (141, 298))
+        self.assertEqual(ret.shape, (141, 298))
+        self.assertEqual(flsalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
+        self.assertLessEqual(np.nanmax(flsalgo.cluster_cth), 2000)
+
+    def test_fls_cth_tdiff(self):
+        flsalgo = FogLowStratusAlgorithm(**self.input)
+        # Prepare input for cluster height detection
+        testshp = (5, 5)
+        testmask = np.ma.make_mask(np.ones(testshp))
+        cfmask = ~testmask
+        cfmask[2, 2] = True
+        ccmask = ~cfmask
+        cluster = np.ma.masked_array(np.ones(testshp, dtype=np.int8),
+                                     mask=ccmask)
+        cf_arr = np.ma.masked_array(np.full(testshp, 280.), mask=cfmask)
+        bt_cc = np.ma.masked_array(np.full(testshp, 250), mask=ccmask)
+        elevation = np.full(testshp, 0)
+        # Test height detection
+        testcth = flsalgo.get_lowcloud_cth(cluster, cf_arr, bt_cc, elevation)
+        comparecth = (280 - 250) / 0.65 * 100 - (0 - 0)
+        # Evaluate results
+        self.assertAlmostEqual(testcth[1][0], comparecth)
+
+    def test_fls_cth_zdiff(self):
+        flsalgo = FogLowStratusAlgorithm(**self.input)
+        # Prepare input for cluster height detection
+        testshp = (5, 5)
+        testmask = np.ma.make_mask(np.ones(testshp))
+        cfmask = ~testmask
+        cfmask[2, 2] = True
+        ccmask = ~cfmask
+        cluster = np.ma.masked_array(np.ones(testshp, dtype=np.int8),
+                                     mask=ccmask)
+        cf_arr = np.ma.masked_array(np.full(testshp, 280.), mask=cfmask)
+        bt_cc = np.ma.masked_array(np.full(testshp, 250), mask=ccmask)
+        elevation = np.full(testshp, 2000)
+        elevation[2, 2] = 0
+        # Test height detection
+        testcth = flsalgo.get_lowcloud_cth(cluster, cf_arr, bt_cc, elevation)
+        comparecth = (280 - 250) / 0.65 * 100 - (2000 - 0)
+        # Evaluate results
+        self.assertAlmostEqual(testcth[1][0], comparecth)
 
 
 def suite():

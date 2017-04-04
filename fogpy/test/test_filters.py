@@ -294,7 +294,6 @@ class Test_WaterCloudFilter(unittest.TestCase):
         # Create cloud filter
         testfilter = WaterCloudFilter(self.input['ir108'], **self.input)
         ret, mask = testfilter.apply()
-        testfilter.plot_filter()
 
         # Evaluate results
         cloud_free_ma = np.ma.masked_where(~testfilter.cloudmask,
