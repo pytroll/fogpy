@@ -366,14 +366,14 @@ class WaterCloudFilter(BaseArrayFilter):
     """Water cloud filtering for satellite images.
     """
     # Required inputs
-    attrlist = ['ir120', 'ir087', 'ir108']
+    attrlist = ['vis006', 'nir016', 'ir039', 'cloudmask']
 
     def filter_function(self):
         """Water cloud filter routine
 
         Apply a weaker cloud phase test in order to get an estimate regarding
         their phase. This test uses the NDSI introduced above. Where it falls
-        below 0.1, a water cloud is assumed to be present. 
+        below 0.1, a water cloud is assumed to be present.
         Afterwards a small droplet proxy tes is being performed. Fog generally
         has a stronger signal at 3.9 μm than clear ground, which in turn
         radiates more than other clouds. The 3.9 μm radiances for cloud-free
@@ -382,41 +382,24 @@ class WaterCloudFilter(BaseArrayFilter):
         exceeds this value, it is flagged.
         """
         logger.info("Applying Water Cloud Filter")
-        # Weal water cloud test
-        self.ndsi_ci = (self.vis006 - self.vis016) / (self.vis006 +
-                                                      self.vis016)
+        # Weak water cloud test with NDSI
+        self.ndsi_ci = (self.vis006 - self.nir016) / (self.vis006 +
+                                                      self.nir016)
         water_mask = self.ndsi_ci > 0.1
         # Small droplet proxy test
-        cloud_free_ma = np.ma.masked_where(~cloud_mask, chn39)
-        chn39_ma = np.ma.masked_where(cloud_mask | snow_mask | ice_mask |
-                                      cirrus_mask | water_mask, chn39)
+        # Get only cloud free pixels
+        cloud_free_ma = np.ma.masked_where(~self.cloudmask, self.ir039)
         # Latitudinal average cloud free radiances
-        lat_cloudfree = np.ma.mean(cloud_free_ma, 1)
+        self.lat_cloudfree = np.ma.mean(cloud_free_ma, 1)
         logger.debug("Mean latitudinal threshold for cloudfree areas: %.2f K"
-                     % np.mean(lat_cloudfree))
-        global line
-        line = 0
-
-        def find_watercloud(lat, thres):
-            """Funciton to compare row of BT with given latitudinal thresholds"""
-            global line
-            if all(lat.mask):
-                res = lat.mask
-            elif np.ma.is_masked(thres[line]):
-                res = lat <= np.mean(lat_cloudfree)
-            else:
-                res = lat <= thres[line]
-            line += 1
-
-            return(res)
-
+                     % np.mean(self.lat_cloudfree))
+        self.line = 0
         # Apply latitudinal threshold to cloudy areas
-        drop_mask = np.apply_along_axis(find_watercloud, 1, chn39,
-                                        lat_cloudfree)
+        drop_mask = np.apply_along_axis(self.find_watercloud, 1, self.ir039,
+                                        self.lat_cloudfree)
 
-        fog_mask = fog_mask | drop_mask
         # Create snow mask for image array
-        self.mask = ice_mask
+        self.mask = water_mask | drop_mask
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 
@@ -427,3 +410,18 @@ class WaterCloudFilter(BaseArrayFilter):
         self.filter_stats()
         ret = True
         return ret
+
+    def find_watercloud(self, lat, thres):
+                """Funciton to compare row of BT with given latitudinal thresholds
+                """
+                if not isinstance(lat, np.ma.masked_array):
+                    lat = np.ma.MaskedArray(lat, mask=np.zeros(lat.shape))
+                if all(lat.mask):
+                    res = lat.mask
+                elif np.ma.is_masked(thres[self.line]):
+                    res = lat <= np.mean(self.lat_cloudfree)
+                else:
+                    res = lat <= thres[self.line]
+                self.line += 1
+
+                return(res)

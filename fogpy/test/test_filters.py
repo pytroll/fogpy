@@ -32,6 +32,7 @@ from fogpy.filters import CloudFilter
 from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
 from fogpy.filters import CirrusCloudFilter
+from fogpy.filters import WaterCloudFilter
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -238,7 +239,7 @@ class Test_CirrusCloudFilter(unittest.TestCase):
         # Create cloud filter
         testfilter = CirrusCloudFilter(self.input['ir108'], **self.input)
         ret, mask = testfilter.apply()
-        testfilter.plot_filter()
+
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
         self.assertAlmostEqual(self.vis008[25, 100], 13.40515625)
@@ -254,6 +255,59 @@ class Test_CirrusCloudFilter(unittest.TestCase):
         self.assertEqual(np.sum(testfilter.mask), 9398)
 
 
+class Test_WaterCloudFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 13)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.cwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+
+        # Create cloud mask
+        testfilter = CloudFilter(self.ir108, ir108=self.ir108,
+                                 ir039=self.ir039)
+        ret, cloudmask = testfilter.apply()
+
+        self.input = {'ir108': self.ir108,
+                      'vis006': self.vis006,
+                      'nir016': self.nir016,
+                      'ir039': self.ir039,
+                      'cloudmask': cloudmask}
+
+    def tearDown(self):
+        pass
+
+    def test_water_cloud_filter(self):
+        # Create cloud filter
+        testfilter = WaterCloudFilter(self.input['ir108'], **self.input)
+        ret, mask = testfilter.apply()
+        testfilter.plot_filter()
+
+        # Evaluate results
+        cloud_free_ma = np.ma.masked_where(~testfilter.cloudmask,
+                                           testfilter.ir039)
+        testmean = np.nanmean(cloud_free_ma[140, :])
+        self.assertEqual(testfilter.lat_cloudfree[140], testmean)
+        self.assertAlmostEqual(np.sum(~testfilter.cloudmask) +
+                               np.sum(testfilter.cloudmask), 42018)
+        self.assertAlmostEqual(np.sum(testfilter.cloudmask), 20551)
+        self.assertEqual(np.sum(testfilter.mask), 19857)
+        self.assertEqual(testfilter.line, 141)
+
+
 def suite():
     """The test suite for test_filter.
     """
@@ -264,6 +318,7 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_SnowFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_IceCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CirrusCloudFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_WaterCloudFilter))
 
     return mysuite
 

@@ -30,6 +30,7 @@ from filters import CloudFilter
 from filters import SnowFilter
 from filters import IceCloudFilter
 from filters import CirrusCloudFilter
+from filters import WaterCloudFilter
 
 logger = logging.getLogger(__name__)
 
@@ -222,9 +223,17 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         cirrusfilter = CirrusCloudFilter(icefilter.result, **cirrus_input)
         cirrusfilter.apply()
 
+        # 5. Water cloud filtering
+        water_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006',
+                                       'ir039'])
+        waterfilter = WaterCloudFilter(icefilter.result,
+                                       cloudmask=cloudfilter.mask,
+                                       **water_input)
+        waterfilter.apply()
+
         # Set results
-        self.result = cirrusfilter.result
-        self.mask = cirrusfilter.mask
+        self.result = waterfilter.result
+        self.mask = waterfilter.mask
 
         return(True)
 
