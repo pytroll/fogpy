@@ -509,3 +509,43 @@ class SpatialHomogenityFilter(BaseArrayFilter):
         self.filter_stats()
         ret = True
         return ret
+
+
+class CloudPhysicsFilter(BaseArrayFilter):
+    """Filtering cloud microphysics for satellite images.
+    """
+    # Required inputs
+    attrlist = ['reff', 'cot']
+
+    def filter_function(self):
+        """Cloud microphysics filter routine
+
+        Typical microphysical parameters for fog were taken from studies.
+        Fog optical depth normally ranges between 0.15 and 30 while droplet
+        effective radius varies between 3 and 12 μm, with a maximum of 20 μm in
+        coastal fog. The respective maxima for optical depth (30) and droplet
+        radius (20 μm) are applied to the low stratus mask as cut-off levels.
+        Where a pixel previously identified as fog/low stratus falls outside
+        the range it will now be flagged as a non-fog pixel.
+        """
+        logger.info("Applying Spatial Clustering Inhomogenity Filter")
+        if np.ma.isMaskedArray(self.cot):
+                self.cot = self.cot.base
+        if np.ma.isMaskedArray(self.reff):
+            self.reff = self.reff.base
+
+        # Add mask by microphysical thresholds
+        cpp_mask = self.cot > 30 | self.reff > 20e-6
+        print(cpp_mask)
+        # Create cloud physics mask for image array
+        self.mask = cpp_mask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def check_results(self):
+        """Check filter results for plausible results"""
+        self.filter_stats()
+        ret = True
+        return ret

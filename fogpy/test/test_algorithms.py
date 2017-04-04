@@ -92,7 +92,9 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
                       'lat': self.lat,
                       'lon': self.lon,
                       'time': self.time,
-                      'elev': self.elev}
+                      'elev': self.elev,
+                      'cot': self.cot,
+                      'reff': self.reff}
 
     def tearDown(self):
         pass

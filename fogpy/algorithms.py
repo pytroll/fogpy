@@ -36,6 +36,7 @@ from filters import CirrusCloudFilter
 from filters import WaterCloudFilter
 from filters import SpatialCloudTopHeightFilter
 from filters import SpatialHomogenityFilter
+from filters import CloudPhysicsFilter
 
 logger = logging.getLogger(__name__)
 
@@ -284,9 +285,16 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                               clusters=clusters)
         stdevfilter.apply()
         self.add_mask(stdevfilter.mask)
+
+        # 9. Apply clolud mircophysics filter
+        physic_input = self.get_kwargs(['cot', 'reff'])
+        physicfilter = CloudPhysicsFilter(stdevfilter.result,
+                                          **physic_input)
+        self.add_mask(physicfilter.mask)
+
         # Set results
-        self.result = stdevfilter.result
-        self.mask = stdevfilter.mask
+        self.result = physicfilter.result
+        self.mask = physicfilter.mask
 
         return True
 
