@@ -445,7 +445,6 @@ class LowWaterCloud(object):
             return(None)
         else:
             extinct = 3 * lwc / (2 * reff * rho)
-        print(extinct)
         return extinct
 
     def get_effective_radius(self, z):
