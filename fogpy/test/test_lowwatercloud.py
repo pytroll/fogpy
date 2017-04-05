@@ -29,7 +29,7 @@ from fogpy.lowwatercloud import CloudLayer
 class Test_LowWaterCloud(unittest.TestCase):
 
     def setUp(self):
-        self.lwc = LowWaterCloud(2000., 255., 400.)
+        self.lwc = LowWaterCloud(2000., 255., 400., 0, 10)
 
     def tearDown(self):
         pass
@@ -187,13 +187,44 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(round(ret_brute, 1), 421.)
         self.assertIn(round(ret_basin, 1), [379.1, 421.])
 
+    def test_get_visibility(self):
+        lwc = LowWaterCloud(2000., 255., 400., 0, 10)
+        vis = self.lwc.get_visibility(1)
+        vis2 = self.lwc.get_visibility(1/1000.)
+        self.assertAlmostEqual(round(vis, 3), 3.912)
+        self.assertAlmostEqual(round(vis2, 0), 3912)
+
+    def test_get_liquid_density(self):
+        lwc = LowWaterCloud(2000., 255., 400., 0)
+        extinct = self.lwc.get_liquid_density(20, 100e5)
+        self.assertAlmostEqual(round(extinct, 3), 1002.66)
+
+    def test_get_effective_radius(self):
+        lwc = LowWaterCloud(1000., 255., 400., reff=10, cbh=0)
+        reff_b = lwc.get_effective_radius(0)
+        reff_m = lwc.get_effective_radius(500)
+        reff_t = lwc.get_effective_radius(lwc.cth)
+        self.assertAlmostEqual(reff_b, 1)
+        self.assertAlmostEqual(reff_m, 5.5)
+        self.assertAlmostEqual(reff_t, 10)
+
+    def test_get_effective_radius_with_cbh(self):
+        lwc = LowWaterCloud(1000., 255., 400., reff=10, cbh=100)
+        reff_b = lwc.get_effective_radius(100)
+        reff_m = lwc.get_effective_radius(550)
+        reff_t = lwc.get_effective_radius(lwc.cth)
+        self.assertAlmostEqual(reff_b, 1)
+        self.assertAlmostEqual(reff_m, 5.5)
+        self.assertAlmostEqual(reff_t, 10)
+
+
 def suite():
     """The test suite for test_lowwatercloud.
     """
     loader = unittest.TestLoader()
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowWaterCloud))
-    
+
     return mysuite
 
 if __name__ == "__main__":
