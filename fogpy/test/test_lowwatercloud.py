@@ -29,7 +29,7 @@ from fogpy.lowwatercloud import CloudLayer
 class Test_LowWaterCloud(unittest.TestCase):
 
     def setUp(self):
-        self.lwc = LowWaterCloud(2000., 255., 400., 0, 10)
+        self.lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)
 
     def tearDown(self):
         pass
@@ -188,7 +188,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertIn(round(ret_basin, 1), [379.1, 421.])
 
     def test_get_visibility(self):
-        lwc = LowWaterCloud(2000., 255., 400., 0, 10)
+        lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)
         vis = self.lwc.get_visibility(1)
         vis2 = self.lwc.get_visibility(1/1000.)
         self.assertAlmostEqual(round(vis, 3), 3.912)
@@ -200,22 +200,28 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(round(extinct, 3), 1002.66)
 
     def test_get_effective_radius(self):
-        lwc = LowWaterCloud(1000., 255., 400., reff=10, cbh=0)
+        lwc = LowWaterCloud(1000., 255., 400., reff=10e-6, cbh=0)
         reff_b = lwc.get_effective_radius(0)
         reff_m = lwc.get_effective_radius(500)
         reff_t = lwc.get_effective_radius(lwc.cth)
-        self.assertAlmostEqual(reff_b, 1)
-        self.assertAlmostEqual(reff_m, 5.5)
-        self.assertAlmostEqual(reff_t, 10)
+        self.assertAlmostEqual(reff_b, 1e-6)
+        self.assertAlmostEqual(reff_m, 5.5e-6)
+        self.assertAlmostEqual(reff_t, 10e-6)
 
     def test_get_effective_radius_with_cbh(self):
-        lwc = LowWaterCloud(1000., 255., 400., reff=10, cbh=100)
+        lwc = LowWaterCloud(1000., 255., 400., reff=10e-6, cbh=100)
         reff_b = lwc.get_effective_radius(100)
         reff_m = lwc.get_effective_radius(550)
         reff_t = lwc.get_effective_radius(lwc.cth)
-        self.assertAlmostEqual(reff_b, 1)
-        self.assertAlmostEqual(reff_m, 5.5)
-        self.assertAlmostEqual(reff_t, 10)
+        self.assertAlmostEqual(reff_b, 1e-6)
+        self.assertAlmostEqual(reff_m, 5.5e-6)
+        self.assertAlmostEqual(reff_t, 10e-6)
+
+    def test_get_fog_cloud_height(self):
+        lwc = LowWaterCloud(2000., 255., 400., 100, 10e-6)
+        lwc.init_cloud_layers(100, 50)
+        fbh = lwc.get_fog_base_height()
+        self.assertAlmostEqual(round(fbh, 0), 125)
 
 
 def suite():

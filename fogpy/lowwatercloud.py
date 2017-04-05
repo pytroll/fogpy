@@ -94,8 +94,8 @@ class CloudLayer(object):
         self.reff = lowcloud.get_effective_radius(self.z)
 
         # Get layer extinction coefficient
-        self.extinct = lowcloud.get_extinct(self.lwc, self.reff, self.lrho *
-                                            1000)
+        self.extinct = lowcloud.get_extinct(self.lwc, self.reff,
+                                            (self.lrho * 1000.))
 
         # Get visibility
         self.visibility = lowcloud.get_visibility(self.extinct)
@@ -189,6 +189,22 @@ class LowWaterCloud(object):
         self.cbh = self.optimize_cbh(start, method='basin')
 
         return self.cbh
+
+    def get_fog_base_height(self):
+        """This method calculate the fog cloud base height for low clouds
+        with visibilities below 1000 m
+        """
+        print(self.reff)
+        print([l.z for l in self.layers])
+        print([l.lwc for l in self.layers])
+        print([l.reff for l in self.layers])
+        print([l.extinct for l in self.layers])
+        print([l.visibility for l in self.layers])
+        fog_z = [l.z for l in self.layers if (l.visibility <= 1000) & (l.visibility is not None)]
+        print(fog_z)
+        fbh = min(fog_z)  # Get lowest heights with visibility treshold
+        print(fbh)
+        return fbh
 
     def get_liquid_water_content(self, z, cth, hrho, lmr, beta, thres,
                                  maxlwc=None):
@@ -438,13 +454,15 @@ class LowWaterCloud(object):
         (diffuse) scattering and molecular absorption.
         Required are the liquid water content, effective radius and
         liquid water density
+        TODO: Recheck the unit of liquid water density g or kg? Should be in g
         """
         if reff is None:
             return None
         elif lwc == 0:
-            return(None)
+            return None
         else:
             extinct = 3 * lwc / (2 * reff * rho)
+
         return extinct
 
     def get_effective_radius(self, z):
@@ -456,8 +474,9 @@ class LowWaterCloud(object):
         if self.reff is None:
             return None
         else:
-            reff = 1 + ((self.reff - 1) / (self.cth - self.cbh)) * (z -
-                                                                    self.cbh)
+            reff = 1e-6 + ((self.reff - 1e-6) / (self.cth -
+                                                 self.cbh)) * (z - self.cbh)
+
         return reff
 
     def plot_lowcloud(self, para, xlabel=None, save=None):
