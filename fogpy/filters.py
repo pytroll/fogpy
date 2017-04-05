@@ -557,38 +557,46 @@ class LowCloudFilter(BaseArrayFilter):
     """Filtering low clouds for satellite images.
     """
     # Required inputs
-    attrlist = ['lwp', 'cth', 'ir108', 'clusters']
+    attrlist = ['lwp', 'cth', 'ir108', 'clusters', 'reff']
+    lwp_corr = 0.88  # Correction factor for 3.7 um LWP retrievals
+    # Reference: (Platnick 2000)
 
     def filter_function(self):
         """Cloud microphysics filter routine
 
         The filter separate low stratus clouds from ground fog clouds
         by computing the cloud base height with a 1D low cloud model for
-        each cloud cluster
+        each cloud cluster.
         """
         logger.info("Applying Low Cloud Filter")
-        cbh = self.clusters
-        self.cbh = cbh.view('float32')
-        self.cbh[:] = cbh
+        # Declare result arrays without copy
+        self.cbh = np.array(self.clusters.shape, dtype=np.float)
+        self.fog_mask = self.clusters.mask
         # Compute mean values for cloud clusters
         lwp_cluster = self.get_cluster_mean(self.clusters, self.lwp * 1000,
                                             exclude=[0])
         cth_cluster = self.get_cluster_mean(self.clusters, self.cth,
                                             exclude=[0])
         ctt_cluster = self.get_cluster_mean(self.clusters, self.ir108)
-
+        reff_cluster = self.get_cluster_mean(self.clusters, self.reff, [],
+                                             False)
+        # Create ground fog and low stratus cloud masks and cbh
         for key in lwp_cluster.keys():
             try:
-                cbh = self.get_cloud_base_height(lwp_cluster[key],
+                cbh = self.get_cloud_base_height(lwp_cluster[key] *
+                                                 self.lwp_corr,
                                                  cth_cluster[key],
-                                                 ctt_cluster[key])
-            except KeyError:
+                                                 ctt_cluster[key],
+                                                 reff_cluster[key])
+            except:
                 cbh = np.nan
-
+                vis = np.nan
             self.cbh[self.cbh == key] = cbh
-
+            # Mask non ground fog clouds
+            #if vis > 1000:
+            #    self.fog_mask[self.cbh == key] = True
         # Create cloud physics mask for image array
-        self.mask = self.inmask
+        self.mask = self.fog_mask
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 
@@ -600,14 +608,19 @@ class LowCloudFilter(BaseArrayFilter):
         ret = True
         return ret
 
-    def get_cloud_base_height(self, lwp, cth, ctt):
+    def get_cloud_base_height(self, lwp, cth, ctt, reff):
         """ Calculate cloud base heights for low cloud pixels with a
         numerical 1-D low cloud model and known liquid water path, cloud top
-        height and temperature from satellite retrievals"""
-
-        lowcloud = LowWaterCloud(cth, ctt, lwp)
-        cbh = lowcloud.optimize_cbh(0., method='basin')
-
+        height / temperature and droplet effective radius from satellite
+        retrievals
+        """
+        # Create instance of low cloud object
+        lowcloud = LowWaterCloud(cth, ctt, lwp, 0, reff)
+        # Calculate cloud base height
+        cbh = lowcloud.optimize_cbh(-300, method='basin')
+        # Get visibility
+        #for l in lowcloud.layers:
+        #    print(l.visibility)
         return cbh
 
     def get_cluster_mean(self, clusters, values, exclude=[0], noneg=True):

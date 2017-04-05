@@ -208,7 +208,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
     def isprocessible(self):
         """Test runability here"""
         attrlist = ['ir108', 'ir039', 'vis008', 'nir016', 'vis006', 'ir087',
-                    'ir120', 'lat', 'lon', 'time', 'elev', 'lwp']
+                    'ir120', 'lat', 'lon', 'time', 'elev', 'lwp', 'reff']
         ret = []
         for attr in attrlist:
             if hasattr(self, attr):
@@ -298,7 +298,8 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                         lwp=self.lwp,
                                         cth=self.cluster_cth,
                                         ir108=self.ir108,
-                                        clusters=clusters)
+                                        clusters=clusters,
+                                        reff=self.reff)
         lowcloudfilter.apply()
 
         # Set results
