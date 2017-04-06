@@ -583,18 +583,25 @@ class LowCloudFilter(BaseArrayFilter):
         # Create ground fog and low stratus cloud masks and cbh
         for key in lwp_cluster.keys():
             try:
-                cbh = self.get_cloud_base_height(lwp_cluster[key] *
-                                                 self.lwp_corr,
-                                                 cth_cluster[key],
-                                                 ctt_cluster[key],
-                                                 reff_cluster[key])
+                #cbh = self.get_cloud_base_height(lwp_cluster[key] *
+                #                                 self.lwp_corr,
+                #                                 cth_cluster[key],
+                #                                 ctt_cluster[key],
+                #                                 reff_cluster[key])
+                lowcloud = LowWaterCloud(cth=cth_cluster[key],
+                                         ctt=ctt_cluster[key],
+                                         cwp=lwp_cluster[key] * self.lwp_corr,
+                                         cbh=0, reff=reff_cluster[key])
+                # Calculate cloud base height
+                cbh = lowcloud.get_cloud_base_height(-100, 'basin')
+                # Get visibility and fog cloud base height
+                fbh = lowcloud.get_fog_base_height()
             except:
                 cbh = np.nan
-                vis = np.nan
-            self.cbh[self.cbh == key] = cbh
+                fbh = np.nan
+            self.cbh[self.cbh == key] = fbh
             # Mask non ground fog clouds
-            #if vis > 1000:
-            #    self.fog_mask[self.cbh == key] = True
+            self.fog_mask[self.clusters == key] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
@@ -619,7 +626,7 @@ class LowCloudFilter(BaseArrayFilter):
         # Calculate cloud base height
         cbh = lowcloud.optimize_cbh(-300, method='basin')
         # Get visibility
-        #for l in lowcloud.layers:
+
         #    print(l.visibility)
         return cbh
 

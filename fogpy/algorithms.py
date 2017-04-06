@@ -304,7 +304,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
         # Set results
         self.result = lowcloudfilter.cbh
-        self.mask = physicfilter.mask
+        self.mask = lowcloudfilter.mask
 
         return True
 
@@ -399,7 +399,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         return center, neighbors
 
     def get_lowcloud_cth(self, cluster, cf_arr, bt_cc, elevation):
-        """Get neighboring cloud free BT and elevation values of potenital
+        """Get neighboring cloud free BT and elevation values of potential
         fog cloud clusters and compute cloud top height from maximum BT
         differences for fog cloud contaminated pixel in comparison to cloud
         free areas and their corresponding elevation using a constant
