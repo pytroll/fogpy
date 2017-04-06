@@ -78,7 +78,7 @@ class CloudLayer(object):
         self.lrho = lowcloud.get_liquid_density(self.press * 100,
                                                 self.check_temp(self.temp,
                                                                 'celsius'))
-
+        self.lrho = 1000
         # Get in cloud mixing ratio beta
         self.beta = lowcloud.get_incloud_mixing_ratio(self.z, lowcloud.cth,
                                                       lowcloud.cbh)
@@ -194,16 +194,9 @@ class LowWaterCloud(object):
         """This method calculate the fog cloud base height for low clouds
         with visibilities below 1000 m
         """
-        print(self.reff)
-        print([l.z for l in self.layers])
-        print([l.lwc for l in self.layers])
-        print([l.reff for l in self.layers])
-        print([l.extinct for l in self.layers])
-        print([l.visibility for l in self.layers])
         fog_z = [l.z for l in self.layers if (l.visibility <= 1000) & (l.visibility is not None)]
-        print(fog_z)
         fbh = min(fog_z)  # Get lowest heights with visibility treshold
-        print(fbh)
+
         return fbh
 
     def get_liquid_water_content(self, z, cth, hrho, lmr, beta, thres,
@@ -428,7 +421,7 @@ class LowWaterCloud(object):
     def get_liquid_density(self, temp, press):
         """Calculate the liquid water density in [kg m-3]
         """
-        t0 = 0  # Reference temperature in [°C]
+        t0 = 0.  # Reference temperature in [°C]
         rho_0 = 999.8  # Density of water for 0°C:  [kg/m3]
         p0 = 1e5  # Air pressure at 0°C in [Pa]
         beta = 0.000088  # Expansion coefficient of water at 10oC: [m3/m3°C]

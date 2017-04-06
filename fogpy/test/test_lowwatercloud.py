@@ -195,9 +195,13 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(round(vis2, 0), 3912)
 
     def test_get_liquid_density(self):
-        lwc = LowWaterCloud(2000., 255., 400., 0)
-        extinct = self.lwc.get_liquid_density(20, 100e5)
-        self.assertAlmostEqual(round(extinct, 3), 1002.66)
+        lwc = LowWaterCloud(2000., 285., 400., 0)
+        rho1 = self.lwc.get_liquid_density(20, 100e5)
+        rho2 = self.lwc.get_liquid_density(4, 1e5)
+        rho3 = self.lwc.get_liquid_density(0, 1e5)
+        self.assertAlmostEqual(round(rho1, 3), 1002.66)
+        self.assertAlmostEqual(round(rho2, 3), 999.448)
+        self.assertAlmostEqual(round(rho3, 3), 999.80)
 
     def test_get_effective_radius(self):
         lwc = LowWaterCloud(1000., 255., 400., reff=10e-6, cbh=0)
@@ -218,7 +222,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(reff_t, 10e-6)
 
     def test_get_fog_cloud_height(self):
-        lwc = LowWaterCloud(2000., 255., 400., 100, 10e-6)
+        lwc = LowWaterCloud(2000., 275., 400., 100, 10e-6)
         lwc.init_cloud_layers(100, 50)
         fbh = lwc.get_fog_base_height()
         self.assertAlmostEqual(round(fbh, 0), 125)
