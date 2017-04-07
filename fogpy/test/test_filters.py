@@ -109,6 +109,19 @@ class Test_CloudFilter(unittest.TestCase):
         self.assertAlmostEqual(testfilter.thres, -3.51935588185)
         self.assertEqual(np.sum(testfilter.mask), 20551)
 
+    def test_cloud_filter_plot(self):
+        # Create cloud filter
+        testfilter = CloudFilter(self.input['ir108'], **self.input)
+        ret, mask = testfilter.apply()
+        testfilter.plot_filter(save=True)
+        # Evaluate results
+        self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
+        self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)
+        self.assertAlmostEqual(testfilter.minpeak, -8.7346406259)
+        self.assertAlmostEqual(testfilter.maxpeak, 1.11645277953)
+        self.assertAlmostEqual(testfilter.thres, -3.51935588185)
+        self.assertEqual(np.sum(testfilter.mask), 20551)
+
     def test_masked_cloud_filter(self):
         # Create cloud filter
         inarr = np.ma.masked_greater(self.input['ir108'], 275)
@@ -280,7 +293,7 @@ class Test_WaterCloudFilter(unittest.TestCase):
         testfilter = CloudFilter(self.ir108, ir108=self.ir108,
                                  ir039=self.ir039)
         ret, cloudmask = testfilter.apply()
-
+        #testfilter.plot_filter(True)
         self.input = {'ir108': self.ir108,
                       'vis006': self.vis006,
                       'nir016': self.nir016,

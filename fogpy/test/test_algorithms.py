@@ -95,7 +95,10 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
                       'elev': self.elev,
                       'cot': self.cot,
                       'reff': self.reff,
-                      'lwp': self.lwp}
+                      'lwp': self.lwp,
+                      'plot': True,
+                      'save': True,
+                      'dir': '/tmp/FLS'}
 
     def tearDown(self):
         pass

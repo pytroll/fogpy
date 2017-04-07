@@ -67,6 +67,14 @@ class BaseSatelliteAlgorithm(object):
 
                 self.__setattr__(key, value)
 
+        # Set plotting attribute
+        if not hasattr(self, 'save'):
+            self.save = False
+        if not hasattr(self, 'plot'):
+            self.plot = False
+        if not hasattr(self, 'dir'):
+            self.dir = '/tmp'
+
     def run(self):
         """Start the algorithm and return results"""
         if self.isprocessible():
@@ -223,37 +231,48 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         """ Apply different filters and low cloud model to input data"""
         logger.info("Starting fog and low cloud detection algorithm")
         # 1. Cloud filtering
-        cloud_input = self.get_kwargs(['ir108', 'ir039'])
-        cloudfilter = CloudFilter(cloud_input['ir108'], **cloud_input)
+        cloud_input = self.get_kwargs(['ir108', 'ir039', 'time'])
+        cloudfilter = CloudFilter(cloud_input['ir108'], dir=self.dir,
+                                  save=self.save, plot=self.plot,
+                                  **cloud_input)
         cloudfilter.apply()
         self.add_mask(cloudfilter.mask)
 
         # 2. Snow filtering
-        snow_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006'])
-        snowfilter = SnowFilter(cloudfilter.result, **snow_input)
+        snow_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006',
+                                      'time'])
+        snowfilter = SnowFilter(cloudfilter.result, dir=self.dir,
+                                save=self.save, plot=self.plot, **snow_input)
         snowfilter.apply()
         self.add_mask(snowfilter.mask)
 
         # 3. Ice cloud detection
         # Ice cloud exclusion - Only warm fog (i.e. clouds in the water phase)
         # are considered. Warning: No ice fog detection wiht this filter option
-        ice_input = self.get_kwargs(['ir120', 'ir087', 'ir108'])
-        icefilter = IceCloudFilter(snowfilter.result, **ice_input)
+        ice_input = self.get_kwargs(['ir120', 'ir087', 'ir108', 'time'])
+        icefilter = IceCloudFilter(snowfilter.result, save=self.save,
+                                   dir=self.dir, plot=self.plot,
+                                   **ice_input)
         icefilter.apply()
         self.add_mask(icefilter.mask)
 
         # 4. Cirrus cloud filtering
         cirrus_input = self.get_kwargs(['ir120', 'ir087', 'ir108', 'lat',
                                         'lon', 'time'])
-        cirrusfilter = CirrusCloudFilter(icefilter.result, **cirrus_input)
+        cirrusfilter = CirrusCloudFilter(icefilter.result, dir=self.dir,
+                                         save=self.save, plot=self.plot,
+                                         **cirrus_input)
         cirrusfilter.apply()
         self.add_mask(cirrusfilter.mask)
 
         # 5. Water cloud filtering
         water_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006',
-                                       'ir039'])
+                                       'ir039', 'time'])
         waterfilter = WaterCloudFilter(icefilter.result,
                                        cloudmask=cloudfilter.mask,
+                                       dir=self.dir,
+                                       save=self.save,
+                                       plot=self.plot,
                                        **water_input)
         waterfilter.apply()
         self.add_mask(waterfilter.mask)
@@ -272,7 +291,11 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         cthfilter = SpatialCloudTopHeightFilter(waterfilter.result,
                                                 ir108=self.ir108,
                                                 clusters=clusters,
-                                                cluster_z=self.cluster_z)
+                                                cluster_z=self.cluster_z,
+                                                time=self.time,
+                                                dir=self.dir,
+                                                save=self.save,
+                                                plot=self.plot)
         cthfilter.apply()
         self.cluster_cth = cthfilter.cluster_cth
         self.add_mask(cthfilter.mask)
@@ -280,7 +303,11 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # 8. Test spatial inhomogeneity
         stdevfilter = SpatialHomogeneityFilter(cthfilter.result,
                                                ir108=self.ir108,
-                                               clusters=clusters)
+                                               clusters=clusters,
+                                               time=self.time,
+                                               dir=self.dir,
+                                               save=self.save,
+                                               plot=self.plot)
         stdevfilter.apply()
         self.add_mask(stdevfilter.mask)
 
@@ -299,11 +326,15 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                         cth=self.cluster_cth,
                                         ir108=self.ir108,
                                         clusters=clusters,
-                                        reff=self.reff)
+                                        reff=self.reff,
+                                        time=self.time,
+                                        dir=self.dir,
+                                        save=self.save,
+                                        plot=self.plot)
         lowcloudfilter.apply()
 
         # Set results
-        self.result = lowcloudfilter.cbh
+        self.result = lowcloudfilter.result
         self.mask = lowcloudfilter.mask
 
         return True

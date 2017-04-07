@@ -25,8 +25,10 @@ and several class instances for satellite fog detection applications"""
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 from collections import defaultdict
+from datetime import datetime
 from matplotlib.cm import get_cmap
 from pyorbital import astronomy
 from scipy.signal import find_peaks_cwt
@@ -63,6 +65,18 @@ class BaseArrayFilter(object):
             self.mask = None
         # Get class name
         self.name = self.__str__().split(' ')[0].split('.')[-1]
+        # Set time
+        if not hasattr(self, 'time'):
+            self.time = datetime.now()
+            logger.debug('Setting filter reference time to current time: {}'
+                         .format(self.time))
+        # Set plotting attribute
+        if not hasattr(self, 'save'):
+            self.save = False
+        if not hasattr(self, 'plot'):
+            self.plot = False
+        if not hasattr(self, 'dir'):
+            self.dir = '/tmp'
 
     def apply(self):
         """Apply the given filter function"""
@@ -97,6 +111,9 @@ class BaseArrayFilter(object):
 
     def check_results(self):
         """Check filter results for plausible results"""
+        self.filter_stats()
+        if self.plot:
+            self.plot_filter(self.save, self.dir)
         ret = True
         return ret
 
@@ -123,12 +140,42 @@ class BaseArrayFilter(object):
                             self.filter_size, self.filter_num, self.inmask_num,
                             self.new_masked, self.remain_num))
 
-    def plot_filter(self):
+    def plot_filter(self, save=False, dir="/tmp"):
         """Plotting the filter result"""
-        cmap = get_cmap('gray')
-        cmap.set_bad('goldenrod', 1.)
-        imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
-        plt.show()
+        # Get output directory and image name
+        savedir = os.path.join(dir, self.name + '_' +
+                               datetime.strftime(self.time,
+                                                 '%Y%m%d%H%M') + '.png')
+        # Using Trollimage if available, else matplotlib is used to plot
+        try:
+            from trollimage.image import Image
+            from trollimage.colormap import Colormap
+            # Define custom fog colormap
+            fogcol = Colormap((0., (0.0, 0.0, 0.8)),
+                              (1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
+
+            # Create image from data
+            filter_img = Image(self.result.squeeze(), mode='L')
+            filter_img.stretch("crude")
+            # filter_img.colorize(fogcol)
+            if save:
+                # bgimg.convert("RGB")
+                filter_img.save(savedir)
+                # filter_img.merge(bgimg)
+                logger.info("{} results are plotted to: {}". format(self.name,
+                                                                    self.dir))
+            else:
+                filter_img.show()
+        except:
+            cmap = get_cmap('gray')
+            cmap.set_bad('goldenrod', 1.)
+            imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
+            if save:
+                plt.savefig(savedir)
+                logger.info("{} results are plotted to: {}". format(self.name,
+                                                                    self.dir))
+            else:
+                plt.show()
 
 
 class CloudFilter(BaseArrayFilter):
@@ -190,12 +237,6 @@ class CloudFilter(BaseArrayFilter):
 
         return True
 
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
-
     def plot_cloud_hist(self):
         plt.bar(self.hist[1][:-1], self.hist[0])
         plt.title("Histogram with 'auto' bins")
@@ -235,12 +276,6 @@ class SnowFilter(BaseArrayFilter):
 
         return True
 
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
-
 
 class IceCloudFilter(BaseArrayFilter):
     """Ice cloud filtering for satellite images.
@@ -270,18 +305,12 @@ class IceCloudFilter(BaseArrayFilter):
 
         return True
 
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
-
 
 class CirrusCloudFilter(BaseArrayFilter):
     """Thin cirrus cloud filtering for satellite images.
     """
     # Required inputs
-    attrlist = ['ir120', 'ir087', 'ir108', 'lat', 'lon']
+    attrlist = ['ir120', 'ir087', 'ir108', 'lat', 'lon', 'time']
 
     def filter_function(self):
         """Ice cloud filter routine
@@ -334,12 +363,6 @@ class CirrusCloudFilter(BaseArrayFilter):
         self.result = np.ma.array(self.arr, mask=self.mask)
 
         return True
-
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
 
     def find_nearest_lut_sza(self, sza):
         """ Get nearest look up table key value for given ssec(sza)"""
@@ -409,12 +432,6 @@ class WaterCloudFilter(BaseArrayFilter):
 
         return True
 
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
-
     def find_watercloud(self, lat, thres):
                 """Funciton to compare row of BT with given latitudinal thresholds
                 """
@@ -464,12 +481,6 @@ class SpatialCloudTopHeightFilter(BaseArrayFilter):
 
         return True
 
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
-
 
 class SpatialHomogeneityFilter(BaseArrayFilter):
     """Filtering cloud clusters by StDev for satellite images.
@@ -507,12 +518,6 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
 
         return True
 
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
-
 
 class CloudPhysicsFilter(BaseArrayFilter):
     """Filtering cloud microphysics for satellite images.
@@ -546,12 +551,6 @@ class CloudPhysicsFilter(BaseArrayFilter):
 
         return True
 
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
-
 
 class LowCloudFilter(BaseArrayFilter):
     """Filtering low clouds for satellite images.
@@ -570,7 +569,8 @@ class LowCloudFilter(BaseArrayFilter):
         """
         logger.info("Applying Low Cloud Filter")
         # Declare result arrays without copy
-        self.cbh = np.array(self.clusters.shape, dtype=np.float)
+        self.cbh = np.empty(self.clusters.shape, dtype=np.float)
+        self.fbh = np.empty(self.clusters.shape, dtype=np.float)
         self.fog_mask = self.clusters.mask
         # Compute mean values for cloud clusters
         lwp_cluster = self.get_cluster_mean(self.clusters, self.lwp * 1000,
@@ -583,11 +583,6 @@ class LowCloudFilter(BaseArrayFilter):
         # Create ground fog and low stratus cloud masks and cbh
         for key in lwp_cluster.keys():
             try:
-                #cbh = self.get_cloud_base_height(lwp_cluster[key] *
-                #                                 self.lwp_corr,
-                #                                 cth_cluster[key],
-                #                                 ctt_cluster[key],
-                #                                 reff_cluster[key])
                 lowcloud = LowWaterCloud(cth=cth_cluster[key],
                                          ctt=ctt_cluster[key],
                                          cwp=lwp_cluster[key] * self.lwp_corr,
@@ -599,21 +594,16 @@ class LowCloudFilter(BaseArrayFilter):
             except:
                 cbh = np.nan
                 fbh = np.nan
-            self.cbh[self.cbh == key] = fbh
+            self.cbh[self.clusters == key] = cbh
+            self.fbh[self.clusters == key] = fbh
             # Mask non ground fog clouds
-            self.fog_mask[self.clusters == key] = True
+            self.fog_mask[(self.clusters == key) & (self.fbh > 100)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 
         return True
-
-    def check_results(self):
-        """Check filter results for plausible results"""
-        self.filter_stats()
-        ret = True
-        return ret
 
     def get_cloud_base_height(self, lwp, cth, ctt, reff):
         """ Calculate cloud base heights for low cloud pixels with a
