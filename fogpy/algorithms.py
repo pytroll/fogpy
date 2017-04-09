@@ -234,6 +234,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         cloud_input = self.get_kwargs(['ir108', 'ir039', 'time'])
         cloudfilter = CloudFilter(cloud_input['ir108'], dir=self.dir,
                                   save=self.save, plot=self.plot,
+                                  bg_img=self.ir108,
                                   **cloud_input)
         cloudfilter.apply()
         self.add_mask(cloudfilter.mask)
@@ -242,17 +243,18 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         snow_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006',
                                       'time'])
         snowfilter = SnowFilter(cloudfilter.result, dir=self.dir,
-                                save=self.save, plot=self.plot, **snow_input)
+                                save=self.save, plot=self.plot,
+                                bg_img=self.ir108, **snow_input)
         snowfilter.apply()
         self.add_mask(snowfilter.mask)
 
         # 3. Ice cloud detection
         # Ice cloud exclusion - Only warm fog (i.e. clouds in the water phase)
-        # are considered. Warning: No ice fog detection wiht this filter option
+        # are considered. Warning: No ice fog detection with this filter option
         ice_input = self.get_kwargs(['ir120', 'ir087', 'ir108', 'time'])
         icefilter = IceCloudFilter(snowfilter.result, save=self.save,
                                    dir=self.dir, plot=self.plot,
-                                   **ice_input)
+                                   bg_img=self.ir108, **ice_input)
         icefilter.apply()
         self.add_mask(icefilter.mask)
 
@@ -261,18 +263,19 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                         'lon', 'time'])
         cirrusfilter = CirrusCloudFilter(icefilter.result, dir=self.dir,
                                          save=self.save, plot=self.plot,
-                                         **cirrus_input)
+                                         bg_img=self.ir108, **cirrus_input)
         cirrusfilter.apply()
         self.add_mask(cirrusfilter.mask)
 
         # 5. Water cloud filtering
         water_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006',
                                        'ir039', 'time'])
-        waterfilter = WaterCloudFilter(icefilter.result,
+        waterfilter = WaterCloudFilter(cirrusfilter.result,
                                        cloudmask=cloudfilter.mask,
                                        dir=self.dir,
                                        save=self.save,
                                        plot=self.plot,
+                                       bg_img=self.ir108,
                                        **water_input)
         waterfilter.apply()
         self.add_mask(waterfilter.mask)
@@ -293,6 +296,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                 clusters=clusters,
                                                 cluster_z=self.cluster_z,
                                                 time=self.time,
+                                                bg_img=self.ir108,
                                                 dir=self.dir,
                                                 save=self.save,
                                                 plot=self.plot)
@@ -303,6 +307,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # 8. Test spatial inhomogeneity
         stdevfilter = SpatialHomogeneityFilter(cthfilter.result,
                                                ir108=self.ir108,
+                                               bg_img=self.ir108,
                                                clusters=clusters,
                                                time=self.time,
                                                dir=self.dir,
@@ -314,6 +319,11 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # 9. Apply cloud microphysical filter
         physic_input = self.get_kwargs(['cot', 'reff'])
         physicfilter = CloudPhysicsFilter(stdevfilter.result,
+                                          bg_img=self.ir108,
+                                          time=self.time,
+                                          dir=self.dir,
+                                          save=self.save,
+                                          plot=self.plot,
                                           **physic_input)
         physicfilter.apply()
         self.add_mask(physicfilter.mask)
@@ -327,6 +337,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                         ir108=self.ir108,
                                         clusters=clusters,
                                         reff=self.reff,
+                                        bg_img=self.ir108,
                                         time=self.time,
                                         dir=self.dir,
                                         save=self.save,
