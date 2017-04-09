@@ -150,32 +150,44 @@ class BaseArrayFilter(object):
         try:
             from trollimage.image import Image
             from trollimage.colormap import Colormap
-            # Define custom fog colormap
-            fogcol = Colormap((0., (0.0, 0.0, 0.8)),
-                              (1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
-
-            # Create image from data
-            filter_img = Image(self.result.squeeze(), mode='L')
-            filter_img.stretch("crude")
-            # filter_img.colorize(fogcol)
-            if save:
-                # bgimg.convert("RGB")
-                filter_img.save(savedir)
-                # filter_img.merge(bgimg)
-                logger.info("{} results are plotted to: {}". format(self.name,
-                                                                    self.dir))
-            else:
-                filter_img.show()
         except:
             cmap = get_cmap('gray')
             cmap.set_bad('goldenrod', 1.)
             imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
+            plt.axis('off')
             if save:
                 plt.savefig(savedir)
                 logger.info("{} results are plotted to: {}". format(self.name,
                                                                     self.dir))
             else:
                 plt.show()
+        # Define custom fog colormap
+        fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
+                          (1., (1.0, 1.0, 229 / 255.0)))
+        maskcol = (250 / 255.0, 200 / 255.0, 40 / 255.0)
+        # Create image from data
+        filter_img = Image(self.result.squeeze(), mode='L', fill_value=None)
+        filter_img.stretch("crude")
+        filter_img.invert()
+        filter_img.colorize(fogcol)
+        # Get background image
+        bg_img = Image(self.arr.squeeze(), mode='L', fill_value=None)
+        bg_img.stretch("crude")
+        bg_img.convert("RGB")
+        bg_img.resize((self.arr.shape[0] * 5, self.arr.shape[1] * 5))
+        #print(self.result.squeeze().shape)
+        #filter_img.putalpha(self.result.squeeze().mask)
+        filter_img.resize((self.result.shape[0] * 5, self.result.shape[1] * 5))
+        filter_img.merge(bg_img)
+
+        if save:
+            # bgimg.convert("RGB")
+            filter_img.save(savedir)
+            # filter_img.merge(bgimg)
+            logger.info("{} results are plotted to: {}". format(self.name,
+                                                                self.dir))
+        else:
+            filter_img.show()
 
 
 class CloudFilter(BaseArrayFilter):
