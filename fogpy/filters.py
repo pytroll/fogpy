@@ -77,6 +77,8 @@ class BaseArrayFilter(object):
             self.plot = False
         if not hasattr(self, 'dir'):
             self.dir = '/tmp'
+        if not hasattr(self, 'bg_img'):
+            self.bg_img = self.arr
 
     def apply(self):
         """Apply the given filter function"""
@@ -146,6 +148,9 @@ class BaseArrayFilter(object):
         savedir = os.path.join(dir, self.name + '_' +
                                datetime.strftime(self.time,
                                                  '%Y%m%d%H%M') + '.png')
+        maskdir = os.path.join(dir, self.name + '_mask_' +
+                               datetime.strftime(self.time,
+                                                 '%Y%m%d%H%M') + '.png')
         # Using Trollimage if available, else matplotlib is used to plot
         try:
             from trollimage.image import Image
@@ -164,30 +169,37 @@ class BaseArrayFilter(object):
         # Define custom fog colormap
         fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
                           (1., (1.0, 1.0, 229 / 255.0)))
-        maskcol = (250 / 255.0, 200 / 255.0, 40 / 255.0)
+        maskcol = Colormap((1., (230 / 255.0, 50 / 255.0, 50 / 255.0)))
         # Create image from data
         filter_img = Image(self.result.squeeze(), mode='L', fill_value=None)
         filter_img.stretch("crude")
         filter_img.invert()
         filter_img.colorize(fogcol)
         # Get background image
-        bg_img = Image(self.arr.squeeze(), mode='L', fill_value=None)
+        bg_img = Image(self.bg_img.squeeze(), mode='L', fill_value=None)
         bg_img.stretch("crude")
         bg_img.convert("RGB")
-        bg_img.resize((self.arr.shape[0] * 5, self.arr.shape[1] * 5))
-        #print(self.result.squeeze().shape)
-        #filter_img.putalpha(self.result.squeeze().mask)
+        bg_img.invert()
+        bg_img.resize((self.bg_img.shape[0] * 5, self.bg_img.shape[1] * 5))
         filter_img.resize((self.result.shape[0] * 5, self.result.shape[1] * 5))
         filter_img.merge(bg_img)
-
+        # Create mask image
+        mask = self.result.mask.squeeze()
+        mask = np.ma.masked_where(mask == 0, mask)
+        mask_img = Image(mask, mode='L', fill_value=None)
+        mask_img.stretch("crude")
+        mask_img.invert()
+        mask_img.colorize(maskcol)
+        mask_img.resize((self.result.shape[0] * 5, self.result.shape[1] * 5))
+        mask_img.merge(bg_img)
         if save:
-            # bgimg.convert("RGB")
             filter_img.save(savedir)
-            # filter_img.merge(bgimg)
+            mask_img.save(maskdir)
             logger.info("{} results are plotted to: {}". format(self.name,
                                                                 self.dir))
         else:
             filter_img.show()
+            mask_img.show()
 
 
 class CloudFilter(BaseArrayFilter):
@@ -609,7 +621,7 @@ class LowCloudFilter(BaseArrayFilter):
             self.cbh[self.clusters == key] = cbh
             self.fbh[self.clusters == key] = fbh
             # Mask non ground fog clouds
-            self.fog_mask[(self.clusters == key) & (self.fbh > 100)] = True
+            self.fog_mask[(self.clusters == key) & (self.fbh < 100)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
