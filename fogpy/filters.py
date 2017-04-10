@@ -79,6 +79,8 @@ class BaseArrayFilter(object):
             self.dir = '/tmp'
         if not hasattr(self, 'bg_img'):
             self.bg_img = self.arr
+        if not hasattr(self, 'resize'):
+            self.resize = 0
 
     def apply(self):
         """Apply the given filter function"""
@@ -115,7 +117,7 @@ class BaseArrayFilter(object):
         """Check filter results for plausible results"""
         self.filter_stats()
         if self.plot:
-            self.plot_filter(self.save, self.dir)
+            self.plot_filter(self.save, self.dir, self.resize)
         ret = True
         return ret
 
@@ -142,7 +144,7 @@ class BaseArrayFilter(object):
                             self.filter_size, self.filter_num, self.inmask_num,
                             self.new_masked, self.remain_num))
 
-    def plot_filter(self, save=False, dir="/tmp"):
+    def plot_filter(self, save=False, dir="/tmp", resize=0):
         """Plotting the filter result"""
         # Get output directory and image name
         savedir = os.path.join(dir, self.name + '_' +
@@ -171,6 +173,8 @@ class BaseArrayFilter(object):
                           (1., (1.0, 1.0, 229 / 255.0)))
         maskcol = Colormap((1., (230 / 255.0, 50 / 255.0, 50 / 255.0)))
         # Create image from data
+        if self.result is None:
+            self.result = self.arr
         filter_img = Image(self.result.squeeze(), mode='L', fill_value=None)
         filter_img.stretch("crude")
         filter_img.invert()
@@ -180,26 +184,39 @@ class BaseArrayFilter(object):
         bg_img.stretch("crude")
         bg_img.convert("RGB")
         bg_img.invert()
-        bg_img.resize((self.bg_img.shape[0] * 5, self.bg_img.shape[1] * 5))
-        filter_img.resize((self.result.shape[0] * 5, self.result.shape[1] * 5))
-        filter_img.merge(bg_img)
-        # Create mask image
-        mask = self.result.mask.squeeze()
-        mask = np.ma.masked_where(mask == 0, mask)
-        mask_img = Image(mask, mode='L', fill_value=None)
-        mask_img.stretch("crude")
-        mask_img.invert()
-        mask_img.colorize(maskcol)
-        mask_img.resize((self.result.shape[0] * 5, self.result.shape[1] * 5))
-        mask_img.merge(bg_img)
+        if resize != 0:
+            bg_img.resize((self.bg_img.shape[0] * resize,
+                           self.bg_img.shape[1] * resize))
+            filter_img.resize((self.result.shape[0] * resize,
+                               self.result.shape[1] * resize))
+
+        try:
+            # Merging
+            filter_img.merge(bg_img)
+        except:
+            logger.warning("No merging for filter plot possible")
         if save:
             filter_img.save(savedir)
-            mask_img.save(maskdir)
             logger.info("{} results are plotted to: {}". format(self.name,
                                                                 self.dir))
         else:
             filter_img.show()
-            mask_img.show()
+        # Create mask image
+        if isinstance(self.result, np.ma.masked_array):
+            mask = self.result.mask.squeeze()
+            mask = np.ma.masked_where(mask == 1, mask)
+            mask_img = Image(mask, mode='L', fill_value=None)
+            mask_img.stretch("crude")
+            mask_img.invert()
+            mask_img.colorize(fogcol)
+            if resize != 0:
+                mask_img.resize((self.result.shape[0] * resize,
+                                 self.result.shape[1] * resize))
+            # mask_img.merge(bg_img)
+            if save:
+                mask_img.save(maskdir)
+            else:
+                mask_img.show()
 
 
 class CloudFilter(BaseArrayFilter):
@@ -261,10 +278,13 @@ class CloudFilter(BaseArrayFilter):
 
         return True
 
-    def plot_cloud_hist(self):
+    def plot_cloud_hist(self, saveto=None):
         plt.bar(self.hist[1][:-1], self.hist[0])
         plt.title("Histogram with 'auto' bins")
-        plt.show()
+        if saveto is None:
+            plt.show()
+        else:
+            plt.savefig(saveto)
 
 
 class SnowFilter(BaseArrayFilter):

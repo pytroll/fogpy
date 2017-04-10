@@ -24,7 +24,10 @@
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import sys
 
+from datetime import datetime
 from matplotlib.cm import get_cmap
 from numpy.lib.stride_tricks import as_strided
 from scipy.ndimage import measurements
@@ -139,6 +142,34 @@ class BaseSatelliteAlgorithm(object):
             result = arr
 
         return(result)
+
+    def plot_clusters(self, save=False, dir="/tmp"):
+        """Plotting the filter result"""
+        # Get output directory and image name
+        name = self.__class__.__name__
+        savedir = os.path.join(dir, name + '_clusters_' +
+                               datetime.strftime(self.time,
+                                                 '%Y%m%d%H%M') + '.png')
+        # Using Trollimage if available, else matplotlib is used to plot
+        try:
+            from trollimage.image import Image
+            from trollimage.colormap import rainbow
+        except:
+            logger.info("{} results can't be plotted to: {}". format(name,
+                                                                     self.dir))
+            return 0
+        # Create image from data
+        cluster_img = Image(self.clusters.squeeze(), mode='L', fill_value=None)
+        cluster_img.stretch("crude")
+        cluster_img.colorize(rainbow)
+        cluster_img.resize((self.clusters.shape[0] * 5,
+                            self.clusters.shape[1] * 5))
+        if save:
+            cluster_img.save(savedir)
+            logger.info("{} results are plotted to: {}". format(name,
+                                                                self.dir))
+        else:
+            cluster_img.show()
 
 
 class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
@@ -281,19 +312,21 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         self.add_mask(waterfilter.mask)
 
         # 6. Spatial clustering
-        clusters = self.get_cloud_cluster(self.mask)
+        self.clusters = self.get_cloud_cluster(self.mask)
+        if self.plot:
+            self.plot_clusters(self.save, self.dir)
 
         # 7. Calculate cloud top height
         bt_clear = np.ma.masked_where((~cloudfilter.mask |
                                        snowfilter.mask),
                                       self.ir108)
         bt_cloud = np.ma.masked_where(self.mask, self.ir108)
-        self.cluster_z = self.get_lowcloud_cth(clusters, bt_clear, bt_cloud,
-                                               self.elev)
+        self.cluster_z = self.get_lowcloud_cth(self.clusters, bt_clear,
+                                               bt_cloud, self.elev)
         # Apply cloud top height filter
         cthfilter = SpatialCloudTopHeightFilter(waterfilter.result,
                                                 ir108=self.ir108,
-                                                clusters=clusters,
+                                                clusters=self.clusters,
                                                 cluster_z=self.cluster_z,
                                                 time=self.time,
                                                 bg_img=self.ir108,
@@ -308,7 +341,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         stdevfilter = SpatialHomogeneityFilter(cthfilter.result,
                                                ir108=self.ir108,
                                                bg_img=self.ir108,
-                                               clusters=clusters,
+                                               clusters=self.clusters,
                                                time=self.time,
                                                dir=self.dir,
                                                save=self.save,
@@ -330,12 +363,12 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
         # 10. Fog - low stratus cloud differentiation
         # Recalculate clusters
-        clusters = self.get_cloud_cluster(self.mask)
+        self.clusters = self.get_cloud_cluster(self.mask)
         lowcloudfilter = LowCloudFilter(physicfilter.result,
                                         lwp=self.lwp,
                                         cth=self.cluster_cth,
                                         ir108=self.ir108,
-                                        clusters=clusters,
+                                        clusters=self.clusters,
                                         reff=self.reff,
                                         bg_img=self.ir108,
                                         time=self.time,

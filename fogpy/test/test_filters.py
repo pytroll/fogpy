@@ -91,7 +91,8 @@ class Test_CloudFilter(unittest.TestCase):
         # Load test data
         self.ir108, self.ir039 = np.dsplit(testdata, 13)[:2]
         self.input = {'ir108': self.ir108,
-                      'ir039': self.ir039}
+                      'ir039': self.ir039,
+                      'bg_img': self.ir108}
 
     def tearDown(self):
         pass
@@ -100,7 +101,6 @@ class Test_CloudFilter(unittest.TestCase):
         # Create cloud filter
         testfilter = CloudFilter(self.input['ir108'], **self.input)
         ret, mask = testfilter.apply()
-        print(testfilter.result.shape)
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
         self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)
@@ -113,6 +113,7 @@ class Test_CloudFilter(unittest.TestCase):
         # Create cloud filter
         testfilter = CloudFilter(self.input['ir108'], **self.input)
         ret, mask = testfilter.apply()
+        testfilter.plot_cloud_hist('/tmp/cloud_filter_hist_20131120830.png')
         testfilter.plot_filter(save=True)
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
