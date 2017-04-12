@@ -185,7 +185,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         ret_brute = self.lwc.optimize_cbh(100., method='brute')
         ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertAlmostEqual(round(ret_brute, 1), 421.)
-        self.assertIn(round(ret_basin, 1), [379.1, 421.])
+        self.assertIn(round(ret_basin, 0), [479, 478])
 
     def test_get_visibility(self):
         lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)
@@ -226,6 +226,16 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwc.init_cloud_layers(100, 50)
         fbh = lwc.get_fog_base_height()
         self.assertAlmostEqual(round(fbh, 0), 125)
+
+    def test_get_fog_cloud_height2(self):
+        lwc = LowWaterCloud(1000., 275., 100., 100., 10e-6)
+        lwc.init_cloud_layers(100, 10)
+        lwp = lwc.get_liquid_water_path()
+        cbh = lwc.optimize_cbh(lwc.cbh)
+        fbh = lwc.get_fog_base_height()
+        self.assertAlmostEqual(round(lwc.lwp, 3), 100)
+        self.assertAlmostEqual(round(lwc.maxlwc, 3), 0.494)
+        self.assertAlmostEqual(round(fbh, 0), 612)
 
 
 def suite():

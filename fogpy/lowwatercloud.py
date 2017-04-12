@@ -49,6 +49,10 @@ class CloudLayer(object):
         self.bottom = bottom  # Bottom height of the cloud layer
         self.top = top  # Top height of the cloud layer
         self.z = top - (top - bottom) / 2  # Central layer height
+        # Fix maximum z hieght to cloud top height from cloud object
+        # Height optimasation can provoke layers above the cth
+        if self.z > lowcloud.cth:
+            self.z = lowcloud.cth
 
         # Get temperaure and air presure
         self.temp = lowcloud.get_moist_adiabatic_lapse_temp(self.z,
@@ -78,7 +82,7 @@ class CloudLayer(object):
         self.lrho = lowcloud.get_liquid_density(self.press * 100,
                                                 self.check_temp(self.temp,
                                                                 'celsius'))
-        self.lrho = 1000
+        self.lrho = 1000  # TODO Fix liquid water density method
         # Get in cloud mixing ratio beta
         self.beta = lowcloud.get_incloud_mixing_ratio(self.z, lowcloud.cth,
                                                       lowcloud.cbh)
@@ -138,7 +142,7 @@ class LowWaterCloud(object):
     """ A class to simulate the water content of a low cloud and calculate its
     meteorological properties"""
     def __init__(self, cth=None, ctt=None, cwp=None, cbh=0, reff=None,
-                 cbt=None, upthres=50., lowthres=75., thickness=10):
+                 cbt=None, upthres=50., lowthres=75., thickness=10.):
         self.cth = cth  # Cloud top height
         self.ctt = ctt  # Cloud top temperature
         self.cbh = cbh  # Cloud base height
@@ -147,9 +151,9 @@ class LowWaterCloud(object):
         self.reff = reff  # Droplet effective radius
         self.layers = []  # List of cloud layers
         self.vapour_method = "magnus"  # Method for saturated vapour pressure
-        self.cb_vmr = None
-        self.upthres = upthres
-        self.lowthres = lowthres
+        self.cb_vmr = None  # Water vapour mixing ratio
+        self.upthres = upthres  # Top layer thickness with dry air entrainment
+        self.lowthres = lowthres  # Bottom layer thickness with coupling
         self.thickness = thickness
         # Get maximal liquid water content underneath cloud top
         self.maxlwc = None
@@ -161,8 +165,8 @@ class LowWaterCloud(object):
         self.get_cloud_based_vapour_mixing_ratio()
 
         # Get maximal liquid water content underneath cloud top
-        maxlwc_layer = CloudLayer(self.cth - self.upthres - 5,
-                                  self.cth - self.upthres + 5,
+        maxlwc_layer = CloudLayer(self.cth - self.upthres - thickness,
+                                  self.cth - self.upthres + thickness,
                                   self, False)
         self.maxlwc = maxlwc_layer.lwc
 
@@ -171,13 +175,13 @@ class LowWaterCloud(object):
         if overwrite:
             self.layers = []
         # Cloud base layer
-        CloudLayer(init_cbh - 5, init_cbh + 5, self)
+        CloudLayer(init_cbh - thickness, init_cbh + thickness, self)
         # Loop over layers
         layerrange = np.arange(init_cbh, self.cth, thickness)
         for b in layerrange:
             CloudLayer(b, b + thickness, self)
         # Cloud top layer
-        CloudLayer(self.cth - 5, self.cth + 5, self)
+        CloudLayer(self.cth - thickness, self.cth + thickness, self)
 
         #logger.info("Initialize {} cloud layers with {} m thickness"
         #            " and {} m cbh"
@@ -212,6 +216,10 @@ class LowWaterCloud(object):
                 self.maxlwc = maxlwc
 
             lwc = (cth - z) / (thres) * maxlwc
+            # Test if liquid water content is negativ
+            # This occures while optimizing with cbh=cth
+            if lwc < 0:
+                lwc = 0  # Set lwc to zero
         else:
             lwc = (1 - beta) * hrho * lmr
 
@@ -393,7 +401,7 @@ class LowWaterCloud(object):
                                start,
                                T=10.0,
                                minimizer_kwargs=minimizer_kwargs,
-                               niter=100,
+                               niter=10,
                                niter_success=5)
             result = ret.x[0]
             logger.debug('Optimized liquid water path: start cbh: {}, cth: {},'
@@ -440,6 +448,9 @@ class LowWaterCloud(object):
             return None
         else:
             vis = (1 / extinct) * math.log(1 / contrast)
+            # Remove negative visibilities
+            if vis < 0:
+                vis = 0
         return vis
 
     def get_extinct(self, lwc, reff, rho):
@@ -479,7 +490,12 @@ class LowWaterCloud(object):
             logger.info("No layer found. Nothing to plot")
         heights = [getattr(l, 'z') for l in self.layers]
         paralist = [getattr(l, para) for l in self.layers]
+        plt.figure()
         plt.plot(paralist, heights)
+        plt.ylim((0, max(heights) + 50))
+        plt.axvline(0, color='grey', ls='--')
+        plt.axhline(self.cth, color='grey', ls='--')
+        plt.axhline(self.cbh, color='grey', ls='--')
         plt.ylabel('Cloud height z in [m]')
         if xlabel is not None:
             plt.xlabel(xlabel)
