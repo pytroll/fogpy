@@ -30,6 +30,7 @@ import os
 from collections import defaultdict
 from datetime import datetime
 from matplotlib.cm import get_cmap
+import multiprocessing as mp
 from pyorbital import astronomy
 from scipy.signal import find_peaks_cwt
 from scipy import ndimage
@@ -605,7 +606,11 @@ class LowCloudFilter(BaseArrayFilter):
     """
     # Required inputs
     attrlist = ['lwp', 'cth', 'ir108', 'clusters', 'reff', 'elev']
-
+    # Get number of cores
+    if not hasattr(self, 'nprocs'):
+        nprocs = mp.cpu_count()
+    # Creating process pool
+    pool = mp.Pool(nprocs)
     # Correction factor for 3.7 um LWP retrievals
     lwp_corr = 0.88  # Reference: (Platnick 2000)
 
