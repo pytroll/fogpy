@@ -32,7 +32,7 @@ from fogpy.algorithms import FogLowStratusAlgorithm
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
-# lat, lon
+# lat, lon, cth
 # Use indexing and np.dsplit(testdata, 13) to extract specific products
 
 # Import test data
@@ -67,7 +67,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        inputs = np.dsplit(testdata, 13)
+        inputs = np.dsplit(testdata, 14)
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
         self.vis008 = inputs[2]
@@ -81,6 +81,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
         self.lwp = inputs[10]
         self.lat = inputs[11]
         self.lon = inputs[12]
+        self.cth = inputs[13]
 
         self.time = datetime(2013, 11, 12, 8, 30, 00)
 
@@ -98,12 +99,13 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
                       'cot': self.cot,
                       'reff': self.reff,
                       'lwp': self.lwp,
+                      'cth': self.cth,
                       'plot': True,
                       'save': True,
                       'dir': '/tmp/FLS',
                       'resize': '5'}
         # Load second test dataset
-        inputs = np.dsplit(testdata2, 13)
+        inputs = np.dsplit(testdata2, 14)
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
         self.vis008 = inputs[2]
@@ -117,6 +119,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
         self.lwp = inputs[10]
         self.lat = inputs[11]
         self.lon = inputs[12]
+        self.cth = inputs[13]
 
         self.time2 = datetime(2014, 8, 27, 7, 15)
 
@@ -134,6 +137,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
                        'cot': self.cot,
                        'reff': self.reff,
                        'lwp': self.lwp,
+                       'cth': self.cth,
                        'plot': True,
                        'save': True,
                        'dir': '/tmp/FLS',

@@ -36,7 +36,7 @@ from fogpy.filters import WaterCloudFilter
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
-# lat, lon
+# lat, lon, cth
 # Use indexing and np.dsplit(testdata, 13) to extract specific products
 
 # Import test data
@@ -91,7 +91,7 @@ class Test_CloudFilter(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        self.ir108, self.ir039 = np.dsplit(testdata, 13)[:2]
+        self.ir108, self.ir039 = np.dsplit(testdata, 14)[:2]
         self.input = {'ir108': self.ir108,
                       'ir039': self.ir039,
                       'bg_img': self.ir108}
@@ -146,7 +146,7 @@ class Test_SnowFilter(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        inputs = np.dsplit(testdata, 13)
+        inputs = np.dsplit(testdata, 14)
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
         self.vis008 = inputs[2]
@@ -184,7 +184,7 @@ class Test_IceCloudFilter(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        inputs = np.dsplit(testdata, 13)
+        inputs = np.dsplit(testdata, 14)
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
         self.vis008 = inputs[2]
@@ -198,6 +198,7 @@ class Test_IceCloudFilter(unittest.TestCase):
         self.cwp = inputs[10]
         self.lat = inputs[11]
         self.lon = inputs[12]
+        self.cth = inputs[13]
 
         self.input = {'ir108': self.ir108,
                       'ir120': self.ir120,
@@ -224,7 +225,7 @@ class Test_CirrusCloudFilter(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        inputs = np.dsplit(testdata, 13)
+        inputs = np.dsplit(testdata, 14)
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
         self.vis008 = inputs[2]
@@ -238,6 +239,7 @@ class Test_CirrusCloudFilter(unittest.TestCase):
         self.cwp = inputs[10]
         self.lat = inputs[11]
         self.lon = inputs[12]
+        self.cth = inputs[13]
 
         self.time = datetime(2013, 11, 12, 8, 30, 00)
 
@@ -275,7 +277,7 @@ class Test_WaterCloudFilter(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        inputs = np.dsplit(testdata, 13)
+        inputs = np.dsplit(testdata, 14)
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
         self.vis008 = inputs[2]
@@ -289,6 +291,7 @@ class Test_WaterCloudFilter(unittest.TestCase):
         self.cwp = inputs[10]
         self.lat = inputs[11]
         self.lon = inputs[12]
+        self.cth = inputs[13]
 
         self.time = datetime(2013, 11, 12, 8, 30, 00)
 
