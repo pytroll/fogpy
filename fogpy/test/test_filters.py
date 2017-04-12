@@ -42,7 +42,9 @@ from fogpy.filters import WaterCloudFilter
 # Import test data
 base = os.path.split(fogpy.__file__)
 testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
+testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testdata = np.load(testfile)
+testdata2 = np.load(testfile2)
 
 
 class Test_ArrayFilter(unittest.TestCase):
@@ -294,7 +296,6 @@ class Test_WaterCloudFilter(unittest.TestCase):
         testfilter = CloudFilter(self.ir108, ir108=self.ir108,
                                  ir039=self.ir039)
         ret, cloudmask = testfilter.apply()
-        #testfilter.plot_filter(True)
         self.input = {'ir108': self.ir108,
                       'vis006': self.vis006,
                       'nir016': self.nir016,

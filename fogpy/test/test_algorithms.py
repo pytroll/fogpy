@@ -38,7 +38,9 @@ from fogpy.algorithms import FogLowStratusAlgorithm
 # Import test data
 base = os.path.split(fogpy.__file__)
 testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
+testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testdata = np.load(testfile)
+testdata2 = np.load(testfile2)
 
 
 class Test_BaseSatelliteAlgorithm(unittest.TestCase):
@@ -98,7 +100,44 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
                       'lwp': self.lwp,
                       'plot': True,
                       'save': True,
-                      'dir': '/tmp/FLS'}
+                      'dir': '/tmp/FLS',
+                      'resize': '5'}
+        # Load second test dataset
+        inputs = np.dsplit(testdata2, 13)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.lwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+
+        self.time2 = datetime(2014, 8, 27, 7, 15)
+
+        self.input2 = {'vis006': self.vis006,
+                       'vis008': self.vis008,
+                       'ir108': self.ir108,
+                       'nir016': self.nir016,
+                       'ir039': self.ir039,
+                       'ir120': self.ir120,
+                       'ir087': self.ir087,
+                       'lat': self.lat,
+                       'lon': self.lon,
+                       'time': self.time2,
+                       'elev': self.elev,
+                       'cot': self.cot,
+                       'reff': self.reff,
+                       'lwp': self.lwp,
+                       'plot': True,
+                       'save': True,
+                       'dir': '/tmp/FLS',
+                       'resize': '5'}
 
     def tearDown(self):
         pass
@@ -106,7 +145,16 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
     def test_fls_algorithm(self):
         flsalgo = FogLowStratusAlgorithm(**self.input)
         ret, mask = flsalgo.run()
-        flsalgo.plot_result()
+        self.assertEqual(flsalgo.ir108.shape, (141, 298))
+        self.assertEqual(ret.shape, (141, 298))
+        self.assertEqual(flsalgo.shape, (141, 298))
+        self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
+        self.assertLessEqual(np.nanmax(flsalgo.cluster_cth), 2000)
+
+    # Using other tset data set
+    def test_fls_algorithm_other(self):
+        flsalgo = FogLowStratusAlgorithm(**self.input2)
+        ret, mask = flsalgo.run()
         self.assertEqual(flsalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(flsalgo.shape, (141, 298))

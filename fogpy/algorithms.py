@@ -77,6 +77,8 @@ class BaseSatelliteAlgorithm(object):
             self.plot = False
         if not hasattr(self, 'dir'):
             self.dir = '/tmp'
+        if not hasattr(self, 'resize'):
+            self.resize = 0
 
     def run(self):
         """Start the algorithm and return results"""
@@ -262,50 +264,46 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         """ Apply different filters and low cloud model to input data"""
         logger.info("Starting fog and low cloud detection algorithm")
         # 1. Cloud filtering
-        cloud_input = self.get_kwargs(['ir108', 'ir039', 'time'])
-        cloudfilter = CloudFilter(cloud_input['ir108'], dir=self.dir,
-                                  save=self.save, plot=self.plot,
-                                  bg_img=self.ir108,
+        cloud_input = self.get_kwargs(['ir108', 'ir039', 'time', 'save',
+                                       'resize', 'plot', 'dir'])
+        cloudfilter = CloudFilter(cloud_input['ir108'], bg_img=self.ir108,
                                   **cloud_input)
         cloudfilter.apply()
         self.add_mask(cloudfilter.mask)
 
         # 2. Snow filtering
         snow_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006',
-                                      'time'])
-        snowfilter = SnowFilter(cloudfilter.result, dir=self.dir,
-                                save=self.save, plot=self.plot,
-                                bg_img=self.ir108, **snow_input)
+                                      'time', 'save', 'resize', 'plot', 'dir'])
+        snowfilter = SnowFilter(cloudfilter.result, bg_img=self.ir108,
+                                **snow_input)
         snowfilter.apply()
         self.add_mask(snowfilter.mask)
 
         # 3. Ice cloud detection
         # Ice cloud exclusion - Only warm fog (i.e. clouds in the water phase)
         # are considered. Warning: No ice fog detection with this filter option
-        ice_input = self.get_kwargs(['ir120', 'ir087', 'ir108', 'time'])
-        icefilter = IceCloudFilter(snowfilter.result, save=self.save,
-                                   dir=self.dir, plot=self.plot,
-                                   bg_img=self.ir108, **ice_input)
+        ice_input = self.get_kwargs(['ir120', 'ir087', 'ir108', 'time', 'save',
+                                     'resize', 'plot', 'dir'])
+        icefilter = IceCloudFilter(snowfilter.result, bg_img=self.ir108,
+                                   **ice_input)
         icefilter.apply()
         self.add_mask(icefilter.mask)
 
         # 4. Cirrus cloud filtering
         cirrus_input = self.get_kwargs(['ir120', 'ir087', 'ir108', 'lat',
-                                        'lon', 'time'])
-        cirrusfilter = CirrusCloudFilter(icefilter.result, dir=self.dir,
-                                         save=self.save, plot=self.plot,
-                                         bg_img=self.ir108, **cirrus_input)
+                                        'lon', 'time', 'save', 'resize',
+                                        'plot', 'dir'])
+        cirrusfilter = CirrusCloudFilter(icefilter.result, bg_img=self.ir108,
+                                         **cirrus_input)
         cirrusfilter.apply()
         self.add_mask(cirrusfilter.mask)
 
         # 5. Water cloud filtering
         water_input = self.get_kwargs(['ir108', 'vis008', 'nir016', 'vis006',
-                                       'ir039', 'time'])
+                                       'ir039', 'time', 'save', 'resize',
+                                       'plot', 'dir'])
         waterfilter = WaterCloudFilter(cirrusfilter.result,
                                        cloudmask=cloudfilter.mask,
-                                       dir=self.dir,
-                                       save=self.save,
-                                       plot=self.plot,
                                        bg_img=self.ir108,
                                        **water_input)
         waterfilter.apply()
@@ -332,7 +330,8 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                 bg_img=self.ir108,
                                                 dir=self.dir,
                                                 save=self.save,
-                                                plot=self.plot)
+                                                plot=self.plot,
+                                                resize=self.resize)
         cthfilter.apply()
         self.cluster_cth = cthfilter.cluster_cth
         self.add_mask(cthfilter.mask)
@@ -345,18 +344,16 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                time=self.time,
                                                dir=self.dir,
                                                save=self.save,
-                                               plot=self.plot)
+                                               plot=self.plot,
+                                               resize=self.resize)
         stdevfilter.apply()
         self.add_mask(stdevfilter.mask)
 
         # 9. Apply cloud microphysical filter
-        physic_input = self.get_kwargs(['cot', 'reff'])
+        physic_input = self.get_kwargs(['cot', 'reff', 'time', 'save',
+                                        'resize', 'plot', 'dir'])
         physicfilter = CloudPhysicsFilter(stdevfilter.result,
                                           bg_img=self.ir108,
-                                          time=self.time,
-                                          dir=self.dir,
-                                          save=self.save,
-                                          plot=self.plot,
                                           **physic_input)
         physicfilter.apply()
         self.add_mask(physicfilter.mask)
@@ -364,17 +361,13 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # 10. Fog - low stratus cloud differentiation
         # Recalculate clusters
         self.clusters = self.get_cloud_cluster(self.mask)
+        lowcloud_input = self.get_kwargs(['ir108', 'lwp', 'reff', 'elev',
+                                          'time', 'save', 'resize', 'plot',
+                                          'dir'])
         lowcloudfilter = LowCloudFilter(physicfilter.result,
-                                        lwp=self.lwp,
                                         cth=self.cluster_cth,
-                                        ir108=self.ir108,
                                         clusters=self.clusters,
-                                        reff=self.reff,
-                                        bg_img=self.ir108,
-                                        time=self.time,
-                                        dir=self.dir,
-                                        save=self.save,
-                                        plot=self.plot)
+                                        bg_img=self.ir108, **lowcloud_input)
         lowcloudfilter.apply()
 
         # Set results

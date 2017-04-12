@@ -185,6 +185,8 @@ class BaseArrayFilter(object):
         bg_img.convert("RGB")
         bg_img.invert()
         if resize != 0:
+            if not isinstance(resize, int):
+                resize = int(resize)
             bg_img.resize((self.bg_img.shape[0] * resize,
                            self.bg_img.shape[1] * resize))
             filter_img.resize((self.result.shape[0] * resize,
@@ -210,6 +212,8 @@ class BaseArrayFilter(object):
             mask_img.invert()
             mask_img.colorize(fogcol)
             if resize != 0:
+                if not isinstance(resize, int):
+                    resize = int(resize)
                 mask_img.resize((self.result.shape[0] * resize,
                                  self.result.shape[1] * resize))
             # mask_img.merge(bg_img)
@@ -600,9 +604,10 @@ class LowCloudFilter(BaseArrayFilter):
     """Filtering low clouds for satellite images.
     """
     # Required inputs
-    attrlist = ['lwp', 'cth', 'ir108', 'clusters', 'reff']
-    lwp_corr = 0.88  # Correction factor for 3.7 um LWP retrievals
-    # Reference: (Platnick 2000)
+    attrlist = ['lwp', 'cth', 'ir108', 'clusters', 'reff', 'elev']
+
+    # Correction factor for 3.7 um LWP retrievals
+    lwp_corr = 0.88  # Reference: (Platnick 2000)
 
     def filter_function(self):
         """Cloud microphysics filter routine
@@ -641,7 +646,7 @@ class LowCloudFilter(BaseArrayFilter):
             self.cbh[self.clusters == key] = cbh
             self.fbh[self.clusters == key] = fbh
             # Mask non ground fog clouds
-            self.fog_mask[(self.clusters == key) & (self.fbh < 100)] = True
+            self.fog_mask[(self.clusters == key) & (self.fbh - self.elev > 0)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
