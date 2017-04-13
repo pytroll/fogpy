@@ -33,6 +33,7 @@ from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
 from fogpy.filters import CirrusCloudFilter
 from fogpy.filters import WaterCloudFilter
+from fogpy.filters import LowCloudFilter
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -323,6 +324,83 @@ class Test_WaterCloudFilter(unittest.TestCase):
         self.assertAlmostEqual(np.sum(testfilter.cloudmask), 20551)
         self.assertEqual(np.sum(testfilter.mask), 19857)
         self.assertEqual(testfilter.line, 141)
+
+
+class Test_LowCloudFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 14)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.lwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+        self.cth = inputs[13]
+
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+        self.input = {'vis006': self.vis006,
+                      'vis008': self.vis008,
+                      'ir108': self.ir108,
+                      'nir016': self.nir016,
+                      'ir039': self.ir039,
+                      'ir120': self.ir120,
+                      'ir087': self.ir087,
+                      'lat': self.lat,
+                      'lon': self.lon,
+                      'time': self.time,
+                      'elev': self.elev,
+                      'cot': self.cot,
+                      'reff': self.reff,
+                      'lwp': self.lwp,
+                      'cth': self.cth,
+                      'plot': True,
+                      'save': True,
+                      'dir': '/tmp/FLS',
+                      'resize': '5'}
+        # Create cloud top heights and clusters
+        from fogpy.algorithms import FogLowStratusAlgorithm as FLS
+        # Calculate cloud and snow masks
+        cloudfilter = CloudFilter(self.ir108, **self.input)
+        ret, self.cloudmask = cloudfilter.apply()
+        snowfilter = SnowFilter(cloudfilter.result, **self.input)
+        ret, snowmask = snowfilter.apply()
+        # Get clusters
+        fls = FLS(**self.input)
+        self.clusters = FLS.get_cloud_cluster(fls, self.cloudmask)
+        #bt_clear = np.ma.masked_where((~cloudfilter.mask |
+                                      # snowfilter.mask),
+                                      #self.ir108)
+        #bt_cloud = np.ma.masked_where(snowmask, self.ir108)
+        # Get cloud top heights
+        #self.cluster_z = FLS.get_lowcloud_cth(fls, self.clusters, bt_clear,
+        #                                      bt_cloud, self.elev)
+        self.input = {'ir108': self.ir108,
+                      'lwp': self.lwp,
+                      'reff': self.reff,
+                      'elev': self.elev,
+                      'clusters': self.clusters,
+                      'cth': self.cth}
+
+    def tearDown(self):
+        pass
+
+    def test_lowcloud_filter(self):
+        # Create cloud filter
+        testfilter = LowCloudFilter(self.input['ir108'], **self.input)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.sum(self.cloudmask), 20551)
+        self.assertEqual(np.nanmax(self.cluster_z), 2000)
 
 
 def suite():

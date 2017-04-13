@@ -404,11 +404,11 @@ class LowWaterCloud(object):
                                niter=10,
                                niter_success=5)
             result = ret.x[0]
-            logger.debug('Optimized liquid water path: start cbh: {}, cth: {},'
-                         ' observed lwp {} --> result lwp: {},'
-                         ' calibrated cbh: {}'
-                         .format(start, self.cth, self.cwp, self.lwp,
-                                 ret.x[0]))
+            logger.info('Optimized liquid water path: start cbh: {}, cth: {},'
+                        ' observed lwp {} --> result lwp: {},'
+                        ' calibrated cbh: {}'
+                        .format(start, self.cth, self.cwp, self.lwp,
+                                ret.x[0]))
         elif method == 'brute':
             ranges = slice(0, self.cth, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)

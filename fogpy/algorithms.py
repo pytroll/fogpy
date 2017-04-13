@@ -476,6 +476,7 @@ class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         from collections import defaultdict
         result = defaultdict(list)
 
+        logger.info("Calculating low clouds top heights")
         # Convert masked values to nan and zeros for clusters
         if np.ma.isMaskedArray(cf_arr):
             cf_arr = cf_arr.filled(np.nan)

@@ -22,10 +22,12 @@
 """This module implements an basic algorithm filter class
 and several class instances for satellite fog detection applications"""
 
+import copy_reg
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import types
 
 from collections import defaultdict
 from datetime import datetime
@@ -38,6 +40,17 @@ from scipy import ndimage
 from lowwatercloud import LowWaterCloud
 
 logger = logging.getLogger(__name__)
+
+
+# Add new pickle method, required for multiprocessing to run class instance
+# methods in parallel
+def _pickle_method(m):
+    if m.im_self is None:
+        return getattr, (m.im_class, m.im_func.func_name)
+    else:
+        return getattr, (m.im_self, m.im_func.func_name)
+
+copy_reg.pickle(types.MethodType, _pickle_method)
 
 
 class NotApplicableError(Exception):
@@ -82,6 +95,9 @@ class BaseArrayFilter(object):
             self.bg_img = self.arr
         if not hasattr(self, 'resize'):
             self.resize = 0
+        # Get number of cores
+        if not hasattr(self, 'nprocs'):
+            self.nprocs = mp.cpu_count()
 
     def apply(self):
         """Apply the given filter function"""
@@ -606,11 +622,7 @@ class LowCloudFilter(BaseArrayFilter):
     """
     # Required inputs
     attrlist = ['lwp', 'cth', 'ir108', 'clusters', 'reff', 'elev']
-    # Get number of cores
-    if not hasattr(self, 'nprocs'):
-        nprocs = mp.cpu_count()
-    # Creating process pool
-    pool = mp.Pool(nprocs)
+
     # Correction factor for 3.7 um LWP retrievals
     lwp_corr = 0.88  # Reference: (Platnick 2000)
 
@@ -622,6 +634,10 @@ class LowCloudFilter(BaseArrayFilter):
         each cloud cluster.
         """
         logger.info("Applying Low Cloud Filter")
+        # Creating process pool
+        pool = mp.Pool(self.nprocs)
+        mlogger = mp.log_to_stderr()
+        mlogger.setLevel(logging.DEBUG)
         # Declare result arrays without copy
         self.cbh = np.empty(self.clusters.shape, dtype=np.float)
         self.fbh = np.empty(self.clusters.shape, dtype=np.float)
@@ -634,24 +650,25 @@ class LowCloudFilter(BaseArrayFilter):
         ctt_cluster = self.get_cluster_mean(self.clusters, self.ir108)
         reff_cluster = self.get_cluster_mean(self.clusters, self.reff, [],
                                              False)
+        # Loop over processes
+        logger.info("Run low cloud models")
+        multiple_results = []
+        input = [[lwp_cluster[key], cth_cluster[key], ctt_cluster[key], reff_cluster[key]] for key in lwp_cluster.keys()]
+        result = pool.map_async(self.get_fog_base_height, input)
+        result.get()
+        # Wait for all processes to finish
+        pool.close()
+        pool.join()
+        print(result.get())
         # Create ground fog and low stratus cloud masks and cbh
-        for key in lwp_cluster.keys():
-            try:
-                lowcloud = LowWaterCloud(cth=cth_cluster[key],
-                                         ctt=ctt_cluster[key],
-                                         cwp=lwp_cluster[key] * self.lwp_corr,
-                                         cbh=0, reff=reff_cluster[key])
-                # Calculate cloud base height
-                cbh = lowcloud.get_cloud_base_height(-100, 'basin')
-                # Get visibility and fog cloud base height
-                fbh = lowcloud.get_fog_base_height()
-            except:
-                cbh = np.nan
-                fbh = np.nan
-            self.cbh[self.clusters == key] = cbh
-            self.fbh[self.clusters == key] = fbh
+        for i, res in enumerate(multiple_results):
+            print(res.ready())
+            res.get()
+            result = res
+            self.cbh[self.clusters == keys[i]] = result[0]
+            self.fbh[self.clusters == keys[i]] = result[1]
             # Mask non ground fog clouds
-            self.fog_mask[(self.clusters == key) & (self.fbh - self.elev > 0)] = True
+            self.fog_mask[(self.clusters == keys[i]) & (self.fbh - self.elev > 0)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
@@ -659,20 +676,27 @@ class LowCloudFilter(BaseArrayFilter):
 
         return True
 
-    def get_cloud_base_height(self, lwp, cth, ctt, reff):
-        """ Calculate cloud base heights for low cloud pixels with a
+    def get_fog_base_height(self, args):
+        """ Calculate fog base heights for low cloud pixels with a
         numerical 1-D low cloud model and known liquid water path, cloud top
         height / temperature and droplet effective radius from satellite
         retrievals
         """
-        # Create instance of low cloud object
-        lowcloud = LowWaterCloud(cth, ctt, lwp, 0, reff)
-        # Calculate cloud base height
-        cbh = lowcloud.optimize_cbh(-300, method='basin')
-        # Get visibility
+        try:
+            lowcloud = LowWaterCloud(cth=args[0],
+                                     ctt=args[0],
+                                     cwp=args[0] * self.lwp_corr,
+                                     cbh=0,
+                                     reff=args[0])
+            # Calculate cloud base height
+            cbh = lowcloud.get_cloud_base_height(-100, 'basin')
+            # Get visibility and fog cloud base height
+            fbh = lowcloud.get_fog_base_height()
+        except:
+            cbh = np.nan
+            fbh = np.nan
 
-        #    print(l.visibility)
-        return cbh
+        return cbh, fbh
 
     def get_cluster_mean(self, clusters, values, exclude=[0], noneg=True):
         """Calculate the mean of an array of values for given cluster
