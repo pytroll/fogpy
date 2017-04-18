@@ -399,15 +399,15 @@ class LowWaterCloud(object):
             minimizer_kwargs = {"method": "BFGS", "bounds": (0, self.cth)}
             ret = basinhopping(self.minimize_cbh,
                                start,
-                               T=10.0,
+                               T=5.0,
                                minimizer_kwargs=minimizer_kwargs,
                                niter=10,
                                niter_success=5)
             result = ret.x[0]
-            logger.info('Optimized liquid water path: start cbh: {}, cth: {},'
-                        ' observed lwp {} --> result lwp: {},'
-                        ' calibrated cbh: {}'
-                        .format(start, self.cth, self.cwp, self.lwp,
+            logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
+                        'ctt: {:.2f}, observed lwp {:.2f}'
+                        ' --> result lwp: {:.2f}, calibrated cbh: {:.2f}'
+                        .format(start, self.cth, self.ctt, self.cwp, self.lwp,
                                 ret.x[0]))
         elif method == 'brute':
             ranges = slice(0, self.cth, 1)

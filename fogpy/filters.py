@@ -652,23 +652,25 @@ class LowCloudFilter(BaseArrayFilter):
                                              False)
         # Loop over processes
         logger.info("Run low cloud models")
-        multiple_results = []
-        input = [[lwp_cluster[key], cth_cluster[key], ctt_cluster[key], reff_cluster[key]] for key in lwp_cluster.keys()]
-        result = pool.map_async(self.get_fog_base_height, input)
-        result.get()
+        # Get pool result list
+        self.result_list = []
+        for key in lwp_cluster.keys():
+            workinput = [lwp_cluster[key], cth_cluster[key], ctt_cluster[key],
+                         reff_cluster[key]]
+            pool.apply_async(self.get_fog_base_height, args=workinput,
+                             callback=self.log_result)
         # Wait for all processes to finish
         pool.close()
         pool.join()
-        print(result.get())
         # Create ground fog and low stratus cloud masks and cbh
-        for i, res in enumerate(multiple_results):
-            print(res.ready())
-            res.get()
-            result = res
-            self.cbh[self.clusters == keys[i]] = result[0]
-            self.fbh[self.clusters == keys[i]] = result[1]
+        keys = lwp_cluster.keys()
+        for i, res in enumerate(self.result_list):
+            self.cbh[self.clusters == keys[i]] = res[0]
+            self.fbh[self.clusters == keys[i]] = res[1]
             # Mask non ground fog clouds
-            self.fog_mask[(self.clusters == keys[i]) & (self.fbh - self.elev > 0)] = True
+            self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
+                                                        self.elev.squeeze() >
+                                                        0)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
@@ -676,18 +678,23 @@ class LowCloudFilter(BaseArrayFilter):
 
         return True
 
-    def get_fog_base_height(self, args):
+    def log_result(self, result):
+        # This is called whenever a pool(i) returns a result.
+        # Results are modified only by the main process, not the pool workers.
+        self.result_list.append(result)
+
+    def get_fog_base_height(self, cwp, cth, ctt, reff):
         """ Calculate fog base heights for low cloud pixels with a
         numerical 1-D low cloud model and known liquid water path, cloud top
         height / temperature and droplet effective radius from satellite
         retrievals
         """
+        lowcloud = LowWaterCloud(cth=cth,
+                                 ctt=ctt,
+                                 cwp=cwp * self.lwp_corr,
+                                 cbh=0,
+                                 reff=reff)
         try:
-            lowcloud = LowWaterCloud(cth=args[0],
-                                     ctt=args[0],
-                                     cwp=args[0] * self.lwp_corr,
-                                     cbh=0,
-                                     reff=args[0])
             # Calculate cloud base height
             cbh = lowcloud.get_cloud_base_height(-100, 'basin')
             # Get visibility and fog cloud base height

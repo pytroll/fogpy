@@ -400,7 +400,7 @@ class Test_LowCloudFilter(unittest.TestCase):
 
         # Evaluate results
         self.assertEqual(np.sum(self.cloudmask), 20551)
-        self.assertEqual(np.nanmax(self.cluster_z), 2000)
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 102)
 
 
 def suite():
