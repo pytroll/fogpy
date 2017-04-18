@@ -185,7 +185,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         ret_brute = self.lwc.optimize_cbh(100., method='brute')
         ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertAlmostEqual(round(ret_brute, 1), 421.)
-        self.assertIn(round(ret_basin, 0), [479, 478])
+        self.assertIn(round(ret_basin, 0), [421, 479, 478])
 
     def test_get_visibility(self):
         lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)
