@@ -712,17 +712,20 @@ class LowCloudFilter(BaseArrayFilter):
         result = defaultdict(list)
         if np.ma.isMaskedArray(clusters):
             clusters = clusters.filled(0)
-        # Calculate mean liquid water potential for clusters
+        # Calculate mean values for clusters
         for index, key in np.ndenumerate(clusters):
             if key != 0:
 
                 val = values[index]
                 if val in exclude:
-                    continue
+                    # Remove exluced values
+                    val = np.nan
                 elif val < 0 and noneg:
-                    continue
-                else:
-                    result[key].append(val)
-        result = {k: np.mean(v) for k, v in result.iteritems()}
+                    # Optional remove of negative values
+                    val = np.nan
+                # Add value to result dict
+                result[key].append(val)
+        # Calculate average cluster values by dictionary key
+        result = {k: np.nanmean(v) for k, v in result.iteritems()}
 
         return result
