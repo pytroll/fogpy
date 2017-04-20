@@ -63,7 +63,7 @@ class Test_BaseSatelliteAlgorithm(unittest.TestCase):
         self.assertEqual(newalgo.shape, (4, 4))
 
 
-class Test_FogLowStratusAlgorithm(unittest.TestCase):
+class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
 
     def setUp(self):
         # Load test data
@@ -211,7 +211,7 @@ def suite():
     loader = unittest.TestLoader()
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(Test_BaseSatelliteAlgorithm))
-    mysuite.addTest(loader.loadTestsFromTestCase(Test_FogLowStratusAlgorithm))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_DayFogLowStratusAlgorithm))
 
     return mysuite
 
