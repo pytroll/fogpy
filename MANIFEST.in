@@ -1,4 +1,4 @@
 include LICENSE.txt
 include README.rst
 include MANIFEST.in
-
+include etc/*
