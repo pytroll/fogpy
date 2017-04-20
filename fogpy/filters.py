@@ -150,7 +150,7 @@ class BaseArrayFilter(object):
             self.new_masked = np.nansum(~self.inmask & self.mask)
             self.remain_num = np.nansum(~self.mask & ~self.inmask)
 
-        logger.info("""---- Filter results for {} ---- \n
+        logger.info("""Filter results for {} \n
                     {}
                     Array size:              {}
                     Masking:                 {}
@@ -259,6 +259,9 @@ class CloudFilter(BaseArrayFilter):
         """
         logger.info("Applying Cloud Filter")
 
+        # Set cloud confidence range
+        if not hasattr(self, 'ccr'):
+            self.ccr = 5  # Kelvin
         # Infrared channel difference
         self.cm_diff = np.ma.asarray(self.ir108 - self.ir039)
 
@@ -290,8 +293,14 @@ class CloudFilter(BaseArrayFilter):
             logger.warning("Cloud maks difference threshold {} outside normal"
                            " range (from -5 to 0)".format(self.thres))
         else:
-            logger.debug("Cloud mask difference threshold set to %s"
+            logger.debug("Cloud mask difference threshold set to {}"
                          .format(self.thres))
+        # Compute cloud confidence level
+        self.ccl = (self.cm_diff - self.thres - self.ccr) / (-2 * self.ccr)
+        # Limit range to 0 (cloudfree) and 1 (cloudy)
+        self.ccl[self.ccl > 1] = 1
+        self.ccl[self.ccl < 0] = 0
+
         # Create cloud mask for image array
         self.mask = self.cm_diff > self.thres
 

@@ -142,6 +142,25 @@ class Test_CloudFilter(unittest.TestCase):
         self.assertEqual(np.sum(testfilter.inmask), 4653)
         self.assertEqual(testfilter.new_masked, 15922)
 
+    def test_ccl_cloud_filter(self):
+        # Create cloud filter
+        testfilter = CloudFilter(self.input['ir108'], **self.input)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(testfilter.ccl.squeeze().shape, (141, 298))
+        self.assertAlmostEqual(round(testfilter.ccl[95, 276], 3), 0.544)
+        self.assertAlmostEqual(round(testfilter.ccl[29, 216], 3), 1)
+        self.assertAlmostEqual(round(testfilter.ccl[78, 45], 3), 0.303)
+        self.assertAlmostEqual(round(testfilter.ccl[61, 261], 3), 0)
+        self.assertEqual(round(np.nanmax(testfilter.cm_diff), 2), 3.43)
+        self.assertTrue(all(testfilter.ccl[testfilter.cm_diff <
+                                           testfilter.thres] > 0.5))
+        self.assertTrue(all(testfilter.ccl[testfilter.cm_diff >
+                                           testfilter.thres] < 0.5))
+        self.assertEqual(np.nanmax(testfilter.ccl), 1)
+        self.assertEqual(np.nanmin(testfilter.ccl), 0)
+
 
 class Test_SnowFilter(unittest.TestCase):
 
@@ -367,7 +386,7 @@ class Test_LowCloudFilter(unittest.TestCase):
                       'dir': '/tmp/FLS',
                       'resize': '5'}
         # Create cloud top heights and clusters
-        from fogpy.algorithms import FogLowStratusAlgorithm as FLS
+        from fogpy.algorithms import DayFogLowStratusAlgorithm as FLS
         # Calculate cloud and snow masks
         cloudfilter = CloudFilter(self.ir108, **self.input)
         ret, self.cloudmask = cloudfilter.apply()
