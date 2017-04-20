@@ -28,7 +28,7 @@ import unittest
 
 from datetime import datetime
 from fogpy.algorithms import BaseSatelliteAlgorithm
-from fogpy.algorithms import FogLowStratusAlgorithm
+from fogpy.algorithms import DayFogLowStratusAlgorithm
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -147,7 +147,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
         pass
 
     def test_fls_algorithm(self):
-        flsalgo = FogLowStratusAlgorithm(**self.input)
+        flsalgo = DayFogLowStratusAlgorithm(**self.input)
         ret, mask = flsalgo.run()
         self.assertEqual(flsalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
@@ -157,7 +157,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
 
     # Using other tset data set
     def test_fls_algorithm_other(self):
-        flsalgo = FogLowStratusAlgorithm(**self.input2)
+        flsalgo = DayFogLowStratusAlgorithm(**self.input2)
         ret, mask = flsalgo.run()
         self.assertEqual(flsalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
@@ -166,7 +166,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
         self.assertLessEqual(np.nanmax(flsalgo.cluster_cth), 2000)
 
     def test_fls_cth_tdiff(self):
-        flsalgo = FogLowStratusAlgorithm(**self.input)
+        flsalgo = DayFogLowStratusAlgorithm(**self.input)
         # Prepare input for cluster height detection
         testshp = (5, 5)
         testmask = np.ma.make_mask(np.ones(testshp))
@@ -185,7 +185,7 @@ class Test_FogLowStratusAlgorithm(unittest.TestCase):
         self.assertAlmostEqual(testcth[1][0], comparecth)
 
     def test_fls_cth_zdiff(self):
-        flsalgo = FogLowStratusAlgorithm(**self.input)
+        flsalgo = DayFogLowStratusAlgorithm(**self.input)
         # Prepare input for cluster height detection
         testshp = (5, 5)
         testmask = np.ma.make_mask(np.ones(testshp))

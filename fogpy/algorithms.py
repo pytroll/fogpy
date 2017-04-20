@@ -126,11 +126,14 @@ class BaseSatelliteAlgorithm(object):
         return({key: self.__getattribute__(key) for key in self.attributes
                 if key in keys})
 
-    def plot_result(self):
+    def plot_result(self, array=None):
         """Plotting the filter result"""
         cmap = get_cmap('gray')
         cmap.set_bad('goldenrod', 1.)
-        imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
+        if array is None:
+            imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
+        else:
+            imgplot = plt.imshow(array.squeeze(), cmap=cmap)
         plt.show()
 
     def check_dimension(self, arr):
@@ -146,7 +149,7 @@ class BaseSatelliteAlgorithm(object):
         return(result)
 
     def plot_clusters(self, save=False, dir="/tmp"):
-        """Plotting the filter result"""
+        """Plot the cloud clusters"""
         # Get output directory and image name
         name = self.__class__.__name__
         savedir = os.path.join(dir, name + '_clusters_' +
@@ -174,10 +177,12 @@ class BaseSatelliteAlgorithm(object):
             cluster_img.show()
 
 
-class FogLowStratusAlgorithm(BaseSatelliteAlgorithm):
+class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
     """This algorithm implements a fog and low stratus detection and forecasting
      for geostationary satellite images from the SEVIRI instrument onboard of
-     METEOSAT second generation MSG satellites.
+     METEOSAT second generation MSG satellites. Seven MSG channels from the
+     solar and infrared spectra are used. Therefore the algorithm is applicable
+     for daytime scenes only.
      It is utilizing the methods proposed in different innovative studies:
 
          - A novel approach to fog/low stratus detection using Meteosat 8 data
