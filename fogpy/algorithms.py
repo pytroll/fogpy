@@ -511,3 +511,46 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                 result[val].append(cth)
 
         return result
+
+
+class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
+    """This class provide an algorithm for low cloud top height determination.
+    The method is based on satellite images and uses additionally a digital
+    elevation map in the background.
+    The algorithm requires a selection of different masked input arrays.
+        - Infrared 10.8 channel for cloud top temperature extraction
+        - Low cloud areas to find cloudy and cloud free areas
+        - Cloud confidence level
+        - Digital elevation map
+
+    The height assignment is then a two step process:
+        1. Derive cloud top height by margin terrain relief extraction,
+           if possible.
+        2. Get cloud top height by applying a constant lapse rate for remaining
+           clouds with unassignable margin height
+
+    Returns:
+        Array with cloud top heights in [m]
+    """
+    def isprocessible(self):
+        """Test runability here"""
+        attrlist = ['ir108', 'cloudmask', 'ccl', 'elev']
+        ret = []
+        for attr in attrlist:
+            if hasattr(self, attr):
+                ret.append(True)
+            else:
+                ret.append(False)
+                logger.warning("Missing input attribute: {}".format(attr))
+
+        return all(ret)
+
+    def procedure(self):
+        """ Apply low cloud height algorithm to input arrays"""
+        logger.info("Starting low cloud height assignment algorithm")
+        return True
+
+    def check_results(self):
+        """Check processed algorithm for plausible results"""
+        ret = True
+        return ret
