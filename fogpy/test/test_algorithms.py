@@ -29,6 +29,8 @@ import unittest
 from datetime import datetime
 from fogpy.algorithms import BaseSatelliteAlgorithm
 from fogpy.algorithms import DayFogLowStratusAlgorithm
+from fogpy.algorithms import LowCloudHeightAlgorithm
+from fogpy.filters import CloudFilter
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -205,6 +207,53 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         self.assertAlmostEqual(testcth[1][0], comparecth)
 
 
+class Test_LowCloudHeightAlgorithm(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 14)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.elev = inputs[7]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+        self.cth = inputs[13]
+
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+
+        self.input = {'ir108': self.ir108,
+                      'ir039': self.ir039,
+                      'bg_img': self.ir108,
+                      'lat': self.lat,
+                      'lon': self.lon,
+                      'time': self.time,
+                      'elev': self.elev,
+                      'cth': self.cth,
+                      'plot': True,
+                      'save': True,
+                      'dir': '/tmp/FLS',
+                      'resize': '5'}
+        # Compute cloud mask
+        cloudfilter = CloudFilter(self.input['ir108'], **self.input)
+        ret, self.cloudmask = cloudfilter.apply()
+        self.ccl = cloudfilter.ccl
+
+        self.input['ccl'] = self.ccl
+        self.input['cloudmask'] = self.cloudmask
+
+    def tearDown(self):
+        pass
+
+    def test_lcth_algorithm(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.input)
+        ret, mask = lcthalgo.run()
+        self.assertEqual(lcthalgo.ir108.shape, (141, 298))
+        self.assertEqual(ret.shape, (141, 298))
+        self.assertEqual(lcthalgo.shape, (141, 298))
+        self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        self.assertLessEqual(np.nanmax(lcthalgo.dz), 400.)
+
+
 def suite():
     """The test suite for test_filter.
     """
@@ -212,6 +261,7 @@ def suite():
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(Test_BaseSatelliteAlgorithm))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_DayFogLowStratusAlgorithm))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudHeightAlgorithm))
 
     return mysuite
 

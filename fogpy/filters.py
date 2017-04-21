@@ -177,10 +177,11 @@ class BaseArrayFilter(object):
         except:
             cmap = get_cmap('gray')
             cmap.set_bad('goldenrod', 1.)
-            imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
+            imgplot = plt.imshow(self.result.squeeze())
             plt.axis('off')
+            plt.tight_layout()
             if save:
-                plt.savefig(savedir)
+                plt.savefig(savedir, bbox_inches='tight', pad_inches=0.0)
                 logger.info("{} results are plotted to: {}". format(self.name,
                                                                     self.dir))
             else:

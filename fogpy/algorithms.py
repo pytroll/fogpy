@@ -69,7 +69,8 @@ class BaseSatelliteAlgorithm(object):
                     self.shape = value.shape
 
                 self.__setattr__(key, value)
-
+        # Get class name
+        self.name = self.__str__().split(' ')[0].split('.')[-1]
         # Set plotting attribute
         if not hasattr(self, 'save'):
             self.save = False
@@ -108,8 +109,9 @@ class BaseSatelliteAlgorithm(object):
 
     def check_results(self):
         """Check processed algorithm for plausible results"""
-        ret = True
-        return ret
+        if self.plot:
+            self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
+        return True
 
     def add_mask(self, mask):
         """Compute the new array mask as union of all input array masks
@@ -126,15 +128,25 @@ class BaseSatelliteAlgorithm(object):
         return({key: self.__getattribute__(key) for key in self.attributes
                 if key in keys})
 
-    def plot_result(self, array=None):
-        """Plotting the filter result"""
+    def plot_result(self, array=None, save=False, dir="/tmp", resize=0):
+        """Plotting the algorithm result"""
+        # Get output directory and image name
+        savedir = os.path.join(dir, self.name + '_' +
+                               datetime.strftime(self.time,
+                                                 '%Y%m%d%H%M') + '.png')
         cmap = get_cmap('gray')
         cmap.set_bad('goldenrod', 1.)
         if array is None:
-            imgplot = plt.imshow(self.result.squeeze(), cmap=cmap)
+            imgplot = plt.imshow(self.result.squeeze())
         else:
-            imgplot = plt.imshow(array.squeeze(), cmap=cmap)
-        plt.show()
+            imgplot = plt.imshow(array.squeeze())
+        plt.axis('off')
+        if save:
+            plt.savefig(savedir, bbox_inches='tight', pad_inches=0.0)
+            logger.info("{} results are plotted to: {}". format(self.name,
+                                                                self.dir))
+        else:
+            plt.show()
 
     def check_dimension(self, arr):
         """ Check and convert arrays to 2D """
@@ -548,9 +560,85 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
     def procedure(self):
         """ Apply low cloud height algorithm to input arrays"""
         logger.info("Starting low cloud height assignment algorithm")
+        # Get cloud top temperatures
+        ctt = self.ir108
+        # Prepare result arrays
+        self.dz = np.empty(self.ir108.shape, dtype=np.float)
+        # 1. Check margin relief
+        if self.elev.shape == ctt.shape:
+            for index, val in np.ndenumerate(self.cloudmask):
+                if val == 1:
+                    self.dz[index] = np.nan
+                    continue
+                zcenter, zneigh = self.cell_neighbors(self.elev, i=index[0],
+                                                      j=index[1], d=1,
+                                                      value=self.elev)
+                delta_z = max(zcenter + zneigh) - min(zcenter + zneigh)
+                self.dz[index] = delta_z
+
+        # Set results
+        self.result = self.dz
+        self.mask = self.cloudmask
+
         return True
 
-    def check_results(self):
-        """Check processed algorithm for plausible results"""
-        ret = True
-        return ret
+    def sliding_window(self, arr, window_size):
+        """ Construct a sliding window view of the array"""
+        arr = np.asarray(arr)
+        window_size = int(window_size)
+        if arr.ndim != 2:
+            try:
+                arr = arr.squeeze()  # Try to reduce dimension
+            except:
+                raise ValueError("need 2-D input")
+        if not (window_size > 0):
+            raise ValueError("need a positive window size")
+        shape = (arr.shape[0] - window_size + 1,
+                 arr.shape[1] - window_size + 1,
+                 window_size, window_size)
+        if shape[0] <= 0:
+            shape = (1, shape[1], arr.shape[0], shape[3])
+        if shape[1] <= 0:
+            shape = (shape[0], 1, shape[2], arr.shape[1])
+        strides = (arr.shape[1]*arr.itemsize, arr.itemsize,
+                   arr.shape[1]*arr.itemsize, arr.itemsize)
+        return as_strided(arr, shape=shape, strides=strides)
+
+    def cell_neighbors(self, arr, i, j, d, value):
+        """Return d-th neighbors of cell (i, j)"""
+        if arr.ndim != 2:
+            try:
+                arr = arr.squeeze()  # Try to reduce dimension
+            except:
+                raise ValueError("need 2-D input")
+        w = self.sliding_window(arr, 2*d+1)
+
+        ix = np.clip(i - d, 0, w.shape[0]-1)
+        jx = np.clip(j - d, 0, w.shape[1]-1)
+
+        i0 = max(0, i - d - ix)
+        j0 = max(0, j - d - jx)
+        i1 = w.shape[2] - max(0, d - i + ix)
+        j1 = w.shape[3] - max(0, d - j + jx)
+
+        # Get cell value
+        if i1 - i0 == 3:
+            icell = 1
+        elif (i1 - i0 == 2) & (i0 == 0):
+            icell = 0
+        elif (i1 - i0 == 2) & (i0 == 1):
+            icell = 2
+        if j1 - j0 == 3:
+            jcell = 1
+        elif (j1 - j0 == 2) & (j0 == 0):
+            jcell = 0
+        elif (j1 - j0 == 2) & (j0 == 1):
+            jcell = 2
+
+        irange = range(i0, i1)
+        jrange = range(j0, j1)
+        neighbors = [w[ix, jx][k, l] for k in irange for l in jrange
+                     if k != icell or l != jcell]
+        center = value[i, j]  # Get center cell value from additional array
+
+        return center, neighbors
