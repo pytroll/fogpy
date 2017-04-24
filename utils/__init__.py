@@ -22,7 +22,41 @@
 """PP Package initializer.
 """
 
+import datetime
+import itertools
 import os
 
 BASE_PATH = os.path.sep.join(os.path.dirname(
     os.path.realpath(__file__)).split(os.path.sep)[:-1])
+
+
+def ncycle(iterable, n):
+    for item in itertools.cycle(iterable):
+        for i in range(n):
+            yield item
+
+
+def get_time_period(start, end, step):
+    """Create time series from given start to end by certain interval
+
+    Keyword arguments:
+        start    Start time as string in %Y%m%%%d%H%M format
+        end    End time as string in %Y%m%%%d%H%M format
+    """
+    # Define time series for analysis
+    dt = datetime.datetime.strptime(start, "%Y%m%d%H%M")
+    tend = datetime.datetime.strptime(end, "%Y%m%d%H%M")
+
+    ts = []
+    if isinstance(step, list):
+        c = ncycle(step, 1)
+    else:
+        c = ncycle([step], 1)
+
+    while dt < tend:
+        ts.append(dt)
+        ti = c.next()
+        tstep = datetime.timedelta(minutes=ti)
+        dt += tstep
+
+    return(ts)
