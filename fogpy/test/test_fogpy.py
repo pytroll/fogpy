@@ -33,11 +33,11 @@ from mipp import read_geotiff as gtiff
 from pyresample import image
 from trollimage.image import Image
 from trollimage.colormap import Colormap
-from track_cb import get_time_period
+from utils import get_time_period
 from PIL import Image as PILimage
 from pyresample import utils
 from mpop.imageo.geo_image import GeoImage
-from fogpy.utils.import_synop import read_synop
+from utils.import_synop import read_synop
 
 debug_on()
 
@@ -162,6 +162,7 @@ for time in time_period:
                                                    time_slot=time)
     germ_scene.load(germ_scene.image.fls_day.prerequisites.add('HRV'),
                     area_extent=ger_extent)
+
     #germ_scene.project('euro4', mode="nearest")
     #germ_scene.image[0.6].show()
 
@@ -204,9 +205,9 @@ for time in time_period:
     fls_img.merge(bgimg)
 
     ele_img = Image(ele_img.channels[0], mode='L')
-    cwp_img = Image(cwp_img.channels[0], mode='L')
-    cwp_masked = np.ma.array(cwp_ger.image_data, mask=fogmask)
-    print(np.histogram(cwp_masked.compressed()))
+    #cwp_img = Image(cwp_img.channels[0], mode='L')
+    #cwp_masked = np.ma.array(cwp_ger.image_data, mask=fogmask)
+    #print(np.histogram(cwp_masked.compressed()))
     #ele_img.show()
     #cwp_img.show()
     #overview.show()
