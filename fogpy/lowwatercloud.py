@@ -49,6 +49,7 @@ class CloudLayer(object):
         self.bottom = bottom  # Bottom height of the cloud layer
         self.top = top  # Top height of the cloud layer
         self.z = top - (top - bottom) / 2  # Central layer height
+        self.debug = lowcloud.debug
         # Fix maximum z hieght to cloud top height from cloud object
         # Height optimasation can provoke layers above the cth
         if self.z > lowcloud.cth:
@@ -108,13 +109,14 @@ class CloudLayer(object):
         if add:
             lowcloud.layers.append(self)
 
-        logger.debug('New cloud layer: z: {} m | t: {} °C | p: {} hPa | '
-                     'psv: {} hPa | vmr: {} g kg-1 | lmr: {} g kg-1 | '
-                     'beta: {} | rho: {} kg m-3 | lwc: {} g m-3'
-                     .format(self.z, self.temp, round(self.press, 3),
-                             round(self.psv, 3), round(self.vmr, 3),
-                             round(self.lmr, 3), round(self.beta, 3),
-                             round(self.rho, 3), round(self.lwc, 3)))
+        if self.debug:
+            logger.debug('New cloud layer: z: {} m | t: {} °C | p: {} hPa | '
+                         'psv: {} hPa | vmr: {} g kg-1 | lmr: {} g kg-1 | '
+                         'beta: {} | rho: {} kg m-3 | lwc: {} g m-3'
+                         .format(self.z, self.temp, round(self.press, 3),
+                                 round(self.psv, 3), round(self.vmr, 3),
+                                 round(self.lmr, 3), round(self.beta, 3),
+                                 round(self.rho, 3), round(self.lwc, 3)))
 
     @classmethod
     def check_temp(self, temp, unit='celsius'):
@@ -123,15 +125,17 @@ class CloudLayer(object):
         if unit is 'celsius':
             if temp > 60:
                 result = temp - 273.15
-                logger.debug('Temperature {} is in Kelvin. Auto converting to'
-                             ' {} °C'.format(temp, result))
+                if self.debug:
+                    logger.debug('Temperature {} is in Kelvin. Auto converting'
+                                 ' to {} °C'.format(temp, result))
             else:
                 result = temp
         elif unit is 'kelvin':
             if temp <= 60 or temp < 0:
                 result = temp + 273.15
-                logger.debug('Temperature {} is in Celsius. Auto converting to'
-                             ' {} K'.format(temp, result))
+                if self.debug:
+                    logger.debug('Temperature {} is in Celsius. Auto converting'
+                                 ' to {} K'.format(temp, result))
             else:
                 result = temp
 
@@ -142,7 +146,8 @@ class LowWaterCloud(object):
     """ A class to simulate the water content of a low cloud and calculate its
     meteorological properties"""
     def __init__(self, cth=None, ctt=None, cwp=None, cbh=0, reff=None,
-                 cbt=None, upthres=50., lowthres=75., thickness=10.):
+                 cbt=None, upthres=50., lowthres=75., thickness=10.,
+                 debug=False):
         self.cth = cth  # Cloud top height
         self.ctt = ctt  # Cloud top temperature
         self.cbh = cbh  # Cloud base height
@@ -154,7 +159,8 @@ class LowWaterCloud(object):
         self.cb_vmr = None  # Water vapour mixing ratio
         self.upthres = upthres  # Top layer thickness with dry air entrainment
         self.lowthres = lowthres  # Bottom layer thickness with coupling
-        self.thickness = thickness
+        self.thickness = thickness  # Layer thickness in m
+        self.debug = debug  # Boolean to activate additional output
         # Get maximal liquid water content underneath cloud top
         self.maxlwc = None
 
@@ -182,10 +188,10 @@ class LowWaterCloud(object):
             CloudLayer(b, b + thickness, self)
         # Cloud top layer
         CloudLayer(self.cth - thickness, self.cth + thickness, self)
-
-        #logger.info("Initialize {} cloud layers with {} m thickness"
-        #            " and {} m cbh"
-        #            .format(len(self.layers), thickness, init_cbh))
+        if self.debug:
+            logger.info("Initialize {} cloud layers with {} m thickness"
+                        " and {} m cbh"
+                        .format(len(self.layers), thickness, init_cbh))
 
     def get_cloud_base_height(self, start=0, method='basin'):
         """ Calculate cloud base height [m]"""
@@ -238,8 +244,9 @@ class LowWaterCloud(object):
         torr_pa = 0.00750063755  # Factor to convert between Pa and Torr
         if temp <= 60:
             newtemp = temp + 273.15
-            logger.debug('Temperature {} is in Celsius. Auto converting to'
-                         ' {} K'.format(temp, newtemp))
+            if self.debug:
+                logger.debug('Temperature {} is in Celsius. Auto converting to'
+                             ' {} K'.format(temp, newtemp))
             temp = newtemp
         if empiric:
             # hrho = d_sea * (273.15 / temp) * ((pa * torr_pa - 0.3783 * pv *
@@ -275,13 +282,15 @@ class LowWaterCloud(object):
         Convert temperatures in K to °C"""
         if convert:
             newtemp = temp - 273.15
-            logger.info("Converting temperature {} K to {} °C".format(temp,
-                                                                      newtemp))
+            if self.debug:
+                logger.info("Converting temperature {} K to {} °C"
+                            .format(temp, newtemp))
             temp = newtemp
         elif temp > 60:
             newtemp = temp - 273.15
-            logger.debug('Temperature {} is in Kelvin. Auto converting to'
-                         ' {} °C'.format(temp, newtemp))
+            if self.debug:
+                logger.debug('Temperature {} is in Kelvin. Auto converting to'
+                             ' {} °C'.format(temp, newtemp))
             temp = newtemp
 
         if mode == 'buck':
@@ -390,7 +399,7 @@ class LowWaterCloud(object):
 
         return lwp
 
-    def optimize_cbh(self, start, method='basin'):
+    def optimize_cbh(self, start, method='basin', debug=False):
         """ Find best fitting cloud base height by comparing calculated
         liquid water path with given satellite retrieval.
         Minimization with basinhopping or brute force algorithm
@@ -404,11 +413,12 @@ class LowWaterCloud(object):
                                niter=10,
                                niter_success=5)
             result = ret.x[0]
-            logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
-                        'ctt: {:.2f}, observed lwp {:.2f}'
-                        ' --> result lwp: {:.2f}, calibrated cbh: {:.2f}'
-                        .format(start, self.cth, self.ctt, self.cwp, self.lwp,
-                                ret.x[0]))
+            if self.debug:
+                logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
+                            'ctt: {:.2f}, observed lwp {:.2f}'
+                            ' --> result lwp: {:.2f}, calibrated cbh: {:.2f}'
+                            .format(start, self.cth, self.ctt, self.cwp,
+                                    self.lwp, ret.x[0]))
         elif method == 'brute':
             ranges = slice(0, self.cth, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)
