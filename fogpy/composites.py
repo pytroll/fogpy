@@ -27,8 +27,13 @@ import logging
 
 from algorithms import DayFogLowStratusAlgorithm
 from mpop.imageo.geo_image import GeoImage
+from trollimage.colormap import Colormap
 
 logger = logging.getLogger(__name__)
+
+# Define custom fog colormap
+fogcol = Colormap((1., (0.0, 0.0, 0.0)),
+                  (0., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
 
 
 def fls_day(self, elevation, cot, reff, lwp=None, cth=None):
@@ -74,9 +79,18 @@ def fls_day(self, elevation, cot, reff, lwp=None, cth=None):
 
     # Compute fog mask
     flsalgo = DayFogLowStratusAlgorithm(**flsinput)
-    ret, mask = flsalgo.run()
+    fls, mask = flsalgo.run()
 
-    return True
+    # Create geoimage object from algorithm result
+    flsimg = GeoImage(fls, area, self.time_slot,
+                      fill_value=0, mode="L")
+    flsimg.enhance(stretch="crude")
+
+    maskimg = GeoImage(~mask, area, self.time_slot,
+                       fill_value=0, mode="L")
+    maskimg.enhance(stretch="crude")
+
+    return flsimg, maskimg
 
 fls_day.prerequisites = set([0.635, 0.81, 1.64, 3.92, 8.7, 10.8, 12.0])
 

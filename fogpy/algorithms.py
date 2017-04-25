@@ -25,7 +25,6 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import sys
 
 from datetime import datetime
 from matplotlib.cm import get_cmap
@@ -386,10 +385,11 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                         clusters=self.clusters,
                                         bg_img=self.ir108, **lowcloud_input)
         lowcloudfilter.apply()
+        self.add_mask(lowcloudfilter.mask)
 
         # Set results
         self.result = lowcloudfilter.result
-        self.mask = lowcloudfilter.mask
+        self.mask = self.mask
 
         return True
 
