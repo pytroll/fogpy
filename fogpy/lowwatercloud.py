@@ -77,7 +77,8 @@ class CloudLayer(object):
         self.rho = lowcloud.get_moist_air_density(self.press * 100,
                                                   self.psv * 100,
                                                   self.check_temp(self.temp,
-                                                                  'kelvin'))
+                                                                  'kelvin',
+                                                                  self.debug))
 
         # Get layer liquid water density
         self.lrho = lowcloud.get_liquid_density(self.press * 100,
@@ -119,13 +120,13 @@ class CloudLayer(object):
                                  round(self.rho, 3), round(self.lwc, 3)))
 
     @classmethod
-    def check_temp(self, temp, unit='celsius'):
+    def check_temp(self, temp, unit='celsius', debug=False):
         """ Check for plausible range of temperature value for given unit.
         Convert if required"""
         if unit is 'celsius':
             if temp > 60:
                 result = temp - 273.15
-                if self.debug:
+                if debug:
                     logger.debug('Temperature {} is in Kelvin. Auto converting'
                                  ' to {} °C'.format(temp, result))
             else:
@@ -133,9 +134,10 @@ class CloudLayer(object):
         elif unit is 'kelvin':
             if temp <= 60 or temp < 0:
                 result = temp + 273.15
-                if self.debug:
-                    logger.debug('Temperature {} is in Celsius. Auto converting'
-                                 ' to {} K'.format(temp, result))
+                if debug:
+                    logger.debug('Temperature {} is in Celsius. '
+                                 'Auto converting to {} K'
+                                 .format(temp, result))
             else:
                 result = temp
 
@@ -413,12 +415,11 @@ class LowWaterCloud(object):
                                niter=10,
                                niter_success=5)
             result = ret.x[0]
-            if self.debug:
-                logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
-                            'ctt: {:.2f}, observed lwp {:.2f}'
-                            ' --> result lwp: {:.2f}, calibrated cbh: {:.2f}'
-                            .format(start, self.cth, self.ctt, self.cwp,
-                                    self.lwp, ret.x[0]))
+            logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
+                        'ctt: {:.2f}, observed lwp {:.2f}'
+                        ' --> result lwp: {:.2f}, calibrated cbh: {:.2f}'
+                        .format(start, self.cth, self.ctt, self.cwp,
+                                self.lwp, ret.x[0]))
         elif method == 'brute':
             ranges = slice(0, self.cth, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)
