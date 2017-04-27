@@ -20,7 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-""" This module implements import routines for synoptical station data as 
+""" This module implements import routines for synoptical station data as
 bufr file"""
 
 import logging
@@ -32,14 +32,14 @@ trollbufr_logger = logging.getLogger('trollbufr')
 trollbufr_logger.setLevel(logging.CRITICAL)
 
 
-def read_synop(file, param, min=None, max=None):
+def read_synop(file, params, min=None, max=None):
     """ Reading bufr files for synoptical station data and provide dictionary
     with weather data for cloud base height and visibility.
     The results are subsequently filtered by cloud base height and visibility
 
     Arguments:
         file    Bufr file with synop reports
-        param    Name of the parameter that will be extracted
+        params    List of parameter names that will be extracted
         min    Threshold for minimum value of parameter
         max    Threshold for maximum value of parameter
 
@@ -94,28 +94,34 @@ def read_synop(file, param, min=None, max=None):
                                        stationdict['day'],
                                        stationdict['hour']
                                        ).strftime("%Y%m%d%H%M%S")
-
-                if min is not None and stationdict[param] < min:
+                paralist = []
+                if not isinstance(params, list):
+                    params = [params]
+                for param in params:
+                    if min is not None and stationdict[param] < min:
+                        res = None
+                    elif max is not None and stationdict[param] >= max:
+                        res = None
+                    elif stationdict[param] is None:
+                        res = None
+                    else:
+                        res = stationdict[param]
+                    paralist.append(res)
+                if all([i is None for i in paralist]):
                     continue
-                elif max is not None and stationdict[param] >= max:
-                    continue
-                elif stationdict[param] is None:
-                    continue
-
+                # Extract item for singular list
+                elif len(paralist) == 1:
+                    paralist = paralist[0]
                 if stationtime in result.keys():
                     result[stationtime].append([stationdict['name'],
                                                 stationdict['lat'],
                                                 stationdict['lon'],
-                                                stationdict[param]])
+                                                paralist])
                 else:
                     result[stationtime] = [[stationdict['name'],
                                            stationdict['lat'],
                                            stationdict['lon'],
-                                           stationdict[param]]]
-        except Exception, e:
+                                           paralist]]
+        except Exception as e:
             print("ERROR: Unresolved station request: {}".format(e))
     return(result)
-
-#fogdict = read_synop(bufr_file, 'visibility', max=1000)
-#for k in fogdict.keys():
-#    print(k, fogdict[k])
