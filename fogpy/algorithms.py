@@ -133,19 +133,31 @@ class BaseSatelliteAlgorithm(object):
         savedir = os.path.join(dir, self.name + '_' +
                                datetime.strftime(self.time,
                                                  '%Y%m%d%H%M') + '.png')
-        cmap = get_cmap('gray')
-        cmap.set_bad('goldenrod', 1.)
+        # Using Trollimage if available, else matplotlib is used to plot
+        try:
+            from trollimage.image import Image
+            from trollimage.colormap import rainbow
+            from trollimage.colormap import ylorrd
+        except:
+            logger.info("{} results can't be plotted to: {}". format(self.name,
+                                                                     dir))
+            return 0
+        # Create image from data
         if array is None:
-            imgplot = plt.imshow(self.result.squeeze())
+            result_img = Image(self.result.squeeze(), mode='L',
+                               fill_value=None)
         else:
-            imgplot = plt.imshow(array.squeeze())
-        plt.axis('off')
+            result_img = Image(array.squeeze(), mode='L', fill_value=None)
+        result_img.stretch("crude")
+        result_img.colorize(ylorrd)
+        result_img.resize((self.result.shape[0] * 5,
+                           self.result.shape[1] * 5))
         if save:
-            plt.savefig(savedir, bbox_inches='tight', pad_inches=0.0)
+            result_img.save(savedir)
             logger.info("{} results are plotted to: {}". format(self.name,
                                                                 self.dir))
         else:
-            plt.show()
+            result_img.show()
 
     def check_dimension(self, arr):
         """ Check and convert arrays to 2D """
@@ -564,23 +576,116 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         ctt = self.ir108
         # Prepare result arrays
         self.dz = np.empty(self.ir108.shape, dtype=np.float)
-        # 1. Check margin relief
+        self.cth = np.empty(self.ir108.shape, dtype=np.float)
+        # Calculate cloud clusters
+        if not hasattr(self, 'clusters'):
+            self.clusters = self.get_cloud_cluster(self.cloudmask)
+        # Execute pixel wise height detection in two steps
         if self.elev.shape == ctt.shape:
-            for index, val in np.ndenumerate(self.cloudmask):
-                if val == 1:
+            #for index, val in np.ndenumerate(self.cloudmask):
+            for index, val in np.ndenumerate(self.clusters):
+                if val == 0:
+                #if val == 1:
                     self.dz[index] = np.nan
                     continue
-                zcenter, zneigh = self.cell_neighbors(self.elev, i=index[0],
-                                                      j=index[1], d=1,
-                                                      value=self.elev)
-                delta_z = max(zcenter + zneigh) - min(zcenter + zneigh)
+                # Get neighbor elevations
+                #zcenter, zneigh, ids = self.cell_neighbors(self.elev,
+                #                                           i=index[0],
+                #                                           j=index[1], d=1)0
+                zcenter, zneigh, ids = self.get_neighbors(self.elev,
+                                                          index[0],
+                                                          index[1])
+                print(zcenter, zneigh)
+                # Get neighbor entity values
+                #idcenter, idneigh, ids = self.cell_neighbors(self.clusters,
+                #                                             i=index[0],
+                #                                             j=index[1], d=1)
+                idcenter, idneigh, ids = self.get_neighbors(self.clusters,
+                                                            index[0],
+                                                            index[1])
+                # Get neighbor temperature values
+                #tcenter, tneigh, ids = self.cell_neighbors(self.ir108,
+                #                                           i=index[0],
+                #                                           j=index[1], d=1)
+                tcenter, tneigh, ids = self.get_neighbors(self.ir108,
+                                                          i=index[0],
+                                                          j=index[1])
+                # Get neighbor cloud confidence values
+                #cclcenter, cclneigh, ids = self.cell_neighbors(self.ccl,
+                #                                               i=index[0],
+                #                                               j=index[1], d=1)
+                cclcenter, cclneigh, ids = self.get_neighbors(self.ccl,
+                                                              i=index[0],
+                                                              j=index[1])
+                # 1. Get margin neighbor pixel
+                idmargin = [i for i, x in enumerate(idneigh) if x == 0]
+                if not idmargin:
+                    self.dz[index] = np.nan
+                    continue
+                # 2. Check margin elevation for minimum relief
+                zmargin = [zneigh[i] for i in idmargin]
+                delta_z = max([zcenter] + zmargin) - min([zcenter] + zmargin)
                 self.dz[index] = delta_z
+                # 3. Find rising terrain from cloudy to margin pixels
+                idrise = [i for i, x in enumerate(zmargin) if x > zcenter]
+                zrise = [zmargin[i] for i in idrise]
+                # 4. Test Pixel for DEM height extraction
+                if delta_z >= 50 and idrise:
+                    cthmargin = [zmargin[i] for i in idrise]
+                    cth = np.mean(cthmargin)
+                else:
+                    tmargin = [tneigh[i] for i in idmargin]
+                    cclmargin = [cclneigh[i] for i in idmargin]
+                    cthmargin = self.apply_lapse_rate(tcenter, tmargin,
+                                                      zmargin)
+                    cth = np.mean(cthmargin)
+                self.cth[index] = cth
 
         # Set results
-        self.result = self.dz
+        self.result = self.cth
         self.mask = self.cloudmask
 
         return True
+
+    def get_neighbors(self, arr, i, j):
+        """Get neighbor cells by simple array indexing"""
+        shp = arr.shape
+        i_min = i - 1
+        if i_min < 0:
+            i_min = 0
+        i_max = i + 2
+        if i_max >= shp[0]:
+            i_max = shp[0]
+        j_min = j - 1
+        if j_min < 0:
+            j_min = 0
+        j_max = j + 2
+        if j_max >= shp[1]:
+            j_max = shp[1]
+        # Copy array slice and convert to float type for Nan value support
+        neighbors = np.copy(arr[i_min:i_max, j_min:j_max].astype(float))
+
+        center = arr[i, j]
+        neighbors[i - i_min, j - j_min] = np.nan
+        ids = [i_min, i_max, j_min, j_max]
+
+        return center, neighbors[~np.isnan(neighbors)], ids
+
+    def apply_lapse_rate(self, tcc, tcf, zneigh, lrate=-0.0054):
+        """Compute cloud top height with constant atmosphere temperature
+        lapse rate.
+
+        Args:
+        tcc (float): Temperature of cloud contaminated pixel in K
+        tcf (float): Temperature of cloud free margin pixel in K
+        zneigh (float): Elevation of cloud free margin pixel in m
+        lrate (float): Environmental temperature lapse rate in K/m
+
+        Returns:
+            bool: True if successful, False otherwise."""
+        cth = zneigh + (tcc - tcf) / lrate
+
+        return cth
 
     def sliding_window(self, arr, window_size):
         """ Construct a sliding window view of the array"""
@@ -604,7 +709,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                    arr.shape[1]*arr.itemsize, arr.itemsize)
         return as_strided(arr, shape=shape, strides=strides)
 
-    def cell_neighbors(self, arr, i, j, d, value):
+    def cell_neighbors(self, arr, i, j, d=1):
         """Return d-th neighbors of cell (i, j)"""
         if arr.ndim != 2:
             try:
@@ -639,6 +744,32 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         jrange = range(j0, j1)
         neighbors = [w[ix, jx][k, l] for k in irange for l in jrange
                      if k != icell or l != jcell]
-        center = value[i, j]  # Get center cell value from additional array
+        ids = [[k, l] for k in irange for l in jrange
+               if k != icell or l != jcell]
+        center = arr[i, j]  # Get center cell value from additional array
 
-        return center, neighbors
+        return center, neighbors, ids
+
+    def get_cloud_cluster(self, mask):
+        """ Enumerate low water cloud clusters by spatial vicinity
+
+        A mask is provided and the non masked values are spatially clustered
+        using scipy label method
+
+        Returns: Array with enumerated clusters
+        """
+        logger.info("Clustering low clouds")
+        # Enumerate fog cloud clusters
+        cluster = measurements.label(~mask)
+        # Get 10.8 channel sampled by the previous fog filters
+        result = np.ma.masked_where(mask, cluster[0])
+        # Check dimension
+        if result.ndim != 2:
+            try:
+                result = result.squeeze()  # Try to reduce dimension
+            except:
+                raise ValueError("need 2-D input")
+        logger.debug("Number of spatial coherent fog cloud clusters: %s"
+                     % np.nanmax(np.unique(result)))
+
+        return result

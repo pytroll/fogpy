@@ -215,6 +215,8 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
         self.elev = inputs[7]
+        # Remove nodata values (9999) from elevation
+        self.elev[self.elev == 9999] = np.nan
         self.lat = inputs[11]
         self.lon = inputs[12]
         self.cth = inputs[13]
@@ -241,19 +243,157 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         self.input['ccl'] = self.ccl
         self.input['cloudmask'] = self.cloudmask
 
+        # Define two small artificial test data
+        test_ir = np.array([[290., 290., 290.],
+                            [290., 260., 290.],
+                            [290., 290., 290.]])
+        test_ccl = np.array([[0.2, 0.4, 0.1],
+                             [0.3, 1, 0.2],
+                             [0, 0.4, 0.1]])
+        test_clusters = np.array([[0, 0, 0],
+                                  [0, 1, 0],
+                                  [0, 0, 0]])
+        test_cmask = np.array([[True, True, True],
+                               [True, False, True],
+                               [True, True, True]], dtype=bool)
+        test_elev = np.array([[800., 900., 1000.],
+                              [700., 500., 600.],
+                              [400., 300., 200.]])
+        test_elev2 = np.array([[800., 900., 1000.],
+                               [700., 1500., 600.],
+                               [400., 300., 200.]])
+        self.testinput = {'ir108': test_ir,
+                          'elev': test_elev,
+                          'ccl': test_ccl,
+                          'cloudmask': test_cmask}
+        self.testinput2 = {'ir108': test_ir,
+                           'elev': test_elev2,
+                           'ccl': test_ccl,
+                           'cloudmask': test_cmask}
+
     def tearDown(self):
         pass
 
-    def test_lcth_algorithm(self):
+    def test_lcth_algorithm_real(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.input)
         ret, mask = lcthalgo.run()
         self.assertEqual(lcthalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(lcthalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        #print(np.histogram(lcthalgo.elev[lcthalgo.elev != np.nan], 100))
+        print(np.nanmin(lcthalgo.elev), np.nanmax(lcthalgo.elev))
+        #lcthalgo.plot_result(lcthalgo.elev)
         self.assertLessEqual(np.nanmax(lcthalgo.dz), 400.)
+    """
+    def test_lcth_algorithm_artificial(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
+        ret, mask = lcthalgo.run()
+        self.assertEqual(lcthalgo.ir108.shape, (3, 3))
+        self.assertEqual(ret.shape, (3, 3))
+        self.assertEqual(lcthalgo.shape, (3, 3))
+        self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        self.assertEqual(np.nanmax(lcthalgo.dz), 800.)
+        self.assertEqual(np.nanmax(lcthalgo.cth), 800.)
 
+    def test_lcth_algorithm_artificial_complement(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testinput2)
+        ret, mask = lcthalgo.run()
+        self.assertEqual(lcthalgo.ir108.shape, (3, 3))
+        self.assertEqual(ret.shape, (3, 3))
+        self.assertEqual(lcthalgo.shape, (3, 3))
+        self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        self.assertEqual(np.nanmax(lcthalgo.dz), 1300.)
+        self.assertEqual(np.nanmax(np.around(lcthalgo.cth, 2)), 6168.06)
 
+    def test_lcth_lapse_rate(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
+        test_z = lcthalgo.apply_lapse_rate(265, 270, 1000)
+        test_z2 = lcthalgo.apply_lapse_rate(260, 290, 800)
+        test_z3 = lcthalgo.apply_lapse_rate(260, 290, 1000)
+        self.assertEqual(round(test_z, 2), 1925.93)
+        self.assertEqual(round(test_z2, 2), 6355.56)
+        self.assertEqual(round(test_z3, 2), 6555.56)
+
+    def test_lcth_direct_neighbors(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
+        elev = self.testinput2['elev']
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 1, 1)
+        compare = np.array([800., 900., 1000., 700., 600., 400., 300., 200.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test upper left corner
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 0, 0)
+        compare = np.array([900., 700., 1500.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test lower left corner
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 2, 0)
+        compare = np.array([700., 1500., 300.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test upper right corner
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 0, 2)
+        compare = np.array([900., 1500., 600.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test lower right corner
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 2, 2)
+        compare = np.array([1500., 600., 300.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test middle right cell
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 1, 2)
+        compare = np.array([900., 1000., 1500., 300., 200.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test middle left cell
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 1, 0)
+        compare = np.array([800., 900., 1500., 400., 300.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test upper middle cell
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 0, 1)
+        compare = np.array([800., 1000., 700., 1500., 600.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test lower middle cell
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 2, 1)
+        compare = np.array([700., 1500., 600., 400., 200.])
+        self.assertTrue(np.alltrue(compare == neigh))
+
+    def test_lcth_cell_neighbors(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
+        elev = self.testinput2['elev']
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 1, 1)
+        compare = np.array([800., 900., 1000., 700., 600., 400., 300., 200.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test upper left corner
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 0, 0)
+        compare = np.array([900., 700., 1500.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test lower left corner
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 2, 0)
+        compare = np.array([700., 1500., 300.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test upper right corner
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 0, 2)
+        compare = np.array([900., 1500., 600.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test lower right corner
+        center, neigh, ids = lcthalgo.get_neighbors(elev, 2, 2)
+        compare = np.array([1500., 600., 300.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test middle right cell
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 1, 2)
+        compare = np.array([900., 1000., 1500., 300., 200.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test middle left cell
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 1, 0)
+        compare = np.array([800., 900., 1500., 400., 300.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test upper middle cell
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 0, 1)
+        compare = np.array([800., 1000., 700., 1500., 600.])
+        self.assertTrue(np.alltrue(compare == neigh))
+        # Test lower middle cell
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 2, 1)
+        compare = np.array([700., 1500., 600., 400., 200.])
+        self.assertTrue(np.alltrue(compare == neigh))
+
+    """
 def suite():
     """The test suite for test_filter.
     """
