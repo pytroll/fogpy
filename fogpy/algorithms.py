@@ -577,46 +577,35 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         # Prepare result arrays
         self.dz = np.empty(self.ir108.shape, dtype=np.float)
         self.cth = np.empty(self.ir108.shape, dtype=np.float)
+        self.cth[:] = np.nan
         # Calculate cloud clusters
         if not hasattr(self, 'clusters'):
             self.clusters = self.get_cloud_cluster(self.cloudmask)
         # Execute pixel wise height detection in two steps
         if self.elev.shape == ctt.shape:
-            #for index, val in np.ndenumerate(self.cloudmask):
             for index, val in np.ndenumerate(self.clusters):
                 if val == 0:
-                #if val == 1:
                     self.dz[index] = np.nan
                     continue
                 # Get neighbor elevations
-                #zcenter, zneigh, ids = self.cell_neighbors(self.elev,
-                #                                           i=index[0],
-                #                                           j=index[1], d=1)0
-                zcenter, zneigh, ids = self.get_neighbors(self.elev,
-                                                          index[0],
-                                                          index[1])
-                print(zcenter, zneigh)
+                zcenter, zneigh, zids = self.get_neighbors(self.elev,
+                                                           index[0],
+                                                           index[1])
                 # Get neighbor entity values
-                #idcenter, idneigh, ids = self.cell_neighbors(self.clusters,
-                #                                             i=index[0],
-                #                                             j=index[1], d=1)
                 idcenter, idneigh, ids = self.get_neighbors(self.clusters,
                                                             index[0],
-                                                            index[1])
+                                                            index[1],
+                                                            mask=zids)
                 # Get neighbor temperature values
-                #tcenter, tneigh, ids = self.cell_neighbors(self.ir108,
-                #                                           i=index[0],
-                #                                           j=index[1], d=1)
                 tcenter, tneigh, ids = self.get_neighbors(self.ir108,
                                                           i=index[0],
-                                                          j=index[1])
+                                                          j=index[1],
+                                                          mask=ids)
                 # Get neighbor cloud confidence values
-                #cclcenter, cclneigh, ids = self.cell_neighbors(self.ccl,
-                #                                               i=index[0],
-                #                                               j=index[1], d=1)
                 cclcenter, cclneigh, ids = self.get_neighbors(self.ccl,
                                                               i=index[0],
-                                                              j=index[1])
+                                                              j=index[1],
+                                                              mask=ids)
                 # 1. Get margin neighbor pixel
                 idmargin = [i for i, x in enumerate(idneigh) if x == 0]
                 if not idmargin:
@@ -647,7 +636,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
 
         return True
 
-    def get_neighbors(self, arr, i, j):
+    def get_neighbors(self, arr, i, j, nan=False, mask=None):
         """Get neighbor cells by simple array indexing"""
         shp = arr.shape
         i_min = i - 1
@@ -664,12 +653,18 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             j_max = shp[1]
         # Copy array slice and convert to float type for Nan value support
         neighbors = np.copy(arr[i_min:i_max, j_min:j_max].astype(float))
-
         center = arr[i, j]
         neighbors[i - i_min, j - j_min] = np.nan
-        ids = [i_min, i_max, j_min, j_max]
-
-        return center, neighbors[~np.isnan(neighbors)], ids
+        if mask is not None:
+            neighbors[mask] = np.nan
+        # Create valid neighbor mask
+        ids = np.zeros(shp).astype(bool)
+        ids[np.isnan(neighbors)] = True
+        # Return optional only non nan values
+        if not nan:
+            return center, neighbors[~np.isnan(neighbors)], ids
+        else:
+            return center, neighbors, ids
 
     def apply_lapse_rate(self, tcc, tcf, zneigh, lrate=-0.0054):
         """Compute cloud top height with constant atmosphere temperature

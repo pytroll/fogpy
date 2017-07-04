@@ -31,6 +31,10 @@ from fogpy.algorithms import BaseSatelliteAlgorithm
 from fogpy.algorithms import DayFogLowStratusAlgorithm
 from fogpy.algorithms import LowCloudHeightAlgorithm
 from fogpy.filters import CloudFilter
+from fogpy.filters import SnowFilter
+from fogpy.filters import IceCloudFilter
+from fogpy.filters import CirrusCloudFilter
+from fogpy.filters import WaterCloudFilter
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -214,17 +218,31 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         inputs = np.dsplit(testdata, 14)
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
         self.elev = inputs[7]
-        # Remove nodata values (9999) from elevation
-        self.elev[self.elev == 9999] = np.nan
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.lwp = inputs[10]
         self.lat = inputs[11]
         self.lon = inputs[12]
         self.cth = inputs[13]
 
+        # Remove nodata values (9999) from elevation
+        self.elev[self.elev == 9999] = np.nan
+
         self.time = datetime(2013, 11, 12, 8, 30, 00)
 
-        self.input = {'ir108': self.ir108,
+        self.input = {'vis006': self.vis006,
+                      'vis008': self.vis008,
+                      'ir108': self.ir108,
+                      'nir016': self.nir016,
                       'ir039': self.ir039,
+                      'ir120': self.ir120,
+                      'ir087': self.ir087,
                       'bg_img': self.ir108,
                       'lat': self.lat,
                       'lon': self.lon,
@@ -235,13 +253,6 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
                       'save': True,
                       'dir': '/tmp/FLS',
                       'resize': '5'}
-        # Compute cloud mask
-        cloudfilter = CloudFilter(self.input['ir108'], **self.input)
-        ret, self.cloudmask = cloudfilter.apply()
-        self.ccl = cloudfilter.ccl
-
-        self.input['ccl'] = self.ccl
-        self.input['cloudmask'] = self.cloudmask
 
         # Define two small artificial test data
         test_ir = np.array([[290., 290., 290.],
@@ -274,18 +285,47 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_lcth_algorithm_nan_neighbor(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
+        elev = np.empty((3, 3))
+        elev[:] = np.nan
+        lcthalgo.elev = elev
+        ret, mask = lcthalgo.run()
+        self.assertEqual(lcthalgo.ir108.shape, (3, 3))
+        self.assertEqual(ret.shape, (3, 3))
+        self.assertEqual(lcthalgo.shape, (3, 3))
+        self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        self.assertEqual(np.isnan(np.nanmax(lcthalgo.dz)), True)
+        self.assertEqual(np.isnan(np.nanmax(lcthalgo.cth)), True)
+
     def test_lcth_algorithm_real(self):
+        # Compute cloud mask
+        cloudfilter = CloudFilter(self.input['ir108'], **self.input)
+        cloudfilter.apply()
+        snowfilter = SnowFilter(cloudfilter.result, **self.input)
+        snowfilter.apply()
+        icefilter = IceCloudFilter(snowfilter.result, **self.input)
+        icefilter.apply()
+        cirrusfilter = CirrusCloudFilter(icefilter.result, **self.input)
+        cirrusfilter.apply()
+        waterfilter = WaterCloudFilter(cirrusfilter.result,
+                                       cloudmask=cloudfilter.mask,
+                                       **self.input)
+        ret, mask = waterfilter.apply()
+
+        self.ccl = cloudfilter.ccl
+        self.input['ccl'] = self.ccl
+        self.input['cloudmask'] = ret.mask
+
         lcthalgo = LowCloudHeightAlgorithm(**self.input)
         ret, mask = lcthalgo.run()
+        lcthalgo.plot_result()
         self.assertEqual(lcthalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(lcthalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
-        #print(np.histogram(lcthalgo.elev[lcthalgo.elev != np.nan], 100))
-        print(np.nanmin(lcthalgo.elev), np.nanmax(lcthalgo.elev))
-        #lcthalgo.plot_result(lcthalgo.elev)
-        self.assertLessEqual(np.nanmax(lcthalgo.dz), 400.)
-    """
+        self.assertLessEqual(round(np.nanmax(lcthalgo.dz), 2), 1524.43)
+
     def test_lcth_algorithm_artificial(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
         ret, mask = lcthalgo.run()
@@ -393,7 +433,7 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         compare = np.array([700., 1500., 600., 400., 200.])
         self.assertTrue(np.alltrue(compare == neigh))
 
-    """
+
 def suite():
     """The test suite for test_filter.
     """
