@@ -578,6 +578,9 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         self.dz = np.empty(self.ir108.shape, dtype=np.float)
         self.cth = np.empty(self.ir108.shape, dtype=np.float)
         self.cth[:] = np.nan
+        # Init stat variables
+        self.ndem = 0
+        self.nlapse = 0
         # Calculate cloud clusters
         if not hasattr(self, 'clusters'):
             self.clusters = self.get_cloud_cluster(self.cloudmask)
@@ -622,12 +625,14 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                 if delta_z >= 50 and idrise:
                     cthmargin = [zmargin[i] for i in idrise]
                     cth = np.mean(cthmargin)
+                    self.ndem += 1
                 else:
                     tmargin = [tneigh[i] for i in idmargin]
                     cclmargin = [cclneigh[i] for i in idmargin]
                     cthmargin = self.apply_lapse_rate(tcenter, tmargin,
                                                       zmargin)
                     cth = np.mean(cthmargin)
+                    self.nlapse += 1
                 self.cth[index] = cth
         # Interpolate height values
         if not np.all(np.isnan(self.cth)):
@@ -662,6 +667,8 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                     Array size:              {}
                     Valid cells:             {}
                     Assigend cells           {}
+                      DEM extracted cells    {}
+                      Lapse rate cells       {}
                     Interpolated cells       {}
                     Remaining NaN cells      {}
                     Min height:              {}
@@ -669,8 +676,9 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                     Max height:              {}"""
                     .format(self.name,
                             self.algo_size, self.algo_num, self.cthassign,
-                            self.ninterp, self.resultnan,
-                            self.minheight, self.meanheight, self.maxheight))
+                            self.ndem, self.nlapse, self.ninterp,
+                            self.resultnan, self.minheight, self.meanheight,
+                            self.maxheight))
 
     def interpol_cth(self, cth, mask, method='nearest'):
         """Interpolate cth for given cloud clusters with scipy interpolation
