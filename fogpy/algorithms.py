@@ -343,12 +343,21 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             self.plot_clusters(self.save, self.dir)
 
         # 7. Calculate cloud top height
-        bt_clear = np.ma.masked_where((~cloudfilter.mask |
-                                       snowfilter.mask),
-                                      self.ir108)
-        bt_cloud = np.ma.masked_where(self.mask, self.ir108)
-        self.cluster_z = self.get_lowcloud_cth(self.clusters, bt_clear,
-                                               bt_cloud, self.elev)
+        # Old CTH calculaiton
+        # =====================================================================
+        # bt_clear = np.ma.masked_where((~cloudfilter.mask |
+        #                                snowfilter.mask),
+        #                               self.ir108)
+        # bt_cloud = np.ma.masked_where(self.mask, self.ir108)
+        # self.cluster_z = self.get_lowcloud_cth(self.clusters, bt_clear,
+        #                                        bt_cloud, self.elev)
+        # =====================================================================
+        cth_input = self.get_kwargs(['ir108', 'elev'])
+        cth_input['ccl'] = cloudfilter.ccl
+        cth_input['cloudmask'] = self.mask
+        lcthalgo = LowCloudHeightAlgorithm(**cth_input)
+        lcthalgo.run()
+        #TODO: Change spatialCTH filter for new cth calculation method
         # Apply cloud top height filter
         cthfilter = SpatialCloudTopHeightFilter(waterfilter.result,
                                                 ir108=self.ir108,
