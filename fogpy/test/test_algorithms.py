@@ -285,6 +285,16 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_lcth_algorithm_interpolate(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
+        cth = np.random.random_integers(0, 10, (5, 5)).astype(float)
+        cth[cth > 7] = np.nan
+        mask = np.random.random_integers(0, 1, (5, 5)).astype(bool)
+        result = lcthalgo.interpol_cth(cth, mask)
+        self.assertEqual(result.shape, (5, 5))
+        self.assertTrue(np.all(np.isnan(result[mask])))
+        self.assertGreaterEqual(np.sum(np.isnan(result)), np.sum(mask))
+
     def test_lcth_algorithm_nan_neighbor(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
         elev = np.empty((3, 3))
@@ -320,6 +330,7 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         lcthalgo = LowCloudHeightAlgorithm(**self.input)
         ret, mask = lcthalgo.run()
         lcthalgo.plot_result()
+        lcthalgo.plot_result(lcthalgo.mask)
         self.assertEqual(lcthalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(lcthalgo.shape, (141, 298))

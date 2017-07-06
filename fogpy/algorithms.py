@@ -30,7 +30,7 @@ from datetime import datetime
 from matplotlib.cm import get_cmap
 from numpy.lib.stride_tricks import as_strided
 from scipy.ndimage import measurements
-
+from scipy import interpolate
 from filters import CloudFilter
 from filters import SnowFilter
 from filters import IceCloudFilter
@@ -629,15 +629,94 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                                                       zmargin)
                     cth = np.mean(cthmargin)
                 self.cth[index] = cth
-
+        # Interpolate height values
+        if not np.all(np.isnan(self.cth)):
+            self.cth_interp = self.interpol_cth(self.cth, self.cloudmask)
+        else:
+            self.cth_interp = self.cth
         # Set results
-        self.result = self.cth
+        self.result = self.cth_interp
         self.mask = self.cloudmask
 
         return True
 
+    def check_results(self):
+        """Check processed algorithm for plausible results"""
+        self.lcth_stats()
+        if self.plot:
+            self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
+        return True
+
+    def lcth_stats(self):
+        self.algo_size = self.mask.size
+        self.algo_num = np.nansum(~self.mask)
+        self.cthnan = np.sum(np.isnan(self.cth[~self.mask]))
+        self.cthassign = self.algo_num - self.cthnan
+        self.resultnan = np.sum(np.isnan(self.result[~self.mask]))
+        self.ninterp = self.cthnan - self.resultnan
+        self.minheight = np.nanmin(self.result)
+        self.meanheight = np.nanmean(self.result)
+        self.maxheight = np.nanmax(self.result)
+
+        logger.info("""LCTH algorithm results for {} \n
+                    Array size:              {}
+                    Valid cells:             {}
+                    Assigend cells           {}
+                    Interpolated cells       {}
+                    Remaining NaN cells      {}
+                    Min height:              {}
+                    Mean height:             {}
+                    Max height:              {}"""
+                    .format(self.name,
+                            self.algo_size, self.algo_num, self.cthassign,
+                            self.ninterp, self.resultnan,
+                            self.minheight, self.meanheight, self.maxheight))
+
+    def interpol_cth(self, cth, mask, method='nearest'):
+        """Interpolate cth for given cloud clusters with scipy interpolation
+        griddata method
+
+        Args:
+        cth (Numpy array): Array of computed heigh values with gaps
+        mask (Numpy mask): Mask for valid cloud cluster pixels
+        method (string): Interpolation method (nearest, linear or cubic)
+
+        Returns:
+            Numpy array with interpolated cloud top height values in unmasked
+            areas
+        """
+        # Enumerate dimensions
+        x = np.arange(0, cth.shape[1])
+        y = np.arange(0, cth.shape[0])
+        array = np.ma.masked_invalid(cth)
+        # Get meshgrid
+        xx, yy = np.meshgrid(x, y)
+        # Remove masked values from grids
+        x1 = xx[~array.mask]
+        y1 = yy[~array.mask]
+        newcth = cth[~array.mask]
+        # Interpolate the gridded and masked data
+        result = interpolate.griddata((x1, y1), newcth.ravel(),
+                                      (xx, yy), method=method)
+        if np.any(np.isnan(result)):
+            logger.warning("LCTH algorithm interpolation created NaN values")
+        # Set invalide values
+        result[mask] = np.nan
+
+        return result
+
     def get_neighbors(self, arr, i, j, nan=False, mask=None):
-        """Get neighbor cells by simple array indexing"""
+        """Get neighbor cells by simple array indexing
+
+        Args:
+        arr (Numpy array): 2d numpy array
+        i, j (integer): x, y indices of selected cell
+        nan (Boolean): Optional return of invalide neighbors
+        mask (Boolean numpy array): Apply mask to neighboring cells
+
+        Returns:
+            Centered cell value, neighbor values and mask
+        """
         shp = arr.shape
         i_min = i - 1
         if i_min < 0:
