@@ -523,7 +523,7 @@ class WaterCloudFilter(BaseArrayFilter):
                 return(res)
 
 
-class SpatialCloudTopHeightFilter(BaseArrayFilter):
+class SpatialCloudTopHeightFilter_old(BaseArrayFilter):
     """Filtering cloud clusters by height for satellite images.
     """
     # Required inputs
@@ -557,6 +557,30 @@ class SpatialCloudTopHeightFilter(BaseArrayFilter):
         return True
 
 
+class SpatialCloudTopHeightFilter(BaseArrayFilter):
+    """Filtering cloud clusters by height for satellite images.
+    """
+    # Required inputs
+    attrlist = ['cth', 'clusters']
+
+    def filter_function(self):
+        """Cloud top height filter routine
+
+        This filter uses given cloud top heights arrays for low clouds to mask
+        cloud clusters with cloud top height above 1000 m.
+        """
+        logger.info("Applying Spatial Cloud Top Height Filter")
+        # Apply maximum threshold for cluster height to identify low fog clouds
+        cth_mask = self.cth > 1000
+
+        # Create cluster mask for image array
+        self.mask = cth_mask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+
 class SpatialHomogeneityFilter(BaseArrayFilter):
     """Filtering cloud clusters by StDev for satellite images.
     """
@@ -568,8 +592,8 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
 
         This filter utilizes spatially clustered cloud objects and their
         cloud top height to mask cloud clusters with  with spatial inhomogen
-        cloud clusters. Cloud top height standard deviation less than 2.5 are
-        filtered.
+        cloud clusters. Cloud top temperature standard deviations less than 2.5
+        are filtered.
         """
         logger.info("Applying Spatial Clustering Inhomogeneity Filter")
         # Surface homogeneity test
