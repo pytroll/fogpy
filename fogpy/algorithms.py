@@ -405,6 +405,9 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         self.result = lowcloudfilter.result
         self.mask = self.mask
 
+        # Compute separate cloud mask for validaiton
+        self.vcloudmask = icefilter.mask | cirrusfilter.mask
+
         return True
 
     def check_results(self):
