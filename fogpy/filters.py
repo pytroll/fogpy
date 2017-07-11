@@ -263,6 +263,10 @@ class CloudFilter(BaseArrayFilter):
         # Set cloud confidence range
         if not hasattr(self, 'ccr'):
             self.ccr = 5  # Kelvin
+        # Set peak ranges
+        if not hasattr(self, 'prange'):
+            self.prange = (-15, 10)  # Min - max peak range
+
         # Infrared channel difference
         self.cm_diff = np.ma.asarray(self.ir108 - self.ir039)
 
@@ -277,8 +281,14 @@ class CloudFilter(BaseArrayFilter):
         # Utilize scipy signal funciton to find peaks
         peakind = find_peaks_cwt(self.hist[0],
                                  np.arange(1, len(self.hist[1]) / 10))
-        peakrange = self.hist[1][peakind][(self.hist[1][peakind] >= -10) &
-                                          (self.hist[1][peakind] < 10)]
+        histpeaks = self.hist[1][peakind]
+        peakrange = histpeaks[(histpeaks >= self.prange[0]) &
+                              (histpeaks < self.prange[1])]
+        if len(peakrange) < 2:
+            logger.error("Not enough peaks found in range {} - {}"
+                         .format(self.prange[0], self.prange[1]))
+            raise ValueError
+
         self.minpeak = np.min(peakrange)
         self.maxpeak = np.max(peakrange)
 
