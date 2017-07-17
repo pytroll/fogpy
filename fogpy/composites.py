@@ -92,11 +92,22 @@ def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False):
     maskimg.enhance(stretch="crude")
 
     if validate:
+        # Get cloud mask image
         vmaskimg = GeoImage(flsalgo.vcloudmask, area, self.time_slot,
                             fill_value=0, mode="L")
         vmaskimg.enhance(stretch="crude")
 
-        return flsimg, maskimg, vmaskimg
+        # Get cloud base height image
+        cbhimg = GeoImage(flsalgo.cbh, area, self.time_slot,
+                          fill_value=0, mode="L")
+        #cbhimg.enhance(stretch="crude")
+
+        # Get fog base height image
+        fbhimg = GeoImage(flsalgo.fbh, area, self.time_slot,
+                          fill_value=0, mode="L")
+        #fbhimg.enhance(stretch="crude")
+
+        return flsimg, maskimg, vmaskimg, cbhimg, fbhimg
     else:
         return flsimg, maskimg
 
