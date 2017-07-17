@@ -77,9 +77,12 @@ def read_synop(file, params, min=None, max=None):
                     elif k == 20013:  # Cloud base height
                         if v is not None:
                             if 'cbh' in stationdict.keys():
-                                stationdict['cbh'] += v
+                                if stationdict['cbh'] > v:
+                                    stationdict['cbh'] = v
                             else:
                                 stationdict['cbh'] = v
+                        else:
+                            stationdict['cbh'] = None
                     elif k == 2001:  # Auto/manual measurement
                         # 1 - 3 : Manual human observations. Manned stations
                         # 0, 4 - 7 : Only automatic observations
