@@ -265,7 +265,7 @@ class CloudFilter(BaseArrayFilter):
             self.ccr = 5  # Kelvin
         # Set peak ranges
         if not hasattr(self, 'prange'):
-            self.prange = (-15, 10)  # Min - max peak range
+            self.prange = (-20, 10)  # Min - max peak range
 
         # Infrared channel difference
         self.cm_diff = np.ma.asarray(self.ir108 - self.ir039)
