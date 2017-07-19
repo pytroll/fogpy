@@ -363,12 +363,13 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
         self.high_sd_mask = np.random.randint(2, size=(10, 10))
         self.high_sd_ir_masked = np.ma.masked_where(self.high_sd_mask,
                                                     self.high_sd_ir)
+        self.high_sd_cluster = np.ma.masked_invalid(np.ones((10, 10)))
         self.high_sd_clusterma = flsalgo.get_cloud_cluster(self.high_sd_mask)
 
     def tearDown(self):
         pass
 
-    def test_spatial_homogenity_filter_nomask(self):
+    def test_spatial_homogenity_filter_nomask_low(self):
         # Create cloud filter
         testfilter = SpatialHomogeneityFilter(self.low_sd_ir,
                                               ir108=self.low_sd_ir,
@@ -377,6 +378,17 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
 
         # Evaluate results
         self.assertEqual(np.nansum(testfilter.mask), 0)
+
+    def test_spatial_homogenity_filter_nomask_high(self):
+        # Create cloud filter
+        testfilter = SpatialHomogeneityFilter(self.high_sd_ir,
+                                              ir108=self.high_sd_ir,
+                                              clusters=self.high_sd_cluster)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.nansum(testfilter.mask), 100)
+        self.assertEqual(np.nansum(testfilter.inmask), 0)
 
     def test_spatial_homogenity_filter_lowsd(self):
         # Create cloud filter

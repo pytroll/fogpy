@@ -69,7 +69,7 @@ class BaseArrayFilter(object):
             self.inmask = arr.mask
         elif isinstance(arr, np.ndarray):
             self.arr = arr
-            self.inmask = None
+            self.inmask = np.full(arr.shape, False, dtype=bool)
         else:
             raise ImportError('The filter <{}> needs a valid 2d numpy array '
                               'as input'.format(self.__class__.__name__))
