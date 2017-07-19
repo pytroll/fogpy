@@ -29,6 +29,7 @@ import numpy as np
 import os
 import types
 
+from copy import deepcopy
 from collections import defaultdict
 from datetime import datetime
 from matplotlib.cm import get_cmap
@@ -607,7 +608,7 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
         """
         logger.info("Applying Spatial Clustering Inhomogeneity Filter")
         # Surface homogeneity test
-        cluster_mask = self.inmask
+        cluster_mask = deepcopy(self.inmask)
         cluster, nlbl = ndimage.label(~self.clusters.mask)
         cluster_ma = np.ma.masked_where(self.inmask, self.clusters)
 

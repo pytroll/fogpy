@@ -33,7 +33,9 @@ from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
 from fogpy.filters import CirrusCloudFilter
 from fogpy.filters import WaterCloudFilter
+from fogpy.filters import SpatialHomogeneityFilter
 from fogpy.filters import LowCloudFilter
+from fogpy.algorithms import DayFogLowStratusAlgorithm
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -345,6 +347,60 @@ class Test_WaterCloudFilter(unittest.TestCase):
         self.assertEqual(testfilter.line, 141)
 
 
+class Test_SpatialHomogeneityFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Define artificial test data with low standard deviation
+        flsalgo = DayFogLowStratusAlgorithm()
+        self.low_sd_ir = 1.0 * np.random.randn(10, 10) + 260
+        self.low_sd_mask = np.random.randint(2, size=(10, 10))
+        self.low_sd_ir_masked = np.ma.masked_where(self.low_sd_mask,
+                                                   self.low_sd_ir)
+        self.low_sd_cluster = np.ma.masked_invalid(np.ones((10, 10)))
+        self.low_sd_clusterma = flsalgo.get_cloud_cluster(self.low_sd_mask)
+        # Define artificial test data with high standard deviation
+        self.high_sd_ir = 20.0 * np.random.randn(10, 10) + 260
+        self.high_sd_mask = np.random.randint(2, size=(10, 10))
+        self.high_sd_ir_masked = np.ma.masked_where(self.high_sd_mask,
+                                                    self.high_sd_ir)
+        self.high_sd_clusterma = flsalgo.get_cloud_cluster(self.high_sd_mask)
+
+    def tearDown(self):
+        pass
+
+    def test_spatial_homogenity_filter_nomask(self):
+        # Create cloud filter
+        testfilter = SpatialHomogeneityFilter(self.low_sd_ir,
+                                              ir108=self.low_sd_ir,
+                                              clusters=self.low_sd_cluster)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.nansum(testfilter.mask), 0)
+
+    def test_spatial_homogenity_filter_lowsd(self):
+        # Create cloud filter
+        testfilter = SpatialHomogeneityFilter(self.low_sd_ir_masked,
+                                              ir108=self.low_sd_ir_masked,
+                                              clusters=self.low_sd_clusterma)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertNotEqual(np.nansum(testfilter.mask), 0)
+        self.assertEqual(np.nansum(testfilter.mask), np.nansum(self.low_sd_mask))
+
+    def test_spatial_homogenity_filter_highsd(self):
+        # Create cloud filter
+        testfilter = SpatialHomogeneityFilter(self.high_sd_ir_masked,
+                                              ir108=self.high_sd_ir_masked,
+                                              clusters=self.high_sd_clusterma)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertNotEqual(np.nansum(testfilter.mask), 0)
+        self.assertEqual(np.nansum(testfilter.mask), 100)
+
+
 class Test_LowCloudFilter(unittest.TestCase):
 
     def setUp(self):
@@ -433,6 +489,7 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_IceCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CirrusCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_WaterCloudFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_SpatialHomogeneityFilter))
 
     return mysuite
 
