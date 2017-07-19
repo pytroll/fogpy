@@ -99,15 +99,17 @@ def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False):
 
         # Get cloud base height image
         cbhimg = GeoImage(flsalgo.cbh, area, self.time_slot,
-                          fill_value=0, mode="L")
-        #cbhimg.enhance(stretch="crude")
+                          fill_value=9999, mode="L")
 
         # Get fog base height image
         fbhimg = GeoImage(flsalgo.fbh, area, self.time_slot,
-                          fill_value=0, mode="L")
-        #fbhimg.enhance(stretch="crude")
+                          fill_value=9999, mode="L")
 
-        return flsimg, maskimg, vmaskimg, cbhimg, fbhimg
+        # Get low cloud top height image
+        lcthimg = GeoImage(flsalgo.lcth, area, self.time_slot,
+                           fill_value=9999, mode="L")
+
+        return [flsimg, maskimg, vmaskimg, cbhimg, fbhimg, lcthimg]
     else:
         return flsimg, maskimg
 
