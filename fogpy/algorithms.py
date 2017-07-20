@@ -639,8 +639,9 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                     cclmargin = [cclneigh[i] for i in idmargin]
                     cthmargin = self.apply_lapse_rate(tcenter, tmargin,
                                                       zmargin)
-                    cth = np.mean(cthmargin)
-                    self.nlapse += 1
+                    cth = np.nanmean(cthmargin)
+                    if not np.isnan(cth):
+                        self.nlapse += 1
                 self.cth[index] = cth
         # Interpolate height values
         if not np.all(np.isnan(self.cth)):
@@ -774,6 +775,16 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         Returns:
             bool: True if successful, False otherwise."""
         cth = zneigh + (tcc - tcf) / lrate
+        # Remove negative height values
+        if isinstance(cth, np.ndarray):
+            cth[cth < 0] = np.nan
+            logger.debug("Excluded negative LCTH for lapse rate based"
+                         " estimation")
+        else:
+            if cth < 0:
+                cth = np.nan
+                logger.debug("Excluded negative LCTH for lapse rate based"
+                             " estimation")
 
         return cth
 

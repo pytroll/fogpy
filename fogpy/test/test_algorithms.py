@@ -360,9 +360,16 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         test_z = lcthalgo.apply_lapse_rate(265, 270, 1000)
         test_z2 = lcthalgo.apply_lapse_rate(260, 290, 800)
         test_z3 = lcthalgo.apply_lapse_rate(260, 290, 1000)
+        test_z4 = lcthalgo.apply_lapse_rate(290, np.array([290, 260, 300]),
+                                            np.array([1000, 1500, 900]))
+        test_z5 = lcthalgo.apply_lapse_rate(290, 260, 1000)
         self.assertEqual(round(test_z, 2), 1925.93)
         self.assertEqual(round(test_z2, 2), 6355.56)
         self.assertEqual(round(test_z3, 2), 6555.56)
+        self.assertEqual(test_z4[0], 1000.)
+        self.assertTrue(np.isnan(test_z4[1]))
+        self.assertEqual(round(test_z4[2], 2), 2751.85)
+        self.assertTrue(np.isnan(test_z5))
 
     def test_lcth_direct_neighbors(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
