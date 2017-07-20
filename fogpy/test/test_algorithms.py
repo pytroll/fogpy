@@ -295,6 +295,17 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         self.assertTrue(np.all(np.isnan(result[mask])))
         self.assertGreaterEqual(np.sum(np.isnan(result)), np.sum(mask))
 
+    def test_lcth_algorithm_linreg(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
+        cth = np.random.random_integers(0, 10, (5, 5)).astype(float)
+        ctt = np.random.random_integers(260, 290, (5, 5)).astype(float)
+        cth[cth > 7] = np.nan
+        mask = np.random.random_integers(0, 1, (5, 5)).astype(bool)
+        result = lcthalgo.linreg_cth(cth, mask, ctt)
+        self.assertEqual(result.shape, (5, 5))
+        self.assertTrue(np.all(np.isnan(result[mask])))
+        self.assertEqual(np.sum(np.isnan(result)), np.sum(mask))
+
     def test_lcth_algorithm_nan_neighbor(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
         elev = np.empty((3, 3))

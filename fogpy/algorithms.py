@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
+from copy import deepcopy
 from datetime import datetime
 from matplotlib.cm import get_cmap
 from numpy.lib.stride_tricks import as_strided
@@ -564,6 +565,14 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
     Returns:
         Array with cloud top heights in [m]
     """
+    def __init__(self, *args, **kwargs):
+        super(LowCloudHeightAlgorithm, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'interpolate'):
+            self.interpolate = False
+        if not hasattr(self, 'method'):
+            self.method = "nearest"
+
     def isprocessible(self):
         """Test runability here"""
         attrlist = ['ir108', 'cloudmask', 'ccl', 'elev']
@@ -645,11 +654,17 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                 self.cth[index] = cth
         # Interpolate height values
         if not np.all(np.isnan(self.cth)):
-            self.cth_interp = self.interpol_cth(self.cth, self.cloudmask)
+            if self.interpolate:  # Optional interpolation
+                self.cth_result = self.interpol_cth(self.cth, self.cloudmask,
+                                                    self.method)
+            else:  # Default linear regression height estimation
+                self.cth_result = self.linreg_cth(self.cth, self.cloudmask,
+                                                  ctt)
         else:
-            self.cth_interp = self.cth
+            self.cth_result = self.cth
+            logger.warning("No LCTH interpolated height estimation possible")
         # Set results
-        self.result = self.cth_interp
+        self.result = self.cth_result
         self.mask = self.cloudmask
 
         return True
@@ -717,6 +732,36 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                                       (xx, yy), method=method)
         if np.any(np.isnan(result)):
             logger.warning("LCTH algorithm interpolation created NaN values")
+        # Set invalide values
+        result[mask] = np.nan
+
+        return result
+
+    def linreg_cth(self, cth, mask, ctt):
+        """Interpolate cth for given cloud clusters by linear regression with
+        provided cloud top temperature data.
+
+        Args:
+        cth (Numpy array): Array of computed heigh values with gaps
+        mask (Numpy mask): Mask for valid cloud cluster pixels
+        ctt (Numpy array): Array of cloud top temperatures
+
+        Returns:
+            Numpy array with interpolated cloud top height values in unmasked
+            areas
+        """
+        result = deepcopy(cth)
+        # Enumerate dimensions
+        x = ctt[~mask & ~np.isnan(cth)]
+        y = cth[~mask & ~np.isnan(cth)]
+        # Rearrange line equation to  y = Ap  from y = mx  + c with p = [m , c]
+        A = np.vstack([x, np.ones(len(x))]).T
+        # Solve by leat square fitting.
+        m, c = np.linalg.lstsq(A, y)[0]
+        # Apply coefficients
+        result[np.isnan(cth)] = m * ctt[np.isnan(cth)] + c
+        if np.any(np.isnan(result)):
+            logger.warning("LCTH linear regression created NaN values")
         # Set invalide values
         result[mask] = np.nan
 
