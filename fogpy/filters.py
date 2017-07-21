@@ -572,17 +572,18 @@ class SpatialCloudTopHeightFilter(BaseArrayFilter):
     """Filtering cloud clusters by height for satellite images.
     """
     # Required inputs
-    attrlist = ['cth', 'clusters']
+    attrlist = ['cth', 'elev']
 
     def filter_function(self):
         """Cloud top height filter routine
 
         This filter uses given cloud top heights arrays for low clouds to mask
-        cloud clusters with cloud top height above 1000 m.
+        cloud clusters with cloud top height above 1000 m in comparison to
+        given ground elevation.
         """
         logger.info("Applying Spatial Cloud Top Height Filter")
         # Apply maximum threshold for cluster height to identify low fog clouds
-        cth_mask = self.cth > 1000
+        cth_mask = (self.cth - self.elev) > 1000
 
         # Create cluster mask for image array
         self.mask = cth_mask

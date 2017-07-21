@@ -352,7 +352,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # Apply cloud top height filter
         cthfilter = SpatialCloudTopHeightFilter(waterfilter.result,
                                                 cth=lcthalgo.result,
-                                                clusters=self.clusters,
+                                                elev=self.elev,
                                                 time=self.time,
                                                 bg_img=self.ir108,
                                                 dir=self.dir,
@@ -761,8 +761,12 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         # Solve by leat square fitting.
         m, c = np.linalg.lstsq(A, y)[0]
         # Save regression plot
+        if hasattr(self, 'time'):
+            ts = self.time
+        else:
+            ts = datetime.now()
         savedir = os.path.join(self.dir, self.name + '_linreg_' +
-                               datetime.strftime(self.time,
+                               datetime.strftime(ts,
                                                  '%Y%m%d%H%M') + '.png')
         self.plot_linreg(x, y, m, c, savedir)
         # Apply coefficients
