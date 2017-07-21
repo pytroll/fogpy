@@ -80,6 +80,8 @@ class BaseSatelliteAlgorithm(object):
             self.dir = '/tmp'
         if not hasattr(self, 'resize'):
             self.resize = 0
+        if not hasattr(self, 'plotrange'):
+            self.plotrange = (0, 1)
 
     def run(self):
         """Start the algorithm and return results"""
@@ -150,6 +152,9 @@ class BaseSatelliteAlgorithm(object):
         else:
             result_img = Image(array.squeeze(), mode='L', fill_value=None)
         result_img.stretch("crude")
+        # Colorize image
+        ylorrd.set_range(*self.plotrange)
+        logger.info("Set color range to {}".format(self.plotrange))
         result_img.colorize(ylorrd)
         result_img.resize((self.result.shape[0] * 5,
                            self.result.shape[1] * 5))
@@ -267,7 +272,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                     |
                 9.  Microphysics plausibility check -    yes
                                                     |
-                10.  Differenciate fog - low status -    ...
+                10.  Differenciate fog - low status -    yes
                                                     |
                 11.  Fog dissipation ----------------
                                                     |
@@ -344,7 +349,8 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             self.plot_clusters(self.save, self.dir)
 
         # 7. Calculate cloud top height
-        cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir'])
+        cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir', 'plot',
+                                     'save'])
         cth_input['ccl'] = cloudfilter.ccl
         cth_input['cloudmask'] = self.mask
         lcthalgo = LowCloudHeightAlgorithm(**cth_input)
@@ -674,6 +680,8 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         """Check processed algorithm for plausible results"""
         self.lcth_stats()
         if self.plot:
+            # Overwrite plotrange with valid result array range
+            self.plotrange = (np.nanmin(self.result), np.nanmax(self.result))
             self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
         return True
 
