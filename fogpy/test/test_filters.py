@@ -109,7 +109,7 @@ class Test_CloudFilter(unittest.TestCase):
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
         self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)
-        self.assertAlmostEqual(testfilter.minpeak, -8.7346406259)
+        self.assertAlmostEqual(testfilter.minpeak, -19.744686196671914)
         self.assertAlmostEqual(testfilter.maxpeak, 1.11645277953)
         self.assertAlmostEqual(testfilter.thres, -3.51935588185)
         self.assertEqual(np.sum(testfilter.mask), 20551)
@@ -123,7 +123,7 @@ class Test_CloudFilter(unittest.TestCase):
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
         self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)
-        self.assertAlmostEqual(testfilter.minpeak, -8.7346406259)
+        self.assertAlmostEqual(testfilter.minpeak, -19.744686196671914)
         self.assertAlmostEqual(testfilter.maxpeak, 1.11645277953)
         self.assertAlmostEqual(testfilter.thres, -3.51935588185)
         self.assertEqual(np.sum(testfilter.mask), 20551)
@@ -137,7 +137,7 @@ class Test_CloudFilter(unittest.TestCase):
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
         self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)
-        self.assertAlmostEqual(testfilter.minpeak, -8.7346406259)
+        self.assertAlmostEqual(testfilter.minpeak, -19.744686196671914)
         self.assertAlmostEqual(testfilter.maxpeak, 1.11645277953)
         self.assertAlmostEqual(testfilter.thres, -3.51935588185)
         self.assertEqual(np.sum(testfilter.mask), 20551)
@@ -462,14 +462,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         ret, snowmask = snowfilter.apply()
         # Get clusters
         fls = FLS(**self.input)
-        self.clusters = FLS.get_cloud_cluster(fls, self.cloudmask)
-        #bt_clear = np.ma.masked_where((~cloudfilter.mask |
-                                      # snowfilter.mask),
-                                      #self.ir108)
-        #bt_cloud = np.ma.masked_where(snowmask, self.ir108)
-        # Get cloud top heights
-        #self.cluster_z = FLS.get_lowcloud_cth(fls, self.clusters, bt_clear,
-        #                                      bt_cloud, self.elev)
+        self.clusters = FLS.get_cloud_cluster(fls, self.cloudmask, False)
         self.input = {'ir108': self.ir108,
                       'lwp': self.lwp,
                       'reff': self.reff,

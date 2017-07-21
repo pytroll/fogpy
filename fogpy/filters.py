@@ -714,7 +714,7 @@ class LowCloudFilter(BaseArrayFilter):
             self.fbh[self.clusters == keys[i]] = res[1]
             # Mask non ground fog clouds
             self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
-                                                        self.elev.squeeze() >
+                                                        self.elev >
                                                         0)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask

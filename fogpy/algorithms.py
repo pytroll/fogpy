@@ -344,7 +344,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             self.plot_clusters(self.save, self.dir)
 
         # 7. Calculate cloud top height
-        cth_input = self.get_kwargs(['ir108', 'elev'])
+        cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir'])
         cth_input['ccl'] = cloudfilter.ccl
         cth_input['cloudmask'] = self.mask
         lcthalgo = LowCloudHeightAlgorithm(**cth_input)
@@ -419,7 +419,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         ret = True
         return ret
 
-    def get_cloud_cluster(self, mask):
+    def get_cloud_cluster(self, mask, reduce=True):
         """ Enumerate low water cloud clusters by spatial vicinity
 
         A mask is provided and the non masked values are spatially clustered
@@ -433,7 +433,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # Get 10.8 channel sampled by the previous fog filters
         result = np.ma.masked_where(mask, cluster[0])
         # Check dimension
-        if result.ndim != 2:
+        if result.ndim != 2 and reduce:
             try:
                 result = result.squeeze()  # Try to reduce dimension
             except:
@@ -572,6 +572,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             self.interpolate = False
         if not hasattr(self, 'method'):
             self.method = "nearest"
+        self.nlcthneg = 0
 
     def isprocessible(self):
         """Test runability here"""
@@ -695,14 +696,15 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                       Lapse rate cells       {}
                     Interpolated cells       {}
                     Remaining NaN cells      {}
+                    Excluded negative cells  {}
                     Min height:              {}
                     Mean height:             {}
                     Max height:              {}"""
                     .format(self.name,
                             self.algo_size, self.algo_num, self.cthassign,
                             self.ndem, self.nlapse, self.ninterp,
-                            self.resultnan, self.minheight, self.meanheight,
-                            self.maxheight))
+                            self.resultnan, self.nlcthneg, self.minheight,
+                            self.meanheight, self.maxheight))
 
     def interpol_cth(self, cth, mask, method='nearest'):
         """Interpolate cth for given cloud clusters with scipy interpolation
@@ -758,6 +760,11 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         A = np.vstack([x, np.ones(len(x))]).T
         # Solve by leat square fitting.
         m, c = np.linalg.lstsq(A, y)[0]
+        # Save regression plot
+        savedir = os.path.join(self.dir, self.name + '_linreg_' +
+                               datetime.strftime(self.time,
+                                                 '%Y%m%d%H%M') + '.png')
+        self.plot_linreg(x, y, m, c, savedir)
         # Apply coefficients
         result[np.isnan(cth)] = m * ctt[np.isnan(cth)] + c
         if np.any(np.isnan(result)):
@@ -823,13 +830,12 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         # Remove negative height values
         if isinstance(cth, np.ndarray):
             cth[cth < 0] = np.nan
-            logger.debug("Excluded negative LCTH for lapse rate based"
-                         " estimation")
+            if np.all(np.isnan(cth)):
+                self.nlcthneg += 1
         else:
             if cth < 0:
                 cth = np.nan
-                logger.debug("Excluded negative LCTH for lapse rate based"
-                             " estimation")
+                self.nlcthneg += 1
 
         return cth
 
@@ -919,3 +925,16 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                      % np.nanmax(np.unique(result)))
 
         return result
+
+    def plot_linreg(self, x, y, m, c, saveto=None):
+        """ Plot result of linear regression for DEM and lapse rate extracted
+        low cloud top height and cloud top temperatures"""
+        plt.plot(x, y, '.')
+        plt.plot(x, m * x + c)
+        plt.title("Linear Regression for LCTH and CTT")
+        plt.xlabel('Cloud top temperature [K]')
+        plt.ylabel('Low cloud top height [m]')
+        if saveto is None:
+            plt.show()
+        else:
+            plt.savefig(saveto)
