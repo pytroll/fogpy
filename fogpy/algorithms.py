@@ -296,7 +296,8 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
     def procedure(self):
         """ Apply different filters and low cloud model to input data"""
-        logger.info("Starting fog and low cloud detection algorithm")
+        logger.info("Starting fog and low cloud detection algorithm"
+                    " in daytime mode")
         # 1. Cloud filtering
         cloud_input = self.get_kwargs(['ir108', 'ir039', 'time', 'save',
                                        'resize', 'plot', 'dir'])
@@ -409,6 +410,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         self.add_mask(lowcloudfilter.mask)
 
         # Set results
+        logger.info("Finish fog and low cloud detection algorithm")
         self.result = lowcloudfilter.result
         self.mask = self.mask
 
@@ -952,3 +954,160 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             plt.show()
         else:
             plt.savefig(saveto)
+
+
+class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
+    """This algorithm implements a fog and low stratus detection and forecasting
+     for geostationary satellite images from the SEVIRI instrument onboard of
+     METEOSAT second generation MSG satellites for night time scenes.
+     Two infrared MSG channels are used. Therefore the algorithm is applicable
+     for day and night times in general, but is optimized for night time usage.
+     It is utilizing the methods proposed in the following studies:
+
+         - Dynamical nighttime fog/low stratus detection based on Meteosat
+           SEVIRI Data: A feasibility study
+            J. Cermak & J. Bendix
+
+    Arguements:
+        chn108    Array for the 10.8 μm channel
+        chn39    Array for the 3.9 μm channel
+        sza    Array for the satellite viewing zenith angle
+        elev    Array for the altitude
+        time    Datetime object for the satellite scence
+        lat    Array of latitude values
+        lon    Array of longitude values
+
+    Returns:
+        Infrared image with fog mask
+
+    The algorithm can be applied to satellite zenith angle lower than 70°
+    and a maximum solar zenith angle of 80°.
+
+    The algorithm workflow is a succession of differnt masking approaches
+    from coarse to finer selection to find fog and low stratus clouds within
+    provided satellite images. Afterwards a separation between fog and low
+    clouds are made by calibrating a cloud base height with a low cloud model
+    to satellite retrieval information. Then a fog dissipation and subsequently
+    a nowcasting of fog can be done.
+
+            Input: Calibrated satellite images >-----   Implemented:
+                                                            |
+                1.  Calculate temperature difference --------    yes
+                                                            |
+                2.  Retrieve localized difference thresholds     ongoing
+                                                            |
+                3.  Smooth thresholds -----------------------    no
+                                                            |
+                4.  Apply result thresholds -----------------    no
+                                                            |
+            Output: fog and low stratus mask <---------------
+     """
+    def __init__(self, *args, **kwargs):
+        super(NightFogLowStratusAlgorithm, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'minrange'):
+            self.minrange = 0.5  # Minimum range for SZA calculation
+        if not hasattr(self, 'trange'):
+            self.trange = 500  # Target range for SZA calculation
+
+    def isprocessible(self):
+        """Test runability here"""
+        attrlist = ['ir108', 'ir039', 'lat', 'lon', 'time', 'elev', 'sza']
+        ret = []
+        for attr in attrlist:
+            if hasattr(self, attr):
+                ret.append(True)
+            else:
+                ret.append(False)
+                logger.warning("Missing input attribute: {}".format(attr))
+
+        return all(ret)
+
+    def procedure(self):
+        """ Run nighttime fog and low stratus detection scheme"""
+        logger.info("Starting fog and low cloud detection algorithm"
+                    " in nighttime mode")
+        #######################################################################
+        # 1. Calculate temperature difference
+        # Get differences
+        self.bt_diff = self.ir108 - self.ir039
+        # Comupte minimum and maximum satellite zenith angles
+        minsza = np.nanmin(self.sza)
+        maxsza = np.nanmax(self.sza)
+        logger.info("Satellite zenith angles in the range of {} - {}"
+                    .format(minsza, maxsza))
+        #######################################################################
+        # 2. Retrieve localized difference thresholds - Minimisin CO2 effects
+        # Vectorize methods
+        self.vget_sza_in_range = np.vectorize(self.get_sza_in_range)
+        self.vget_bt_dist = np.vectorize(self.get_bt_dist)
+        # Define starting distance
+        distance = self.minrange
+        nsza = self.vget_sza_in_range(self.sza, distance)
+
+        while np.min(nsza) < self.trange:
+            distance += 0.5
+            nsza = self.vget_sza_in_range(self.sza, distance)
+        logger.info("Calibrated SZA range: {} for n: {} values in range"
+                    .format(distance, self.trange))
+        # Calculate distributions and corresponding thresholds
+        dist = self.get_bt_dist(8, distance)
+        # Get turning points
+        tvalues, valleys = self.get_turningpoints(dist[0])
+        # Test modality of frequency distribution
+        if np.alen(valleys) == 1:
+            thres = valleys[0]  # Bimodal distribution valley point
+        elif np.alen(valleys) == 0:
+            thres = None  # Point of slope declination
+        self.plot_bt_hist(dist)
+
+        #######################################################################
+        # 3. Smooth thresholds
+        
+        #######################################################################
+        # 4. Apply thresholds to infrared channel difference
+
+        # Set results
+        logger.info("Finish fog and low cloud detection algorithm")
+        self.result = self.sza
+        self.mask = self.mask
+
+        return True
+
+    def get_sza_in_range(self, value, range):
+        """Method to compute number of satellite zenith angles in given range
+        around a value
+        """
+        mask = np.logical_and(self.sza > (value - range),
+                              self.sza <= (value + range))
+        count = mask.sum()
+        return(count)
+
+    def get_bt_dist(self, value, range):
+        """Method to compute brightness temperature difference distribution
+        for given range of satellite zenith angles.
+        """
+        mask = np.logical_and(self.sza > (value - range),
+                              self.sza <= (value + range))
+        btdist = np.histogram(self.bt_diff[mask])
+        return(btdist)
+
+    def plot_bt_hist(self, hist, saveto=None):
+        plt.bar(hist[1][:-1], hist[0])
+        plt.title("Histogram with 'auto' bins")
+        if saveto is None:
+            plt.show()
+        else:
+            plt.savefig(saveto)
+
+    def get_turningpoints(self, arr):
+        """Calculate turning points of bimodal histogram data and extract
+        values for valleys"""
+        dx = np.diff(arr)
+        tvalues = dx[1:] * dx[:-1] < 0
+        # Extract valley ids
+        valley_ids = np.where(np.logical_and(dx[1:] > 0, tvalues))[0]
+        valleys = arr[valley_ids + 1]
+        # Get number of turning points
+        tsum = np.sum(tvalues)
+        return(tvalues, valleys)

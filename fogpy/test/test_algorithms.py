@@ -29,13 +29,15 @@ import unittest
 from datetime import datetime
 from fogpy.algorithms import BaseSatelliteAlgorithm
 from fogpy.algorithms import DayFogLowStratusAlgorithm
+from fogpy.algorithms import NightFogLowStratusAlgorithm
 from fogpy.algorithms import LowCloudHeightAlgorithm
 from fogpy.filters import CloudFilter
 from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
 from fogpy.filters import CirrusCloudFilter
 from fogpy.filters import WaterCloudFilter
-
+from pyorbital.orbital import Orbital
+from pyorbital import tlefile
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
 # lat, lon, cth
@@ -461,6 +463,90 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         self.assertTrue(np.alltrue(compare == neigh))
 
 
+class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 14)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.lwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+        self.cth = inputs[13]
+
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+        # METEOSAT-10 (MSG-3) TLE file from 01.08.2017
+        # http://celestrak.com/NORAD/elements/weather.txt
+        line1 = "1 38552U 12035B   17212.14216600 -.00000019  00000-0  00000-0 0  9998"
+        line2 = "2 38552   0.8450 357.8180 0002245 136.4998 225.6885  1.00275354 18379"
+        # Import TLE file
+        self.tle = tlefile.read('meteosat 10', line1=line1, line2=line2)
+        self.orbital = Orbital('meteosat 10', line1=self.tle.line1,
+                               line2=self.tle.line2)
+        # Compute satellite zenith angle
+        azi, ele = self.orbital.get_observer_look(self.time, self.lon,
+                                                  self.lat, self.elev)
+        self.sza = ele
+
+        self.input = {'vis006': self.vis006,
+                      'vis008': self.vis008,
+                      'ir108': self.ir108,
+                      'nir016': self.nir016,
+                      'ir039': self.ir039,
+                      'ir120': self.ir120,
+                      'ir087': self.ir087,
+                      'lat': self.lat,
+                      'lon': self.lon,
+                      'time': self.time,
+                      'elev': self.elev,
+                      'cot': self.cot,
+                      'reff': self.reff,
+                      'lwp': self.lwp,
+                      'cth': self.cth,
+                      'plot': True,
+                      'save': True,
+                      'dir': '/tmp/FLS',
+                      'resize': '5',
+                      'sza': self.sza}
+
+    def tearDown(self):
+        pass
+
+    def test_nightfls_algorithm(self):
+        flsalgo = NightFogLowStratusAlgorithm(**self.input)
+        ret, mask = flsalgo.run()
+        self.assertEqual(flsalgo.ir108.shape, (141, 298))
+        self.assertEqual(ret.shape, (141, 298))
+        self.assertEqual(flsalgo.shape, (141, 298))
+        self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
+
+    def test_nightfls_turningpoints_with_valley(self):
+        x = np.array([1, 2, 4, 7, 5, 2, 0, 2, 3, 4, 6])
+        flsalgo = NightFogLowStratusAlgorithm(**self.input)
+        tvalues, valleys = flsalgo.get_turningpoints(x)
+        self.assertEqual(tvalues[5], True)
+        self.assertEqual(tvalues[2], True)
+        self.assertEqual(np.sum(tvalues), 2)
+        self.assertEqual(np.alen(valleys), 1)
+
+    def test_nightfls_turningpoints_no_valley(self):
+        x = np.array([1, 2, 4, 7, 5, 2, 1, 1, 1, 0])
+        flsalgo = NightFogLowStratusAlgorithm(**self.input)
+        tvalues, valleys = flsalgo.get_turningpoints(x)
+        self.assertEqual(tvalues[2], True)
+        self.assertEqual(np.sum(tvalues), 1)
+        self.assertEqual(np.alen(valleys), 0)
+
+
 def suite():
     """The test suite for test_filter.
     """
@@ -471,6 +557,7 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudHeightAlgorithm))
 
     return mysuite
+
 
 if __name__ == "__main__":
     unittest.main()
