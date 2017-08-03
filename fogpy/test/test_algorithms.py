@@ -546,6 +546,16 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(np.sum(tvalues), 1)
         self.assertEqual(np.alen(valleys), 0)
 
+    def test_nightfls_slope(self):
+        y = np.array([1, 2, 4, 7, 5, 2, 1, 1, 1, 0])
+        x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        flsalgo = NightFogLowStratusAlgorithm(**self.input)
+        slope, thres = flsalgo.get_slope(y, x)
+        self.assertEqual(slope[2], 3)
+        self.assertEqual(slope[8], -1)
+        self.assertEqual(np.alen(slope), 9)
+        self.assertEqual(thres, 1)
+
 
 def suite():
     """The test suite for test_filter.

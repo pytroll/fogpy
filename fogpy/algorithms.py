@@ -1050,6 +1050,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             nsza = self.vget_sza_in_range(self.sza, distance)
         logger.info("Calibrated SZA range: {} for n: {} values in range"
                     .format(distance, self.trange))
+        self.distance = distance
         # Calculate distributions and corresponding thresholds
         dist = self.get_bt_dist(8, distance)
         # Get turning points
@@ -1058,6 +1059,9 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         if np.alen(valleys) == 1:
             thres = valleys[0]  # Bimodal distribution valley point
         elif np.alen(valleys) == 0:
+            print(dist[0], dist[1])
+            slope = self.get_slope(dist[0], dist[1])
+            print(slope)
             thres = None  # Point of slope declination
         self.plot_bt_hist(dist)
 
@@ -1073,6 +1077,20 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         self.mask = self.mask
 
         return True
+
+    def get_dist_threshold(self, value, distance):
+        # Calculate distributions and corresponding thresholds
+        dist = self.get_bt_dist(value, distance)
+        # Get turning points
+        tvalues, valleys = self.get_turningpoints(dist[0])
+        # Test modality of frequency distribution
+        if np.alen(valleys) == 1:
+            thres = valleys[0]  # Bimodal distribution valley point
+        elif np.alen(valleys) == 0:
+            slope = self.get_slope(dist[0], dist[1])
+            print(slope)
+            print(point)
+        return()
 
     def get_sza_in_range(self, value, range):
         """Method to compute number of satellite zenith angles in given range
@@ -1111,3 +1129,12 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # Get number of turning points
         tsum = np.sum(tvalues)
         return(tvalues, valleys)
+
+    def get_slope(self, y, x):
+        """ Compute the slope of a one dimensional array"""
+        slope = np.diff(y) / np.diff(x)
+        decline = slope[1:] * slope[:-1]
+        # Point of slope declination
+        thres_id = np.where(np.logical_and(slope[1:] < 0, decline > 0))[0]
+        thres = np.min(y[thres_id + 2])
+        return(slope, thres)
