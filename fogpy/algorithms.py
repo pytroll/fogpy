@@ -414,7 +414,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
         # Compute separate products for validaiton
         # Get cloud mask
-        self.vcloudmask = icefilter.mask | cirrusfilter.mask | ~cloudfilter.mask
+        self.vcloudmask = icefilter.mask | cirrusfilter.mask #| ~cloudfilter.mask
         # Extract cloud base and top heights products
         self.cbh = lowcloudfilter.cbh  # Cloud base height
         self.fbh = lowcloudfilter.fbh  # Fog base height
