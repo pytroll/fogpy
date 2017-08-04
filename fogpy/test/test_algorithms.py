@@ -47,8 +47,12 @@ from pyorbital import tlefile
 base = os.path.split(fogpy.__file__)
 testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
 testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
+testfile_night = os.path.join(base[0], '..', 'etc', 'fog_testdata_night.npy')
+testfile_night2 = os.path.join(base[0], '..', 'etc', 'fog_testdata_night2.npy')
 testdata = np.load(testfile)
 testdata2 = np.load(testfile2)
+testdata_night = np.load(testfile_night)
+testdata_night2 = np.load(testfile_night2)
 
 
 class Test_BaseSatelliteAlgorithm(unittest.TestCase):
@@ -467,7 +471,7 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
 
     def setUp(self):
         # Load test data
-        inputs = np.dsplit(testdata, 14)
+        inputs = np.dsplit(testdata_night, 14)
         self.ir108 = inputs[0]
         self.ir039 = inputs[1]
         self.vis008 = inputs[2]
@@ -554,7 +558,7 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(slope[2], 3)
         self.assertEqual(slope[8], -1)
         self.assertEqual(np.alen(slope), 9)
-        self.assertEqual(thres, 1)
+        self.assertEqual(thres, 6)
 
 
 def suite():

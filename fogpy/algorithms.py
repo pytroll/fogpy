@@ -1058,12 +1058,9 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # Test modality of frequency distribution
         if np.alen(valleys) == 1:
             thres = valleys[0]  # Bimodal distribution valley point
-        elif np.alen(valleys) == 0:
-            print(dist[0], dist[1])
-            slope = self.get_slope(dist[0], dist[1])
+        elif np.alen(valleys) == 0:  # Use point of slope declination
+            slope, thres = self.get_slope(dist[0], dist[1][:-1])
             print(slope)
-            thres = None  # Point of slope declination
-        self.plot_bt_hist(dist)
 
         #######################################################################
         # 3. Smooth thresholds
@@ -1087,9 +1084,9 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         if np.alen(valleys) == 1:
             thres = valleys[0]  # Bimodal distribution valley point
         elif np.alen(valleys) == 0:
-            slope = self.get_slope(dist[0], dist[1])
+            slope, thres = self.get_slope(dist[0], dist[1][:-1])
             print(slope)
-            print(point)
+            print(thres)
         return()
 
     def get_sza_in_range(self, value, range):
@@ -1136,5 +1133,5 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         decline = slope[1:] * slope[:-1]
         # Point of slope declination
         thres_id = np.where(np.logical_and(slope[1:] < 0, decline > 0))[0]
-        thres = np.min(y[thres_id + 2])
+        thres = np.min(x[thres_id + 2])
         return(slope, thres)
