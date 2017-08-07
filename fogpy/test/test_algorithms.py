@@ -487,7 +487,7 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
         self.lon = inputs[12]
         self.cth = inputs[13]
 
-        self.time = datetime(2013, 11, 12, 8, 30, 00)
+        self.time = datetime(2013, 11, 12, 6, 00, 00)
         # METEOSAT-10 (MSG-3) TLE file from 01.08.2017
         # http://celestrak.com/NORAD/elements/weather.txt
         line1 = "1 38552U 12035B   17212.14216600 -.00000019  00000-0  00000-0 0  9998"
