@@ -501,32 +501,59 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
                                                   self.lat, self.elev)
         self.sza = ele
 
-        self.input = {'vis006': self.vis006,
-                      'vis008': self.vis008,
-                      'ir108': self.ir108,
-                      'nir016': self.nir016,
+        self.input = {'ir108': self.ir108,
                       'ir039': self.ir039,
-                      'ir120': self.ir120,
-                      'ir087': self.ir087,
                       'lat': self.lat,
                       'lon': self.lon,
                       'time': self.time,
-                      'elev': self.elev,
-                      'cot': self.cot,
-                      'reff': self.reff,
-                      'lwp': self.lwp,
-                      'cth': self.cth,
                       'plot': True,
                       'save': True,
                       'dir': '/tmp/FLS',
                       'resize': '5',
                       'sza': self.sza}
 
+        inputs = np.dsplit(testdata_night2, 14)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.lwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+        self.cth = inputs[13]
+
+        self.time = datetime(2013, 12, 1, 4, 00, 00)
+
+        self.input2 = {'ir108': self.ir108,
+                       'ir039': self.ir039,
+                       'lat': self.lat,
+                       'lon': self.lon,
+                       'time': self.time,
+                       'plot': True,
+                       'save': True,
+                       'dir': '/tmp/FLS',
+                       'resize': '5',
+                       'sza': self.sza}
+
     def tearDown(self):
         pass
 
     def test_nightfls_algorithm(self):
         flsalgo = NightFogLowStratusAlgorithm(**self.input)
+        ret, mask = flsalgo.run()
+        self.assertEqual(flsalgo.ir108.shape, (141, 298))
+        self.assertEqual(ret.shape, (141, 298))
+        self.assertEqual(flsalgo.shape, (141, 298))
+        self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
+
+    def test_nightfls_algorithm2(self):
+        flsalgo = NightFogLowStratusAlgorithm(**self.input2)
         ret, mask = flsalgo.run()
         self.assertEqual(flsalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
