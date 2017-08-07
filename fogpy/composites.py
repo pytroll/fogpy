@@ -26,6 +26,7 @@ detection and forecasting algorithm as a PyTROLL custom composite object.
 import logging
 
 from algorithms import DayFogLowStratusAlgorithm
+from algorithms import NightFogLowStratusAlgorithm
 from mpop.imageo.geo_image import GeoImage
 from trollimage.colormap import Colormap
 
@@ -48,6 +49,9 @@ def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False):
         lwp    Liquid water path as array
         cth    Cloud top height as array, optional
         validate    Additional cloud mask output, optional
+
+    Returns:
+        Infrared image with colorized fog areas and the calculated fog mask
     """
     logger.debug("Creating fog composite for {} instrument scene {}"
                  .format(self.fullname, self.time_slot))
@@ -113,13 +117,57 @@ def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False):
     else:
         return flsimg, maskimg
 
-fls_day.prerequisites = set([0.635, 0.81, 1.64, 3.92, 8.7, 10.8, 12.0])
 
-
-def fls_night(self):
+def fls_night(self, sza):
     """ This method defines a composite for fog and low stratus detection
-    and forecasting at night."""
-    pass
+    and forecasting at night. The fog algorithm is optimized for the
+    Meteosat Second Generation - SERVIRI instrument.
+
+    Required additional inputs:
+        sza    Satellite zenith angle as array
+
+    Returns:
+        Infrared image with colorized fog areas and the calculated fog mask
+    """
+    logger.debug("Creating fog composite for {} instrument scene {}"
+                 .format(self.fullname, self.time_slot))
+
+    self.check_channels(3.92, 10.8)
+
+    # Get central lon/lat coordinates for the image
+    area = self[10.8].area
+    lon, lat = area.get_lonlats()
+
+    flsinput = {'ir108': self[10.8].data,
+                'ir039': self[3.92].data,
+                'sza': sza,
+                'lat': lat,
+                'lon': lon,
+                'time': self.time_slot,
+                'plot': True,
+                'save': True,
+                'dir': '/tmp',
+                'resize': '5'}
+
+    # Compute fog mask
+    flsalgo = NightFogLowStratusAlgorithm(**flsinput)
+    fls, mask = flsalgo.run()
+
+    # Create geoimage object from algorithm result
+    flsimg = GeoImage(fls, area, self.time_slot,
+                      fill_value=0, mode="L")
+    flsimg.enhance(stretch="crude")
+
+    maskimg = GeoImage(~mask, area, self.time_slot,
+                       fill_value=0, mode="L")
+    maskimg.enhance(stretch="crude")
+
+    return flsimg, maskimg
+
+
+# Set prerequisites
+fls_day.prerequisites = set([0.635, 0.81, 1.64, 3.92, 8.7, 10.8, 12.0])
+fls_night.prerequisites = set([3.92, 10.8])
 
 # List of composites for SEVIRI instrument
 seviri = [fls_day, fls_night]
