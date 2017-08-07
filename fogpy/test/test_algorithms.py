@@ -528,24 +528,37 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
     def test_nightfls_algorithm(self):
         flsalgo = NightFogLowStratusAlgorithm(**self.input)
         ret, mask = flsalgo.run()
+        flsalgo.plot_result()
         self.assertEqual(flsalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(flsalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
 
     def test_nightfls_turningpoints_with_valley(self):
-        x = np.array([1, 2, 4, 7, 5, 2, 0, 2, 3, 4, 6])
+        y = np.array([1, 2, 4, 7, 5, 2, 0, 2, 3, 4, 6])
         flsalgo = NightFogLowStratusAlgorithm(**self.input)
-        tvalues, valleys = flsalgo.get_turningpoints(x)
+        tvalues, valleys = flsalgo.get_turningpoints(y)
         self.assertEqual(tvalues[5], True)
         self.assertEqual(tvalues[2], True)
         self.assertEqual(np.sum(tvalues), 2)
         self.assertEqual(np.alen(valleys), 1)
+        self.assertEqual(valleys, 0)
+
+    def test_nightfls_turningpoints_with_thres(self):
+        y = np.array([1, 2, 4, 7, 5, 2, 0, 2, 3, 4, 6])
+        x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+        flsalgo = NightFogLowStratusAlgorithm(**self.input)
+        tvalues, thres = flsalgo.get_turningpoints(y, x)
+        self.assertEqual(tvalues[5], True)
+        self.assertEqual(tvalues[2], True)
+        self.assertEqual(np.sum(tvalues), 2)
+        self.assertEqual(np.alen(thres), 1)
+        self.assertEqual(thres, 7)
 
     def test_nightfls_turningpoints_no_valley(self):
-        x = np.array([1, 2, 4, 7, 5, 2, 1, 1, 1, 0])
+        y = np.array([1, 2, 4, 7, 5, 2, 1, 1, 1, 0])
         flsalgo = NightFogLowStratusAlgorithm(**self.input)
-        tvalues, valleys = flsalgo.get_turningpoints(x)
+        tvalues, valleys = flsalgo.get_turningpoints(y)
         self.assertEqual(tvalues[2], True)
         self.assertEqual(np.sum(tvalues), 1)
         self.assertEqual(np.alen(valleys), 0)

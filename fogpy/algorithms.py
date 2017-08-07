@@ -31,6 +31,7 @@ from datetime import datetime
 from matplotlib.cm import get_cmap
 from numpy.lib.stride_tricks import as_strided
 from scipy.ndimage import measurements
+from scipy.stats import linregress
 from scipy import interpolate
 from filters import CloudFilter
 from filters import SnowFilter
@@ -994,11 +995,11 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                             |
                 1.  Calculate temperature difference --------    yes
                                                             |
-                2.  Retrieve localized difference thresholds     ongoing
+                2.  Retrieve localized difference thresholds     yes
                                                             |
-                3.  Smooth thresholds -----------------------    no
+                3.  Smooth thresholds -----------------------    yes
                                                             |
-                4.  Apply result thresholds -----------------    no
+                4.  Apply result thresholds -----------------    yes
                                                             |
             Output: fog and low stratus mask <---------------
      """
@@ -1031,6 +1032,9 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # 1. Calculate temperature difference
         # Get differences
         self.bt_diff = self.ir108 - self.ir039
+        logger.info("Satellite infrared differences in the range of {} - {}"
+                    .format(np.nanmin(self.bt_diff),
+                            np.nanmax(self.bt_diff)))
         # Comupte minimum and maximum satellite zenith angles
         minsza = np.nanmin(self.sza)
         maxsza = np.nanmax(self.sza)
@@ -1041,6 +1045,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # Vectorize methods
         self.vget_sza_in_range = np.vectorize(self.get_sza_in_range)
         self.vget_bt_dist = np.vectorize(self.get_bt_dist)
+        self.vget_dist_threshold = np.vectorize(self.get_dist_threshold)
         # Define starting distance
         distance = self.minrange
         nsza = self.vget_sza_in_range(self.sza, distance)
@@ -1052,26 +1057,35 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                     .format(distance, self.trange))
         self.distance = distance
         # Calculate distributions and corresponding thresholds
-        dist = self.get_bt_dist(8, distance)
-        # Get turning points
-        tvalues, valleys = self.get_turningpoints(dist[0])
-        # Test modality of frequency distribution
-        if np.alen(valleys) == 1:
-            thres = valleys[0]  # Bimodal distribution valley point
-        elif np.alen(valleys) == 0:  # Use point of slope declination
-            slope, thres = self.get_slope(dist[0], dist[1][:-1])
-            print(slope)
+        self.thres = self.vget_dist_threshold(self.sza, distance)
+        logger.info("Calculated thresholds in the range of {} - {}"
+                    .format(np.nanmin(self.thres),
+                            np.nanmax(self.thres)))
 
         #######################################################################
         # 3. Smooth thresholds
-        
+        nanmask = np.isnan(self.thres)  # Create mask for nan values
+        # Fit linear regression to regional thresholds
+        linreg = linregress(self.sza[~nanmask].ravel(),
+                            self.thres[~nanmask].ravel())
+        self.slope, self.intercept, rval, pval, stderr = linreg
+        logger.info("Fitted linear regression threshold function with "
+                    "slope: {} and intercept: {}"
+                    .format(round(self.slope, 4),
+                            round(self.intercept, 4)))
+        if self.plot:
+            if self.save:
+                self.plot_thres(saveto=self.dir)
+            else:
+                self.plot_thres()
         #######################################################################
         # 4. Apply thresholds to infrared channel difference
-
+        self.thres_linreg = self.slope * self.sza + self.intercept
+        self.flsmask = self.bt_diff < self.thres_linreg
         # Set results
         logger.info("Finish fog and low cloud detection algorithm")
-        self.result = self.sza
-        self.mask = self.mask
+        self.result = np.ma.masked_array(self.ir108, self.flsmask)
+        self.mask = self.flsmask
 
         return True
 
@@ -1079,15 +1093,17 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # Calculate distributions and corresponding thresholds
         dist = self.get_bt_dist(value, distance)
         # Get turning points
-        tvalues, valleys = self.get_turningpoints(dist[0])
+        tvalues, valleyx = self.get_turningpoints(dist[0], dist[1][:-1])
         # Test modality of frequency distribution
-        if np.alen(valleys) == 1:
-            thres = valleys[0]  # Bimodal distribution valley point
-        elif np.alen(valleys) == 0:
+        if np.alen(valleyx) == 1:
+            thres = valleyx[0]  # Bimodal distribution valley point
+        elif np.alen(valleyx) == 0:
+            # Use point of slope declination
             slope, thres = self.get_slope(dist[0], dist[1][:-1])
-            print(slope)
-            print(thres)
-        return()
+        else:
+            thres = np.nan
+#             raise ValueError("Unknown form of distribution")
+        return(thres)
 
     def get_sza_in_range(self, value, range):
         """Method to compute number of satellite zenith angles in given range
@@ -1115,17 +1131,31 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         else:
             plt.savefig(saveto)
 
-    def get_turningpoints(self, arr):
+    def plot_thres(self, saveto=None):
+        plt.plot(self.sza, self.thres, 'ro')
+        if self.slope and self.intercept:
+            plt.plot(self.sza, self.slope * self.sza + self.intercept, 'b-')
+        plt.title("Thresholds for different satellite zenith angles")
+        plt.xlabel('Satellite zenith angle')
+        plt.ylabel('BT difference threshold [K]')
+        if saveto is None:
+            plt.show()
+        else:
+            plt.savefig(saveto)
+
+    def get_turningpoints(self, y, x=None):
         """Calculate turning points of bimodal histogram data and extract
-        values for valleys"""
-        dx = np.diff(arr)
+        values for valleys or corresponding x-locations"""
+        dx = np.diff(y)
         tvalues = dx[1:] * dx[:-1] < 0
         # Extract valley ids
         valley_ids = np.where(np.logical_and(dx[1:] > 0, tvalues))[0]
-        valleys = arr[valley_ids + 1]
-        # Get number of turning points
-        tsum = np.sum(tvalues)
-        return(tvalues, valleys)
+        valleys = y[valley_ids + 1]
+        if x is not None:
+            thres = x[valley_ids + 1]
+            return(tvalues, thres)
+        else:
+            return(tvalues, valleys)
 
     def get_slope(self, y, x):
         """ Compute the slope of a one dimensional array"""
