@@ -1018,7 +1018,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
     def isprocessible(self):
         """Test runability here"""
-        attrlist = ['ir108', 'ir039', 'lat', 'lon', 'time', 'elev', 'sza']
+        attrlist = ['ir108', 'ir039', 'lat', 'lon', 'time', 'sza']
         ret = []
         for attr in attrlist:
             if hasattr(self, attr):
@@ -1189,5 +1189,8 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         decline = slope[1:] * slope[:-1]
         # Point of slope declination
         thres_id = np.where(np.logical_and(slope[1:] < 0, decline > 0))[0]
-        thres = np.min(x[thres_id + 2])
+        if len(thres_id) != 0:
+            thres = np.min(x[thres_id + 2])
+        else:
+            thres = None
         return(slope, thres)
