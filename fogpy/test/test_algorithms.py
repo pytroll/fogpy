@@ -528,7 +528,6 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
     def test_nightfls_algorithm(self):
         flsalgo = NightFogLowStratusAlgorithm(**self.input)
         ret, mask = flsalgo.run()
-        flsalgo.plot_result()
         self.assertEqual(flsalgo.ir108.shape, (141, 298))
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(flsalgo.shape, (141, 298))

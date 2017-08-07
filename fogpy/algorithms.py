@@ -131,10 +131,11 @@ class BaseSatelliteAlgorithm(object):
         return({key: self.__getattribute__(key) for key in self.attributes
                 if key in keys})
 
-    def plot_result(self, array=None, save=False, dir="/tmp", resize=0):
+    def plot_result(self, array=None, save=False, dir="/tmp", resize=0,
+                    name="result"):
         """Plotting the algorithm result"""
         # Get output directory and image name
-        savedir = os.path.join(dir, self.name + '_' +
+        savedir = os.path.join(dir, self.name + '_' + name + "_" +
                                datetime.strftime(self.time,
                                                  '%Y%m%d%H%M') + '.png')
         # Using Trollimage if available, else matplotlib is used to plot
@@ -1001,6 +1002,8 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                             |
                 4.  Apply result thresholds -----------------    yes
                                                             |
+                5.  Derive confidence level -----------------    yes
+                                                            |
             Output: fog and low stratus mask <---------------
      """
     def __init__(self, *args, **kwargs):
@@ -1010,6 +1013,8 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             self.minrange = 0.5  # Minimum range for SZA calculation
         if not hasattr(self, 'trange'):
             self.trange = 500  # Target range for SZA calculation
+        if not hasattr(self, 'fcr'):
+            self.fcr = 2  # Fog confidence range in K
 
     def isprocessible(self):
         """Test runability here"""
@@ -1073,19 +1078,37 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                     "slope: {} and intercept: {}"
                     .format(round(self.slope, 4),
                             round(self.intercept, 4)))
-        if self.plot:
-            if self.save:
-                self.plot_thres(saveto=self.dir)
-            else:
-                self.plot_thres()
+
         #######################################################################
         # 4. Apply thresholds to infrared channel difference
         self.thres_linreg = self.slope * self.sza + self.intercept
         self.flsmask = self.bt_diff < self.thres_linreg
+
+        #######################################################################
+        # 5. Compute FLS confidence level
+        self.flsconflvl = (self.thres_linreg - self.bt_diff - self.fcr) \
+            / (-2 * self.fcr)
+        # Set max and min confidence levels to range: 1 - 0
+        self.flsconflvl[self.flsconflvl > 1] = 1
+        self.flsconflvl[self.flsconflvl < 0] = 0
         # Set results
         logger.info("Finish fog and low cloud detection algorithm")
         self.result = np.ma.masked_array(self.ir108, self.flsmask)
         self.mask = self.flsmask
+
+        return True
+
+    def check_results(self):
+        """Check processed algorithm for plausible results"""
+        if self.plot:
+            self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
+            self.plot_result(array=self.flsconflvl, save=self.save,
+                             dir=self.dir, resize=self.resize,
+                             name="confidlvl")
+            if self.save:
+                self.plot_thres(saveto=self.dir)
+            else:
+                self.plot_thres()
 
         return True
 
@@ -1141,7 +1164,10 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         if saveto is None:
             plt.show()
         else:
-            plt.savefig(saveto)
+            plt.savefig(os.path.join(saveto, self.name + "_" +
+                                     datetime.strftime(self.time,
+                                                       '%Y%m%d%H%M') +
+                                     "_btthres.png"))
 
     def get_turningpoints(self, y, x=None):
         """Calculate turning points of bimodal histogram data and extract
