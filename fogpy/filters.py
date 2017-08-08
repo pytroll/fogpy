@@ -285,21 +285,26 @@ class CloudFilter(BaseArrayFilter):
         histpeaks = self.hist[1][peakind]
         peakrange = histpeaks[(histpeaks >= self.prange[0]) &
                               (histpeaks < self.prange[1])]
-        if len(peakrange) < 2:
-            logger.error("Not enough peaks found in range {} - {}"
+        if len(peakrange) == 1:
+            logger.error("Not enough peaks found in range {} - {} \n"
+                         "Using slope declination as threshold"
                          .format(self.prange[0], self.prange[1]))
+            slope, thres = self.get_slope_decline(self.hist[0],
+                                                  self.hist[1][:-1])
+            self.thres = thres
+        elif len(peakrange) == 2:
+            self.minpeak = np.min(peakrange)
+            self.maxpeak = np.max(peakrange)
+
+            # Determine threshold
+            logger.debug("Histogram range for cloudy/clear sky pixels: {} - {}"
+                         .format(self.minpeak, self.maxpeak))
+            thres_index = localmin[(self.hist[1][localmin] <= self.maxpeak) &
+                                   (self.hist[1][localmin] >= self.minpeak) &
+                                   (self.hist[1][localmin] < 0.5)]
+            self.thres = np.max(self.hist[1][thres_index])
+        else:
             raise ValueError
-
-        self.minpeak = np.min(peakrange)
-        self.maxpeak = np.max(peakrange)
-
-        # Determine threshold
-        logger.debug("Histogram range for cloudy/clear sky pixels: {} - {}"
-                     .format(self.minpeak, self.maxpeak))
-        thres_index = localmin[(self.hist[1][localmin] <= self.maxpeak) &
-                               (self.hist[1][localmin] >= self.minpeak) &
-                               (self.hist[1][localmin] < 0.5)]
-        self.thres = np.max(self.hist[1][thres_index])
 
         if self.thres > 0 or self.thres < -5:
             logger.warning("Cloud maks difference threshold {} outside normal"
@@ -327,6 +332,19 @@ class CloudFilter(BaseArrayFilter):
             plt.show()
         else:
             plt.savefig(saveto)
+
+    def get_slope_decline(self, y, x):
+        """ Compute the slope declination of a histogram"""
+        slope = np.diff(y) / np.diff(x)
+        decline = slope[1:] * slope[:-1]
+        # Point of slope declination
+        thres_id = np.where(np.logical_and(slope[1:] > 0, decline > 0))[0]
+        if len(thres_id) != 0:
+            decline_points = x[thres_id + 2]
+            thres = np.min(decline_points[decline_points > -5])
+        else:
+            thres = None
+        return(slope, thres)
 
 
 class SnowFilter(BaseArrayFilter):
