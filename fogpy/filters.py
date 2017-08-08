@@ -292,7 +292,7 @@ class CloudFilter(BaseArrayFilter):
             slope, thres = self.get_slope_decline(self.hist[0],
                                                   self.hist[1][:-1])
             self.thres = thres
-        elif len(peakrange) == 2:
+        elif len(peakrange) >= 2:
             self.minpeak = np.min(peakrange)
             self.maxpeak = np.max(peakrange)
 
