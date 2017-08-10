@@ -348,16 +348,20 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         if self.plot:
             self.plot_clusters(self.save, self.dir)
 
-        # 7. Calculate cloud top height
-        cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir', 'plot',
-                                     'save'])
-        cth_input['ccl'] = cloudfilter.ccl
-        cth_input['cloudmask'] = self.mask
-        lcthalgo = LowCloudHeightAlgorithm(**cth_input)
-        lcthalgo.run()
+        # 7. Calculate cloud top height if no CTH array is given
+        if not hasattr(self, 'cth'):
+            cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir', 'plot',
+                                         'save'])
+            cth_input['ccl'] = cloudfilter.ccl
+            cth_input['cloudmask'] = self.mask
+            lcthalgo = LowCloudHeightAlgorithm(**cth_input)
+            lcthalgo.run()
+            cth = lcthalgo.result
+        else:
+            cth = self.cth
         # Apply cloud top height filter
         cthfilter = SpatialCloudTopHeightFilter(waterfilter.result,
-                                                cth=lcthalgo.result,
+                                                cth=cth,
                                                 elev=self.elev,
                                                 time=self.time,
                                                 bg_img=self.ir108,
@@ -418,7 +422,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         # Extract cloud base and top heights products
         self.cbh = lowcloudfilter.cbh  # Cloud base height
         self.fbh = lowcloudfilter.fbh  # Fog base height
-        self.lcth = lcthalgo.result  # Low cloud top height
+        self.lcth = cth  # Low cloud top height
 
         return True
 
