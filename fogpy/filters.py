@@ -690,6 +690,12 @@ class LowCloudFilter(BaseArrayFilter):
     # Correction factor for 3.7 um LWP retrievals
     lwp_corr = 0.88  # Reference: (Platnick 2000)
 
+    def __init__(self, *args, **kwargs):
+        super(LowCloudFilter, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'single'):
+            self.single = False
+
     def filter_function(self):
         """Cloud microphysics filter routine
 
@@ -706,35 +712,66 @@ class LowCloudFilter(BaseArrayFilter):
         self.cbh = np.empty(self.clusters.shape, dtype=np.float)
         self.fbh = np.empty(self.clusters.shape, dtype=np.float)
         self.fog_mask = self.clusters.mask
-        # Compute mean values for cloud clusters
-        lwp_cluster = self.get_cluster_mean(self.clusters, self.lwp * 1000,
-                                            exclude=[0])
-        cth_cluster = self.get_cluster_mean(self.clusters, self.cth,
-                                            exclude=[0])
-        ctt_cluster = self.get_cluster_mean(self.clusters, self.ir108)
-        reff_cluster = self.get_cluster_mean(self.clusters, self.reff, [],
-                                             False)
-        # Loop over processes
-        logger.info("Run low cloud models")
-        # Get pool result list
-        self.result_list = []
-        for key in lwp_cluster.keys():
-            workinput = [lwp_cluster[key], cth_cluster[key], ctt_cluster[key],
-                         reff_cluster[key]]
-            pool.apply_async(self.get_fog_base_height, args=workinput,
-                             callback=self.log_result)
-        # Wait for all processes to finish
-        pool.close()
-        pool.join()
-        # Create ground fog and low stratus cloud masks and cbh
-        keys = lwp_cluster.keys()
-        for i, res in enumerate(self.result_list):
-            self.cbh[self.clusters == keys[i]] = res[0]
-            self.fbh[self.clusters == keys[i]] = res[1]
+        # Define mode of parallelisation
+        if self.single:  # Run low cloud models parallized for single pixels
+            count_cells = 0
+            logger.info("Run low cloud models for single cells")
+            # Get pool result list
+            self.result_list = []
+            self.index_list = []
+            # Loop over single cell processes
+            for r, c, z in np.ndindex(self.clusters.shape):
+                if self.clusters.mask[r, c] == 0:
+                    self.index_list.append((r, c))
+                    count_cells += 1
+                    workinput = [self.lwp[r, c][0], self.cth[r, c][0],
+                                 self.ir108[r, c][0], self.reff[r, c][0]]
+                    pool.apply_async(self.get_fog_base_height, args=workinput,
+                                     callback=self.log_result)
+            # Wait for all processes to finish
+            pool.close()
+            pool.join()
+            logger.info("Finished low cloud models for {} cells"
+                        .format(count_cells))
+            # Create ground fog and low stratus cloud masks and cbh
+            for i, indices in enumerate(self.index_list):
+                r, c = indices
+                self.cbh[r, c] = self.result_list[i][0]
+                self.fbh[r, c] = self.result_list[i][1]
             # Mask non ground fog clouds
-            self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
-                                                        self.elev >
-                                                        0)] = True
+            self.fog_mask[(self.fbh - self.elev > 0) \
+                          | (np.isnan(self.fbh))] = True
+
+        else:  # Run low cloud models parallized aggregated for cloud clusters
+            # Compute mean values for cloud clusters
+            lwp_cluster = self.get_cluster_mean(self.clusters, self.lwp * 1000,
+                                                exclude=[0])
+            cth_cluster = self.get_cluster_mean(self.clusters, self.cth,
+                                                exclude=[0])
+            ctt_cluster = self.get_cluster_mean(self.clusters, self.ir108)
+            reff_cluster = self.get_cluster_mean(self.clusters, self.reff, [],
+                                                 False)
+            # Loop over processes
+            logger.info("Run low cloud models for cloud clusters")
+            # Get pool result list
+            self.result_list = []
+            for key in lwp_cluster.keys():
+                workinput = [lwp_cluster[key], cth_cluster[key],
+                             ctt_cluster[key], reff_cluster[key]]
+                pool.apply_async(self.get_fog_base_height, args=workinput,
+                                 callback=self.log_result)
+            # Wait for all processes to finish
+            pool.close()
+            pool.join()
+            # Create ground fog and low stratus cloud masks and cbh
+            keys = lwp_cluster.keys()
+            for i, res in enumerate(self.result_list):
+                self.cbh[self.clusters == keys[i]] = res[0]
+                self.fbh[self.clusters == keys[i]] = res[1]
+                # Mask non ground fog clouds
+                self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
+                                                            self.elev >
+                                                            0)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
@@ -763,7 +800,8 @@ class LowCloudFilter(BaseArrayFilter):
             cbh = lowcloud.get_cloud_base_height(-100, 'basin')
             # Get visibility and fog cloud base height
             fbh = lowcloud.get_fog_base_height()
-        except:
+        except Exception as e:
+            logger.error(e, exc_info=True)
             cbh = np.nan
             fbh = np.nan
 
