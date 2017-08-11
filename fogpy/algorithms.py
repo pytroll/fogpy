@@ -820,7 +820,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if mask is not None:
             neighbors[mask] = np.nan
         # Create valid neighbor mask
-        ids = np.zeros(shp).astype(bool)
+        ids = np.zeros(neighbors.shape).astype(bool)
         ids[np.isnan(neighbors)] = True
         # Return optional only non nan values
         if not nan:

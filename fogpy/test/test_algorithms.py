@@ -440,7 +440,7 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         compare = np.array([900., 1500., 600.])
         self.assertTrue(np.alltrue(compare == neigh))
         # Test lower right corner
-        center, neigh, ids = lcthalgo.get_neighbors(elev, 2, 2)
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 2, 2)
         compare = np.array([1500., 600., 300.])
         self.assertTrue(np.alltrue(compare == neigh))
         # Test middle right cell
