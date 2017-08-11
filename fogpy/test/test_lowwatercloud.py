@@ -180,6 +180,22 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(round(beta_3, 2), 0.3)
         self.assertAlmostEqual(beta_4, 0.3)
 
+    def test_get_incloud_mixing_ratio_limit(self):
+        self.lwc.cbh = 950
+        self.lwc.cth = 1000
+        beta_0 = self.lwc.get_incloud_mixing_ratio(950, 1000, 950)
+        beta_1 = self.lwc.get_incloud_mixing_ratio(960, 1000, 950)
+        beta_2 = self.lwc.get_incloud_mixing_ratio(970, 1000, 950)
+        beta_3 = self.lwc.get_incloud_mixing_ratio(980, 1000, 950)
+        beta_4 = self.lwc.get_incloud_mixing_ratio(990, 1000, 950)
+        beta_5 = self.lwc.get_incloud_mixing_ratio(1000, 1000, 950)
+        self.assertAlmostEqual(beta_0, 0.3)
+        self.assertAlmostEqual(beta_1, 0.3)
+        self.assertAlmostEqual(beta_2, 0.3)
+        self.assertAlmostEqual(round(beta_3, 2), 0.3)
+        self.assertAlmostEqual(beta_4, 0.3)
+        self.assertAlmostEqual(beta_5, 0.0)
+
     def test_optimize_cbh(self):
         self.lwc.thickness = 100
         ret_brute = self.lwc.optimize_cbh(100., method='brute')

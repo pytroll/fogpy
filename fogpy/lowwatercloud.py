@@ -155,6 +155,7 @@ class LowWaterCloud(object):
         self.cbh = cbh  # Cloud base height
         self.cbt = cbt   # Cloud base temperature
         self.cwp = cwp  # Cloud water path
+        self.lwp = None  # Dummy for liquid water path calculation
         self.reff = reff  # Droplet effective radius
         self.layers = []  # List of cloud layers
         self.vapour_method = "magnus"  # Method for saturated vapour pressure
@@ -177,7 +178,6 @@ class LowWaterCloud(object):
                                   self.cth - self.upthres + thickness,
                                   self, False)
         self.maxlwc = maxlwc_layer.lwc
-
         # Calculate layer properties
         # Contitional resetting cloud layers
         if overwrite:
@@ -207,7 +207,14 @@ class LowWaterCloud(object):
         with visibilities below 1000 m
         """
         fog_z = [l.z for l in self.layers if (l.visibility <= 1000) & (l.visibility is not None)]
-        self.fbh = min(fog_z)  # Get lowest heights with visibility treshold
+        print([l.z for l in self.layers])
+        try:
+            self.fbh = min(fog_z)  # Get lowest heights with visibility treshold
+        except:
+            logger.warning("No fog base height found")
+            self.plot_lowcloud('beta')
+            self.plot_lowcloud('lwc')
+            self.fbh = np.nan
 
         return self.fbh
 
@@ -224,12 +231,14 @@ class LowWaterCloud(object):
                 self.maxlwc = maxlwc
 
             lwc = (cth - z) / (thres) * maxlwc
+            print('Upper Layer', lwc, z, cth, self.cbh, self.maxlwc, thres)
             # Test if liquid water content is negativ
             # This occures while optimizing with cbh=cth
             if lwc < 0:
                 lwc = 0  # Set lwc to zero
         else:
             lwc = (1 - beta) * hrho * lmr
+            print('Lower Layer', lwc, z, cth, self.cbh, self.maxlwc, beta, hrho, lmr)
 
         return lwc
 
@@ -414,12 +423,12 @@ class LowWaterCloud(object):
                                minimizer_kwargs=minimizer_kwargs,
                                niter=10,
                                niter_success=5)
-            result = ret.x[0]
+            result = float(ret.x[0])
             logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
                         'ctt: {:.2f}, observed lwp {:.2f}'
                         ' --> result lwp: {:.2f}, calibrated cbh: {:.2f}'
                         .format(start, self.cth, self.ctt, self.cwp,
-                                self.lwp, ret.x[0]))
+                                self.lwp, result))
         elif method == 'brute':
             ranges = slice(0, self.cth, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)

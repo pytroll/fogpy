@@ -36,7 +36,8 @@ fogcol = Colormap((1., (0.0, 0.0, 0.0)),
                   (0., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
 
 
-def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False):
+def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False,
+            plot=False, plotdir='/tmp'):
     """ This method defines a composite for fog and low stratus detection
     and forecasting at daytime. The fog algorithm is optimized for the
     Meteosat Second Generation - SERVIRI instrument.
@@ -48,6 +49,8 @@ def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False):
         lwp    Liquid water path as array
         cth    Cloud top height as array, optional
         validate    Additional cloud mask output, optional
+        plot    Save filter and algorithm results as png images
+        plotdir    Path to plotting directory as string
     """
     logger.debug("Creating fog composite for {} instrument scene {}"
                  .format(self.fullname, self.time_slot))
@@ -73,10 +76,10 @@ def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False):
                 'reff': reff,
                 'lwp': lwp,
                 'cth': cth,
-                'plot': True,
-                'save': True,
-                'dir': '/tmp',
-                'resize': '5'}
+                'plot': plot,
+                'save': plot,
+                'dir': plotdir,
+                'resize': '1'}
 
     # Compute fog mask
     flsalgo = DayFogLowStratusAlgorithm(**flsinput)
