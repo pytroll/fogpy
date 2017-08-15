@@ -143,6 +143,15 @@ class CloudLayer(object):
 
         return(result)
 
+    def get_layer_info(self):
+            print('New cloud layer: z: {} m | t: {} °C | p: {} hPa | '
+                  'psv: {} hPa | vmr: {} g kg-1 | lmr: {} g kg-1 | '
+                  'beta: {} | rho: {} kg m-3 | lwc: {} g m-3'
+                  .format(self.z, self.temp, round(self.press, 3),
+                          round(self.psv, 3), round(self.vmr, 3),
+                          round(self.lmr, 3), round(self.beta, 3),
+                          round(self.rho, 3), round(self.lwc, 3)))
+
 
 class LowWaterCloud(object):
     """ A class to simulate the water content of a low cloud and calculate its
@@ -150,6 +159,8 @@ class LowWaterCloud(object):
     def __init__(self, cth=None, ctt=None, cwp=None, cbh=0, reff=None,
                  cbt=None, upthres=50., lowthres=75., thickness=10.,
                  debug=False):
+        self.upthres = upthres  # Top layer thickness with dry air entrainment
+        self.lowthres = lowthres  # Bottom layer thickness with coupling
         self.cth = cth  # Cloud top height
         self.ctt = ctt  # Cloud top temperature
         self.cbh = cbh  # Cloud base height
@@ -160,8 +171,6 @@ class LowWaterCloud(object):
         self.layers = []  # List of cloud layers
         self.vapour_method = "magnus"  # Method for saturated vapour pressure
         self.cb_vmr = None  # Water vapour mixing ratio
-        self.upthres = upthres  # Top layer thickness with dry air entrainment
-        self.lowthres = lowthres  # Bottom layer thickness with coupling
         self.thickness = thickness  # Layer thickness in m
         self.debug = debug  # Boolean to activate additional output
         # Get maximal liquid water content underneath cloud top
@@ -179,6 +188,21 @@ class LowWaterCloud(object):
             logger.warning("Lower threshold ending level <{}> and cloud top"
                            " <{}>  are in conflict"
                            .format(self.lowthres, self.cth))
+
+    @property
+    def cbh(self):
+        return self.__cbh
+
+    @cbh.setter
+    def cbh(self, cbh):
+        # Check conflicts for threshold and cloud base
+        if self.cth - self.upthres <= cbh:
+            self.upthres = self.cth - cbh - 1
+            logger.info("Reducing upper threshold <{}> to correct conflict"
+                        .format(self.upthres))
+            self.__cbh = cbh
+        else:
+            self.__cbh = cbh
 
     def init_cloud_layers(self, init_cbh, thickness, overwrite=True):
         """Method to initialize cloud layers and corresponding parameters.
@@ -211,7 +235,7 @@ class LowWaterCloud(object):
     def get_cloud_base_height(self, start=0, method='basin'):
         """ Calculate cloud base height [m]"""
         # Calculate cloud base height
-        self.cbh = self.optimize_cbh(start, method='basin')
+        self.cbh = self.optimize_cbh(start, method='basin', debug=self.debug)
 
         return self.cbh
 
@@ -224,8 +248,6 @@ class LowWaterCloud(object):
             self.fbh = min(fog_z)  # Get lowest heights with visibility treshold
         except:
             logger.warning("No fog base height found")
-            self.plot_lowcloud('beta')
-            self.plot_lowcloud('lwc')
             self.fbh = np.nan
 
         return self.fbh
@@ -243,14 +265,15 @@ class LowWaterCloud(object):
                 maxlwc = maxlwc_layer.lwc
                 self.maxlwc = maxlwc
                 if self.maxlwc <= 0:
-                    logger.warning("Maximum liquid water content is zero or negative")
+                    logger.debug("Maximum liquid water content is zero or negative")
 
             lwc = (cth - z) / (thres) * maxlwc
             # Test if liquid water content is negativ
             # This occures while optimizing with cbh=cth
             if lwc < 0:
-                logger.warning("Liquid water content <{}> is negative"
-                               .format(lwc))
+                logger.debug("Liquid water content <{}> is negative for "
+                             "maximum of <{}> and cbh <{}>"
+                             .format(lwc, self.maxlwc, self.cbh))
                 lwc = 0  # Set lwc to zero
         else:
             lwc = (1 - beta) * hrho * lmr
@@ -382,7 +405,8 @@ class LowWaterCloud(object):
          cloud base condensation level [g/kg] """
         lmr = cb_vmr - vmr
         if cb_vmr <= vmr:
-            logger.debug("Liquid water mixing ratio will be zero or negative")
+            logger.debug("Liquid water mixing ratio will be zero or negative"
+                         " for cbvmr: <{}> and vmr: <{}>".format(cb_vmr, vmr))
 
         return lmr
 
@@ -453,6 +477,10 @@ class LowWaterCloud(object):
             ranges = slice(0, self.cth - self.upthres, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)
             result = ret
+        # Add optional debug output
+        if debug:
+            for l in self.layers:
+                l.get_layer_info()
         # Set class variable for cloud base height
         self.cbh = result
 

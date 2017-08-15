@@ -472,27 +472,46 @@ class Test_LowCloudFilter(unittest.TestCase):
                       'cth': self.cth}
 
         # Define small artificial test data
-        dim = (1, 1, 1)
+        dim = (2, 2, 1)
         test_ir = np.empty(dim)
         test_ir.fill(260)
         lwp_choice = np.array([0.01, 0.1, 1, 10, 100, 1000])
         test_lwp_choice = np.random.choice(lwp_choice, dim)
         test_lwp_static = np.empty(dim)
-        test_lwp_static.fill(0.01)
+        test_lwp_static.fill(94)
         test_reff = np.empty(dim)
-        test_reff.fill(20e-5)
+        test_reff.fill(10e-6)
         test_cmask = np.empty(dim)
         test_cmask.fill(0)
         test_clusters = np.empty(dim)
         test_clusters.fill(1)
         test_clusters = np.ma.masked_array(test_clusters, test_cmask)
         test_elev = np.empty(dim)
-        test_elev.fill(0)
+        test_elev.fill(100)
         test_cth = np.empty(dim)
-        test_cth.fill(1000)
-
+        test_cth.fill(600)
+        # Testdata for ground cloud fog
         self.test_lwp1 = {'ir108': test_ir,
                           'lwp': test_lwp_static,
+                          'reff': test_reff,
+                          'elev': test_elev,
+                          'clusters': test_clusters,
+                          'cth': test_cth}
+        # Init with big droplet radius
+        # Increase in droplet radius prevend declaration as ground fog
+        test_reff = np.empty(dim)
+        test_reff.fill(20e-5)
+        self.test_lwp2 = {'ir108': test_ir,
+                          'lwp': test_lwp_static,
+                          'reff': test_reff,
+                          'elev': test_elev,
+                          'clusters': test_clusters,
+                          'cth': test_cth}
+        # Randomly choose liquid water paths
+        test_reff = np.empty(dim)
+        test_reff.fill(10e-6)  # Reset radius
+        self.test_lwp3 = {'ir108': test_ir,
+                          'lwp': test_lwp_choice,
                           'reff': test_reff,
                           'elev': test_elev,
                           'clusters': test_clusters,
@@ -508,7 +527,7 @@ class Test_LowCloudFilter(unittest.TestCase):
 
         # Evaluate results
         self.assertEqual(np.sum(self.cloudmask), 20551)
-        self.assertEqual(np.nanmax(len(testfilter.result_list)), 122)
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 1)
 
     def test_lowcloud_filter_single(self):
         # Create cloud filter
@@ -523,7 +542,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         self.assertEqual(np.sum(testfilter.fog_mask), 42018)
         self.assertEqual(np.sum(testfilter.mask), 42018)
 
-    def test_lowcloud_filter_single_lwp(self):
+    def test_lowcloud_filter_single_lwp_allfog(self):
         # Create cloud filter
         input_single = self.test_lwp1
         input_single['single'] = True
@@ -531,9 +550,34 @@ class Test_LowCloudFilter(unittest.TestCase):
         ret, mask = testfilter.apply()
 
         # Evaluate results
-        self.assertEqual(np.nanmax(len(testfilter.result_list)), 25)
-        self.assertEqual(np.sum(testfilter.fog_mask), 2)
-        self.assertEqual(np.sum(testfilter.mask), 2)
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 4)
+        self.assertEqual(np.sum(testfilter.fog_mask), 0)
+        self.assertEqual(np.sum(testfilter.mask), 0)
+
+    def test_lowcloud_filter_single_lwp_nofog(self):
+        # Create cloud filter
+        input_single = self.test_lwp2
+        input_single['single'] = True
+        testfilter = LowCloudFilter(input_single['ir108'], **input_single)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 4)
+        self.assertEqual(np.sum(testfilter.fog_mask), 4)
+        self.assertEqual(np.sum(testfilter.mask), 4)
+
+    def test_lowcloud_filter_single_lwp_randomfog(self):
+        # Create cloud filter
+        input_single = self.test_lwp3
+        input_single['single'] = True
+        testfilter = LowCloudFilter(input_single['ir108'], **input_single)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 4)
+        nfog = np.sum(input_single['lwp'] <= 10)
+        self.assertEqual(np.sum(testfilter.fog_mask), nfog)
+        self.assertEqual(np.sum(testfilter.mask), nfog)
 
 
 def suite():

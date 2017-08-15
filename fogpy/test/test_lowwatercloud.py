@@ -153,6 +153,17 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(lwc.upthres, 49)
         self.assertAlmostEqual(round(lwc.maxlwc, 6), 8.2e-5)
 
+    def test_cloud_layer_small2(self):
+        lwc = LowWaterCloud(1000., 235., 400., 950)
+        cl1 = CloudLayer(970, 980, lwc, False)
+        cl2 = CloudLayer(980, 990, lwc, False)
+        cl3 = CloudLayer(990, 1000, lwc, False)
+        self.assertAlmostEqual(round(cl1.lwc, 5), 4e-5)
+        self.assertAlmostEqual(round(cl2.lwc, 5), 3e-05)
+        self.assertAlmostEqual(round(cl3.lwc, 5), 1e-05)
+        self.assertAlmostEqual(lwc.upthres, 49)
+        self.assertAlmostEqual(round(lwc.maxlwc, 6), 8.2e-5)
+
     def test_get_moist_air_density(self):
         self.lwc.cbh = 0
         empiric_hrho_0 = self.lwc.get_moist_air_density(100000, 0, 273.15,
@@ -280,6 +291,7 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowWaterCloud))
 
     return mysuite
+
 
 if __name__ == "__main__":
     unittest.main()

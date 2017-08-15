@@ -740,7 +740,7 @@ class LowCloudFilter(BaseArrayFilter):
                 self.fbh[r, c] = self.result_list[i][1]
             # Mask non ground fog clouds
             self.fog_mask[(self.fbh - self.elev > 0) \
-                          | (np.isnan(self.fbh))] = True
+                          | np.isnan(self.fbh)] = True
 
         else:  # Run low cloud models parallized aggregated for cloud clusters
             # Compute mean values for cloud clusters
