@@ -50,7 +50,7 @@ class CloudLayer(object):
         self.top = top  # Top height of the cloud layer
         self.z = top - (top - bottom) / 2  # Central layer height
         self.debug = lowcloud.debug
-        # Fix maximum z hieght to cloud top height from cloud object
+        # Fix maximum z height to cloud top height from cloud object
         # Height optimasation can provoke layers above the cth
         if self.z > lowcloud.cth:
             self.z = lowcloud.cth
@@ -167,6 +167,19 @@ class LowWaterCloud(object):
         # Get maximal liquid water content underneath cloud top
         self.maxlwc = None
 
+        # Raise warnings when thresholds are in conflict with top and base cloud height
+        if self.cth - self.upthres <= self.cbh:
+            logger.warning("Upper threshold starting level <{}> and cloud base"
+                           " <{}>  are in conflict"
+                           .format(self.cth - self.upthres, self.cbh))
+            self.upthres = self.cth - self.cbh - 1
+            logger.info("Reducing upper threshold <{}> to correct conflict"
+                        .format(self.upthres))
+        if self.lowthres >= self.cth:
+            logger.warning("Lower threshold ending level <{}> and cloud top"
+                           " <{}>  are in conflict"
+                           .format(self.lowthres, self.cth))
+
     def init_cloud_layers(self, init_cbh, thickness, overwrite=True):
         """Method to initialize cloud layers and corresponding parameters.
         the method needs a initial cloud base height and thickness in [m]"""
@@ -207,7 +220,6 @@ class LowWaterCloud(object):
         with visibilities below 1000 m
         """
         fog_z = [l.z for l in self.layers if (l.visibility <= 1000) & (l.visibility is not None)]
-        print([l.z for l in self.layers])
         try:
             self.fbh = min(fog_z)  # Get lowest heights with visibility treshold
         except:
@@ -224,21 +236,24 @@ class LowWaterCloud(object):
         liquid water mixing ratio"""
         if z > cth - thres:
             if maxlwc is None:
-                maxlwc_layer = CloudLayer(self.cth - self.upthres - 5,
-                                          self.cth - self.upthres + 5,
+                maxlwc_layer = CloudLayer(self.cth - self.upthres
+                                          - self.thickness,
+                                          self.cth - self.upthres + self.thickness,
                                           self, False)
                 maxlwc = maxlwc_layer.lwc
                 self.maxlwc = maxlwc
+                if self.maxlwc <= 0:
+                    logger.warning("Maximum liquid water content is zero or negative")
 
             lwc = (cth - z) / (thres) * maxlwc
-            print('Upper Layer', lwc, z, cth, self.cbh, self.maxlwc, thres)
             # Test if liquid water content is negativ
             # This occures while optimizing with cbh=cth
             if lwc < 0:
+                logger.warning("Liquid water content <{}> is negative"
+                               .format(lwc))
                 lwc = 0  # Set lwc to zero
         else:
             lwc = (1 - beta) * hrho * lmr
-            print('Lower Layer', lwc, z, cth, self.cbh, self.maxlwc, beta, hrho, lmr)
 
         return lwc
 
@@ -354,7 +369,7 @@ class LowWaterCloud(object):
     @classmethod
     def get_vapour_mixing_ratio(self, pa, pv):
         """ Calculate water vapour mixing ratio for given ambient pressure and
-        water vapur pressure. Also usabale under saturated conditions"""
+        water vapour pressure. Also usabale under saturated conditions"""
         # Calculate water vapour mixing ratio
         vmr = 621.97 * pv / (pa - pv)
 
@@ -366,11 +381,13 @@ class LowWaterCloud(object):
         ratio in a certain height and the maximum water vapour mixing ratio at
          cloud base condensation level [g/kg] """
         lmr = cb_vmr - vmr
+        if cb_vmr <= vmr:
+            logger.debug("Liquid water mixing ratio will be zero or negative")
 
         return lmr
 
     def get_cloud_based_vapour_mixing_ratio(self):
-        # Get temperaure and air presure
+        # Get temperature and air pressure
         temp = self.get_moist_adiabatic_lapse_temp(self.cbh, self.cth,
                                                    self.ctt, True)
         press = self.get_air_pressure(self.cbh)
@@ -379,6 +396,8 @@ class LowWaterCloud(object):
         psv = self.get_sat_vapour_pressure(temp, self.vapour_method)
         cb_vmr = self.get_vapour_mixing_ratio(press, psv)
         self.cb_vmr = cb_vmr
+        logger.debug("Cloud based vapour mixing ratio: <{}> at cloud base <{}>"
+                     .format(cb_vmr, self.cbh))
 
         return cb_vmr
 
@@ -416,7 +435,8 @@ class LowWaterCloud(object):
         Minimization with basinhopping or brute force algorithm
         from python scipy package"""
         if method == 'basin':
-            minimizer_kwargs = {"method": "BFGS", "bounds": (0, self.cth)}
+            minimizer_kwargs = {"method": "BFGS", "bounds": (0, self.cth -
+                                                             self.upthres)}
             ret = basinhopping(self.minimize_cbh,
                                start,
                                T=5.0,
@@ -430,7 +450,7 @@ class LowWaterCloud(object):
                         .format(start, self.cth, self.ctt, self.cwp,
                                 self.lwp, result))
         elif method == 'brute':
-            ranges = slice(0, self.cth, 1)
+            ranges = slice(0, self.cth - self.upthres, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)
             result = ret
         # Set class variable for cloud base height
