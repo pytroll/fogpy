@@ -253,7 +253,7 @@ class LowWaterCloud(object):
         return self.fbh
 
     def get_liquid_water_content(self, z, cth, hrho, lmr, beta, thres,
-                                 maxlwc=None):
+                                 maxlwc=None, debug=False):
         """ Calculate liquid water content [g m-3] by air density and
         liquid water mixing ratio"""
         if z > cth - thres:
@@ -264,7 +264,7 @@ class LowWaterCloud(object):
                                           self, False)
                 maxlwc = maxlwc_layer.lwc
                 self.maxlwc = maxlwc
-                if self.maxlwc <= 0:
+                if self.maxlwc <= 0 and debug:
                     logger.debug("Maximum liquid water content is zero or negative")
 
             lwc = (cth - z) / (thres) * maxlwc
@@ -281,7 +281,7 @@ class LowWaterCloud(object):
         return lwc
 
     @classmethod
-    def get_moist_air_density(self, pa, pv, temp, empiric=False):
+    def get_moist_air_density(self, pa, pv, temp, empiric=False, debug=False):
         """ Calculate air density for humid air with known pressure and water
         vapour pressure and temperature"""
         molar_d = 0.028964  # kg mol-1
@@ -293,7 +293,7 @@ class LowWaterCloud(object):
         torr_pa = 0.00750063755  # Factor to convert between Pa and Torr
         if temp <= 60:
             newtemp = temp + 273.15
-            if self.debug:
+            if debug:
                 logger.debug('Temperature {} is in Celsius. Auto converting to'
                              ' {} K'.format(temp, newtemp))
             temp = newtemp
@@ -323,7 +323,7 @@ class LowWaterCloud(object):
         return temp
 
     @classmethod
-    def get_sat_vapour_pressure(self, temp, mode='buck', convert=False):
+    def get_sat_vapour_pressure(self, temp, mode='buck', convert=False, debug=False):
         """ Calculate satured water vapour pressure for temperature [hPa]
         using different empirical approaches.
         Options: Buck, Magnus
@@ -337,7 +337,7 @@ class LowWaterCloud(object):
             temp = newtemp
         elif temp > 60:
             newtemp = temp - 273.15
-            if self.debug:
+            if debug:
                 logger.debug('Temperature {} is in Kelvin. Auto converting to'
                              ' {} °C'.format(temp, newtemp))
             temp = newtemp
@@ -399,18 +399,18 @@ class LowWaterCloud(object):
         return vmr
 
     @classmethod
-    def get_liquid_mixing_ratio(self, cb_vmr, vmr):
+    def get_liquid_mixing_ratio(self, cb_vmr, vmr, debug=False):
         """ Calculate liquid water mixing ratio for given water vapour mixing
         ratio in a certain height and the maximum water vapour mixing ratio at
          cloud base condensation level [g/kg] """
         lmr = cb_vmr - vmr
-        if cb_vmr <= vmr and self.debug:
+        if cb_vmr <= vmr and debug:
             logger.debug("Liquid water mixing ratio will be zero or negative"
                          " for cbvmr: <{}> and vmr: <{}>".format(cb_vmr, vmr))
 
         return lmr
 
-    def get_cloud_based_vapour_mixing_ratio(self):
+    def get_cloud_based_vapour_mixing_ratio(self, debug=False):
         # Get temperature and air pressure
         temp = self.get_moist_adiabatic_lapse_temp(self.cbh, self.cth,
                                                    self.ctt, True)
@@ -420,7 +420,7 @@ class LowWaterCloud(object):
         psv = self.get_sat_vapour_pressure(temp, self.vapour_method)
         cb_vmr = self.get_vapour_mixing_ratio(press, psv)
         self.cb_vmr = cb_vmr
-        if self.debug:
+        if debug:
             logger.debug("Cloud based vapour mixing ratio: <{}> at cloud base <{}>"
                          .format(cb_vmr, self.cbh))
 
