@@ -404,7 +404,7 @@ class LowWaterCloud(object):
         ratio in a certain height and the maximum water vapour mixing ratio at
          cloud base condensation level [g/kg] """
         lmr = cb_vmr - vmr
-        if cb_vmr <= vmr:
+        if cb_vmr <= vmr and self.debug:
             logger.debug("Liquid water mixing ratio will be zero or negative"
                          " for cbvmr: <{}> and vmr: <{}>".format(cb_vmr, vmr))
 
@@ -420,8 +420,9 @@ class LowWaterCloud(object):
         psv = self.get_sat_vapour_pressure(temp, self.vapour_method)
         cb_vmr = self.get_vapour_mixing_ratio(press, psv)
         self.cb_vmr = cb_vmr
-        logger.debug("Cloud based vapour mixing ratio: <{}> at cloud base <{}>"
-                     .format(cb_vmr, self.cbh))
+        if self.debug:
+            logger.debug("Cloud based vapour mixing ratio: <{}> at cloud base <{}>"
+                         .format(cb_vmr, self.cbh))
 
         return cb_vmr
 

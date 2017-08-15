@@ -720,12 +720,12 @@ class LowCloudFilter(BaseArrayFilter):
             self.result_list = []
             self.index_list = []
             # Loop over single cell processes
-            for r, c, z in np.ndindex(self.clusters.shape):
+            for r, c in np.ndindex(self.clusters.squeeze().shape):
                 if self.clusters.mask[r, c] == 0:
                     self.index_list.append((r, c))
                     count_cells += 1
-                    workinput = [self.lwp[r, c][0], self.cth[r, c][0],
-                                 self.ir108[r, c][0], self.reff[r, c][0]]
+                    workinput = [self.lwp[r, c], self.cth[r, c],
+                                 self.ir108[r, c], self.reff[r, c]]
                     pool.apply_async(self.get_fog_base_height, args=workinput,
                                      callback=self.log_result)
             # Wait for all processes to finish

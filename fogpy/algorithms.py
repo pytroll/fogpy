@@ -405,6 +405,9 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         lowcloud_input = self.get_kwargs(['ir108', 'lwp', 'reff', 'elev',
                                           'time', 'save', 'resize', 'plot',
                                           'dir'])
+        # Choose cluster computation method
+        lowcloud_input['single'] = False
+
         lowcloudfilter = LowCloudFilter(physicfilter.result,
                                         cth=self.cluster_cth,
                                         clusters=self.clusters,
