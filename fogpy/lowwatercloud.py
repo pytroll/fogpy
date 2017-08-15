@@ -439,6 +439,8 @@ class LowWaterCloud(object):
         # Apply linear increase from zero to fixed value in the lower layer
         elif z <= (cbh + lowthres):
             beta = (z - cbh) / (lowthres) * midbeta
+        else:
+            beta = midbeta  # Default value
 
         return beta
 
