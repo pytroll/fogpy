@@ -349,7 +349,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             self.plot_clusters(self.save, self.dir)
 
         # 7. Calculate cloud top height if no CTH array is given
-        if not hasattr(self, 'cth'):
+        if not hasattr(self, 'cth') or self.cth == None:
             cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir', 'plot',
                                          'save'])
             cth_input['ccl'] = cloudfilter.ccl
@@ -785,7 +785,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         savedir = os.path.join(self.dir, self.name + '_linreg_' +
                                datetime.strftime(ts,
                                                  '%Y%m%d%H%M') + '.png')
-        self.plot_linreg(x, y, m, c, savedir)
+        #self.plot_linreg(x, y, m, c, savedir)
         # Apply coefficients
         result[np.isnan(cth)] = m * ctt[np.isnan(cth)] + c
         if np.any(np.isnan(result)):
