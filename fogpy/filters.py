@@ -99,6 +99,9 @@ class BaseArrayFilter(object):
         # Get number of cores
         if not hasattr(self, 'nprocs'):
             self.nprocs = mp.cpu_count()
+        # Get attribute names for plotting
+        if not hasattr(self, 'plotattr'):
+            self.plotattr = None
 
     def apply(self):
         """Apply the given filter function"""
@@ -135,7 +138,8 @@ class BaseArrayFilter(object):
         """Check filter results for plausible results"""
         self.filter_stats()
         if self.plot:
-            self.plot_filter(self.save, self.dir, self.resize)
+            self.plot_filter(self.save, self.dir, self.resize,
+                             attr=self.plotattr)
         ret = True
         return ret
 
@@ -162,7 +166,7 @@ class BaseArrayFilter(object):
                             self.filter_size, self.filter_num, self.inmask_num,
                             self.new_masked, self.remain_num))
 
-    def plot_filter(self, save=False, dir="/tmp", resize=0):
+    def plot_filter(self, save=False, dir="/tmp", resize=0, attr=None):
         """Plotting the filter result"""
         # Get output directory and image name
         savedir = os.path.join(dir, self.name + '_' +
@@ -240,6 +244,54 @@ class BaseArrayFilter(object):
                 mask_img.save(maskdir)
             else:
                 mask_img.show()
+        # Create optional attribute images
+        if attr is not None:
+            if isinstance(attr, list):
+                for a in attr:
+                    self._plot_image(a, self.save, self.dir, self.resize)
+            elif isinstance(attr, str):
+                self._plot_image(attr, self.save, self.dir, self.resize)
+
+    def _plot_image(self, name, save=False, dir="/tmp", resize=0):
+        from trollimage.image import Image
+        from trollimage.colormap import Colormap
+        # Define custom fog colormap
+        fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
+                          (1., (1.0, 1.0, 229 / 255.0)))
+        maskcol = Colormap((1., (230 / 255.0, 50 / 255.0, 50 / 255.0)))
+        # Get save directory
+        attrdir = os.path.join(dir, self.name + '_' + name + '_' +
+                               datetime.strftime(self.time,
+                                                 '%Y%m%d%H%M') + '.png')
+        # Generate image
+        attr_img = Image(getattr(self, name).squeeze(), mode='L',
+                         fill_value=None)
+        attr_img.stretch("crude")
+        attr_img.invert()
+        attr_img.colorize(fogcol)
+        # Get background image
+        bg_img = Image(self.bg_img.squeeze(), mode='L', fill_value=None)
+        bg_img.stretch("crude")
+        bg_img.convert("RGB")
+        bg_img.invert()
+        if resize != 0:
+            if not isinstance(resize, int):
+                resize = int(resize)
+            bg_img.resize((self.bg_img.shape[0] * resize,
+                           self.bg_img.shape[1] * resize))
+            attr_img.resize((self.result.shape[0] * resize,
+                             self.result.shape[1] * resize))
+        try:
+            # Merging
+            attr_img.merge(bg_img)
+        except:
+            logger.warning("No merging for attribute plot possible")
+        if save:
+            attr_img.save(attrdir)
+        else:
+            attr_img.show()
+
+        return(attr_img)
 
 
 class CloudFilter(BaseArrayFilter):
@@ -695,6 +747,8 @@ class LowCloudFilter(BaseArrayFilter):
         # Set additional class attribute
         if not hasattr(self, 'single'):
             self.single = False
+        # Plot cbh and fbh results
+        self.plotattr = ['cbh', 'fbh']
 
     def filter_function(self):
         """Cloud microphysics filter routine
