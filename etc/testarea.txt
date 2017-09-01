@@ -1,0 +1,8 @@
+Area ID: meteosatseviri[  214528.82635592  4370087.21101246  1108648.96976938  4793144.05739266](141, 298)
+Name: On-the-fly area
+Projection ID: geos
+Projection: {'a': '6378169.00', 'b': '6356583.80', 'h': '35785831.00', 'lat_0': '0.00', 'lon_0': '0.00', 'proj': 'geos'}
+Number of columns: 298
+Number of rows: 141
+Area extent: (214528.82635591552, 4370087.2110124603, 1108648.9697693815, 4793144.0573926577)
+
