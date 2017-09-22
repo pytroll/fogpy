@@ -33,6 +33,7 @@ from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
 from fogpy.filters import CirrusCloudFilter
 from fogpy.filters import WaterCloudFilter
+from fogpy.filters import SpatialCloudTopHeightFilter
 from fogpy.filters import SpatialHomogeneityFilter
 from fogpy.filters import LowCloudFilter
 from fogpy.algorithms import DayFogLowStratusAlgorithm
@@ -345,6 +346,33 @@ class Test_WaterCloudFilter(unittest.TestCase):
         self.assertAlmostEqual(np.sum(testfilter.cloudmask), 20551)
         self.assertEqual(np.sum(testfilter.mask), 19857)
         self.assertEqual(testfilter.line, 141)
+
+
+class Test_SpatialCloudTopHeightFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Define artificial test data with random cth around 1000 mean value
+        self.ir108 = 1.0 * np.random.randn(10, 10) + 260
+        self.elev = np.zeros((10, 10))
+        self.cth = np.random.randn(10, 10) + 1000
+        self.masksum = np.sum(self.cth > 1000)
+
+    def tearDown(self):
+        pass
+
+    def test_spatial_cth_filter_artifical(self):
+        # Create cloud filter
+        testfilter = SpatialCloudTopHeightFilter(self.ir108,
+                                                 cth=self.cth,
+                                                 elev=self.elev)
+        ret, mask = testfilter.apply()
+        lowcth = np.ma.masked_where(mask, testfilter.cth)
+        lowcth2 = np.ma.masked_where(testfilter.mask, testfilter.cth)
+        # Evaluate results
+        np.testing.assert_array_equal(ret, self.ir108)
+        self.assertEqual(np.nansum(testfilter.mask), self.masksum)
+        self.assertLessEqual(np.max(lowcth), 1000)
+        self.assertLessEqual(np.max(lowcth2), 1000)
 
 
 class Test_SpatialHomogeneityFilter(unittest.TestCase):

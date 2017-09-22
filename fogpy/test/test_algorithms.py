@@ -159,7 +159,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(flsalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
-        self.assertLessEqual(np.nanmax(flsalgo.cluster_cth), 2000)
+        cthdiff = flsalgo.cluster_cth - self.input['elev'].squeeze()
+        self.assertLessEqual(np.nanmax(cthdiff), 1000)
 
     # Using other tset data set
     def test_fls_algorithm_other(self):
@@ -169,7 +170,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(flsalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
-        self.assertLessEqual(np.nanmax(flsalgo.cluster_cth), 2000)
+        cthdiff = flsalgo.cluster_cth - self.input['elev'].squeeze()
+        self.assertLessEqual(np.nanmax(cthdiff), 1000)
 
     def test_fls_cth_tdiff(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input)
