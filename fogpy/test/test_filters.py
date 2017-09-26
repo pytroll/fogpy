@@ -36,6 +36,7 @@ from fogpy.filters import WaterCloudFilter
 from fogpy.filters import SpatialCloudTopHeightFilter
 from fogpy.filters import SpatialHomogeneityFilter
 from fogpy.filters import LowCloudFilter
+from fogpy.filters import CloudMotionFilter
 from fogpy.algorithms import DayFogLowStratusAlgorithm
 
 # Test data array order:
@@ -46,8 +47,10 @@ from fogpy.algorithms import DayFogLowStratusAlgorithm
 # Import test data
 base = os.path.split(fogpy.__file__)
 testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
+testfile_pre = os.path.join(base[0], '..', 'etc', 'fog_testdata_pre.npy')
 testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testdata = np.load(testfile)
+testdata_pre = np.load(testfile_pre)
 testdata2 = np.load(testfile2)
 
 
@@ -606,6 +609,28 @@ class Test_LowCloudFilter(unittest.TestCase):
         nfog = np.sum(input_single['lwp'] <= 10)
         self.assertEqual(np.sum(testfilter.fog_mask), nfog)
         self.assertEqual(np.sum(testfilter.mask), nfog)
+
+
+class Test_CloudMotionFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        self.ir108 = np.dsplit(testdata, 14)[0]
+        self.preir108 = np.dsplit(testdata_pre, 14)[0]
+        print(type(self.ir108))
+        print(type(self.preir108))
+
+    def tearDown(self):
+        pass
+
+    def test_cloud_motion_filter(self):
+        # Create cloud filter
+        testfilter = CloudMotionFilter(self.ir108,
+                                       ir108=self.ir108,
+                                       preir108=self.preir108)
+        ret, mask = testfilter.apply()
+        # Evaluate results
+        self.assertEqual(ret, self.ir108)
 
 
 def suite():
