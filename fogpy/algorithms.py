@@ -132,33 +132,42 @@ class BaseSatelliteAlgorithm(object):
 
     def plot_result(self, array=None, save=False, dir="/tmp", resize=0):
         """Plotting the algorithm result"""
-        # Get output directory and image name
-        savedir = os.path.join(dir, self.name + '_' +
-                               datetime.strftime(self.time,
-                                                 '%Y%m%d%H%M') + '.png')
         # Using Trollimage if available, else matplotlib is used to plot
         try:
             from trollimage.image import Image
             from trollimage.colormap import rainbow
             from trollimage.colormap import ylorrd
+            from trollimage.colormap import Colormap
         except:
             logger.info("{} results can't be plotted to: {}". format(self.name,
                                                                      dir))
             return 0
         # Create image from data
         if array is None:
+            if np.nanmax(self.result) > 1:
+                self.plotrange = (np.nanmin(self.result),
+                                  np.nanmax(self.result))
             result_img = Image(self.result.squeeze(), mode='L',
                                fill_value=None)
         else:
+            self.plotrange = (np.nanmin(array), np.nanmax(array))
             result_img = Image(array.squeeze(), mode='L', fill_value=None)
         result_img.stretch("crude")
         # Colorize image
+        # Define custom fog colormap
+        customcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
+                             (1., (1.0, 1.0, 229 / 255.0)),
+                             (self.plotrange[1], (0.0, 1.0, 229 / 255.0)))
         ylorrd.set_range(*self.plotrange)
         logger.info("Set color range to {}".format(self.plotrange))
         result_img.colorize(ylorrd)
         result_img.resize((self.result.shape[0] * 5,
                            self.result.shape[1] * 5))
         if save:
+            # Get output directory and image name
+            savedir = os.path.join(dir, self.name + '_' +
+                                   datetime.strftime(self.time,
+                                                     '%Y%m%d%H%M') + '.png')
             result_img.save(savedir)
             logger.info("{} results are plotted to: {}". format(self.name,
                                                                 self.dir))
@@ -587,6 +596,8 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             self.interpolate = False
         if not hasattr(self, 'method'):
             self.method = "nearest"
+        if not hasattr(self, 'single'):
+            self.single = False
         self.nlcthneg = 0
 
     def isprocessible(self):
@@ -675,7 +686,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                                                     self.method)
             else:  # Default linear regression height estimation
                 self.cth_result = self.linreg_cth(self.cth, self.cloudmask,
-                                                  ctt)
+                                                  ctt, self.single)
         else:
             self.cth_result = self.cth
             logger.warning("No LCTH interpolated height estimation possible")
@@ -756,7 +767,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
 
         return result
 
-    def linreg_cth(self, cth, mask, ctt):
+    def linreg_cth(self, cth, mask, ctt, single=False):
         """Interpolate cth for given cloud clusters by linear regression with
         provided cloud top temperature data.
 
@@ -764,19 +775,45 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         cth (Numpy array): Array of computed heigh values with gaps
         mask (Numpy mask): Mask for valid cloud cluster pixels
         ctt (Numpy array): Array of cloud top temperatures
+        single (Bool): Boolean value for activating single cloud regressions
 
         Returns:
             Numpy array with interpolated cloud top height values in unmasked
             areas
         """
         result = deepcopy(cth)
+        # Overall cloud cluster regression
         # Enumerate dimensions
         x = ctt[~mask & ~np.isnan(cth)]
         y = cth[~mask & ~np.isnan(cth)]
-        # Rearrange line equation to  y = Ap  from y = mx  + c with p = [m , c]
-        A = np.vstack([x, np.ones(len(x))]).T
-        # Solve by leat square fitting.
-        m, c = np.linalg.lstsq(A, y)[0]
+        result = self.apply_linear_regression(x, y, ctt, cth, result)
+        if single:
+            # Single cloud cluster regression
+            for index in np.arange(0, np.nanmax(self.clusters)):
+                clstindex = self.clusters == index
+                ctt_c = ctt[clstindex]
+                cth_c = cth[clstindex]
+                mask_c = mask[clstindex]
+                result_c = result[clstindex]
+                if np.sum(np.isnan(cth_c)) == 0:
+                    continue
+                elif np.sum(~np.isnan(cth_c)) == 0:
+                    continue
+                # Enumerate dimensions
+                x = ctt_c[~np.isnan(cth_c)]
+                y = cth_c[~np.isnan(cth_c)]
+                # Get slope and offset and apply regression
+                result_c = self.apply_linear_regression(x, y, ctt_c,
+                                                        cth_c,
+                                                        result_c)
+                result[clstindex] = result_c
+
+        #self.plot_linreg(x, y, m, c, savedir)
+        if np.any(np.isnan(result)):
+            logger.warning("LCTH linear regression created NaN values")
+        # Set invalide values
+        result[mask] = np.nan
+
         # Save regression plot
         if hasattr(self, 'time'):
             ts = self.time
@@ -785,15 +822,18 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         savedir = os.path.join(self.dir, self.name + '_linreg_' +
                                datetime.strftime(ts,
                                                  '%Y%m%d%H%M') + '.png')
-        #self.plot_linreg(x, y, m, c, savedir)
-        # Apply coefficients
-        result[np.isnan(cth)] = m * ctt[np.isnan(cth)] + c
-        if np.any(np.isnan(result)):
-            logger.warning("LCTH linear regression created NaN values")
-        # Set invalide values
-        result[mask] = np.nan
-
         return result
+
+    def apply_linear_regression(self, x, y, x_arr, y_arr, out):
+        """ Simple method to derive slope and offset by linear regression"""
+        # Rearrange line equation to  y = Ap  from y = mx  + c with p = [m , c]
+        A = np.vstack([x, np.ones(len(x))]).T
+        # Solve by leat square fitting.
+        m, c = np.linalg.lstsq(A, y)[0]
+        # Apply regression
+        out[np.isnan(y_arr)] = m * x_arr[np.isnan(y_arr)] + c
+
+        return(out)
 
     def get_neighbors(self, arr, i, j, nan=False, mask=None):
         """Get neighbor cells by simple array indexing

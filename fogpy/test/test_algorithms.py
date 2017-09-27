@@ -287,6 +287,27 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_lcth_algorithm_linreg_cluster(self):
+        """Test single cloud cluster linear regression interpolation"""
+        # Get cloud parameters
+        from fogpy.filters import CloudFilter
+        cloudfilter = CloudFilter(self.ir108, **self.input)
+        ret, mask = cloudfilter.apply()
+        input = {'ir108': self.ir108,
+                 'elev': self.elev,
+                 'ccl': cloudfilter.ccl,
+                 'cloudmask': cloudfilter.mask,
+                 'interpolate': False,
+                 'single': True}
+        # Run LCTH algorithm
+        lcthalgo = LowCloudHeightAlgorithm(**input)
+        ret, mask = lcthalgo.run()
+        lcthalgo.plot_result()
+        self.assertEqual(ret.shape, (141, 298))
+        self.assertEqual(lcthalgo.shape, (141, 298))
+        self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        self.assertLessEqual(round(np.nanmax(lcthalgo.dz), 2), 1900)
+
     def test_lcth_algorithm_interpolate(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
         cth = np.random.random_integers(0, 10, (5, 5)).astype(float)
