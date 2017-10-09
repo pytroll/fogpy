@@ -645,6 +645,8 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CirrusCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_WaterCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_SpatialHomogeneityFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_CloudMotionFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudFilter))
 
     return mysuite
 

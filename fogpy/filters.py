@@ -895,7 +895,7 @@ class CloudMotionFilter(BaseArrayFilter):
     try:
         import cv2
     except:
-        raise ImportError("openCV Python package cv2 not found. Pelase install"
+        raise ImportError("openCV Python package cv2 not found. Please install"
                           "opencv and/or the cv-python interface")
 
     def filter_function(self):
