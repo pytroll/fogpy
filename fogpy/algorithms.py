@@ -289,6 +289,12 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                     |
             Output: fog and low stratus mask <-------
      """
+    def __init__(self, *args, **kwargs):
+        super(DayFogLowStratusAlgorithm, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'single'):
+            self.single = False
+
     def isprocessible(self):
         """Test runability here"""
         attrlist = ['ir108', 'ir039', 'vis008', 'nir016', 'vis006', 'ir087',
@@ -358,11 +364,12 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             self.plot_clusters(self.save, self.dir)
 
         # 7. Calculate cloud top height if no CTH array is given
-        if not hasattr(self, 'cth') or self.cth == None:
-            cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir', 'plot',
-                                         'save'])
+        if not hasattr(self, 'cth') or self.cth is None:
+            cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir',
+                                         'plot', 'save'])
             cth_input['ccl'] = cloudfilter.ccl
             cth_input['cloudmask'] = self.mask
+            cth_input['interpolate'] = True
             lcthalgo = LowCloudHeightAlgorithm(**cth_input)
             lcthalgo.run()
             cth = lcthalgo.result
@@ -415,7 +422,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                           'time', 'save', 'resize', 'plot',
                                           'dir'])
         # Choose cluster computation method
-        lowcloud_input['single'] = False
+        lowcloud_input['single'] = self.single
 
         lowcloudfilter = LowCloudFilter(physicfilter.result,
                                         cth=self.cluster_cth,
@@ -681,6 +688,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                 self.cth[index] = cth
         # Interpolate height values
         if not np.all(np.isnan(self.cth)):
+            logger.info("Perform low cloud height interpolation")
             if self.interpolate:  # Optional interpolation
                 self.cth_result = self.interpol_cth(self.cth, self.cloudmask,
                                                     self.method)

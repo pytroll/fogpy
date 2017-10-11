@@ -27,6 +27,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import time
 import types
 
 from copy import deepcopy
@@ -807,13 +808,28 @@ class LowCloudFilter(BaseArrayFilter):
                                                  False)
             # Loop over processes
             logger.info("Run low cloud models for cloud clusters")
+            applyres = []
+            task_count = len(lwp_cluster)
+            iter = 1
             # Get pool result list
             self.result_list = []
             for key in lwp_cluster.keys():
                 workinput = [lwp_cluster[key], cth_cluster[key],
                              ctt_cluster[key], reff_cluster[key]]
-                pool.apply_async(self.get_fog_base_height, args=workinput,
-                                 callback=self.log_result)
+                applyres.append(pool.apply_async(self.get_fog_base_height,
+                                                 args=workinput,
+                                                 callback=self.log_result))
+            while True:
+                incomplete_count = sum(1 for x in applyres if not x.ready())
+
+                if incomplete_count == 0:
+                    logger.info("All Done. Completed {} tasks"
+                                .format(task_count))
+                    break
+                remain = float(task_count - incomplete_count) / task_count * 100
+                logger.info("{} Tasks Remaining --- {:.2f} % Complete"
+                            .format(incomplete_count, remain))
+                time.sleep(1)
             # Wait for all processes to finish
             pool.close()
             pool.join()
@@ -895,8 +911,8 @@ class CloudMotionFilter(BaseArrayFilter):
     try:
         import cv2
     except:
-        raise ImportError("openCV Python package cv2 not found. Please install"
-                          "opencv and/or the cv-python interface")
+        Warning("openCV Python package cv2 not found. Please install"
+                "opencv and/or the cv-python interface")
 
     def filter_function(self):
         """Cloud motion filter routine

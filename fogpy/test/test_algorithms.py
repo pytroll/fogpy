@@ -319,7 +319,7 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         # Run LCTH algorithm
         lcthalgo = LowCloudHeightAlgorithm(**input)
         ret, mask = lcthalgo.run()
-        lcthalgo.plot_result()
+        # lcthalgo.plot_result()
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(lcthalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
