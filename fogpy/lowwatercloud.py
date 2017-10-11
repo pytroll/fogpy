@@ -474,8 +474,8 @@ class LowWaterCloud(object):
             logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
                         'ctt: {:.2f}, observed lwp {:.2f}'
                         ' --> result lwp: {:.2f}, calibrated cbh: {:.2f}'
-                        .format(start, self.cth, self.ctt, self.cwp,
-                                self.lwp, result))
+                        .format(start, float(self.cth), float(self.ctt),
+                                float(self.cwp), self.lwp, result))
         elif method == 'brute':
             ranges = slice(0, self.cth - self.upthres, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)

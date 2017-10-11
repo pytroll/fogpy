@@ -520,7 +520,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         test_elev = np.empty(dim)
         test_elev.fill(100)
         test_cth = np.empty(dim)
-        test_cth.fill(600)
+        test_cth.fill(200)
         # Testdata for ground cloud fog
         self.test_lwp1 = {'ir108': test_ir,
                           'lwp': test_lwp_static,
