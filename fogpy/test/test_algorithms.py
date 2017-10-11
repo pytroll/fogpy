@@ -283,6 +283,23 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
                            'elev': test_elev2,
                            'ccl': test_ccl,
                            'cloudmask': test_cmask}
+        # Another small test dataset
+        testnext_ir = np.array([[269.60339551, 270.09388231, 269.93068546],
+                                [269.60339551, 270.093882314, 269.93068546],
+                                [272.98212591, 273.61175134, 272.66569258]])
+        testnext_ccl = np.array([[0.5, 0.5, 0],
+                                 [0.5, 0.5, 0],
+                                 [0, 0, 0]])
+        testnext_cmask = np.array([[False, False, True],
+                                   [False, False, True],
+                                   [True, True, True]], dtype=bool)
+        testnext_elev = np.array([[120., 124., 128.],
+                                  [116., 121., 128.],
+                                  [116., 123., 124.]])
+        self.testnextinput = {'ir108': testnext_ir,
+                              'elev': testnext_elev,
+                              'ccl': testnext_ccl,
+                              'cloudmask': testnext_cmask}
 
     def tearDown(self):
         pass
@@ -320,10 +337,10 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
 
     def test_lcth_algorithm_linreg(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
-        cth = np.random.random_integers(0, 10, (5, 5)).astype(float)
-        ctt = np.random.random_integers(260, 290, (5, 5)).astype(float)
+        cth = np.random.randint(0, 10, (5, 5)).astype(float)
+        ctt = np.random.randint(260, 290, (5, 5)).astype(float)
         cth[cth > 7] = np.nan
-        mask = np.random.random_integers(0, 1, (5, 5)).astype(bool)
+        mask = np.random.randint(0, 2, (5, 5)).astype(bool)
         result = lcthalgo.linreg_cth(cth, mask, ctt)
         self.assertEqual(result.shape, (5, 5))
         self.assertTrue(np.all(np.isnan(result[mask])))
@@ -388,6 +405,16 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
         self.assertEqual(np.nanmax(lcthalgo.dz), 1300.)
         self.assertEqual(np.nanmax(np.around(lcthalgo.cth, 2)), 6168.06)
+
+    def test_lcth_algorithm_artificial_next(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testnextinput)
+        ret, mask = lcthalgo.run()
+        self.assertEqual(lcthalgo.ir108.shape, (3, 3))
+        self.assertEqual(ret.shape, (3, 3))
+        self.assertEqual(lcthalgo.shape, (3, 3))
+        self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        self.assertEqual(np.nanmax(lcthalgo.dz), 12.)
+        self.assertEqual(np.around(lcthalgo.cth[1, 1], 2), 444.23)
 
     def test_lcth_lapse_rate(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
