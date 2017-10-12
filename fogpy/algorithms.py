@@ -79,7 +79,7 @@ class BaseSatelliteAlgorithm(object):
         if not hasattr(self, 'dir'):
             self.dir = '/tmp'
         if not hasattr(self, 'resize'):
-            self.resize = 0
+            self.resize = 1
         if not hasattr(self, 'plotrange'):
             self.plotrange = (0, 1)
 
@@ -130,7 +130,7 @@ class BaseSatelliteAlgorithm(object):
         return({key: self.__getattribute__(key) for key in self.attributes
                 if key in keys})
 
-    def plot_result(self, array=None, save=False, dir="/tmp", resize=0):
+    def plot_result(self, array=None, save=False, dir="/tmp", resize=1):
         """Plotting the algorithm result"""
         # Using Trollimage if available, else matplotlib is used to plot
         try:
@@ -161,8 +161,9 @@ class BaseSatelliteAlgorithm(object):
         ylorrd.set_range(*self.plotrange)
         logger.info("Set color range to {}".format(self.plotrange))
         result_img.colorize(ylorrd)
-        result_img.resize((self.result.shape[0] * 5,
-                           self.result.shape[1] * 5))
+        print(resize)
+        result_img.resize((self.result.shape[0] * resize,
+                           self.result.shape[1] * resize))
         if save:
             # Get output directory and image name
             savedir = os.path.join(dir, self.name + '_' +
@@ -173,6 +174,8 @@ class BaseSatelliteAlgorithm(object):
                                                                 self.dir))
         else:
             result_img.show()
+
+        return(result_img)
 
     def check_dimension(self, arr):
         """ Check and convert arrays to 2D """

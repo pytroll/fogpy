@@ -35,7 +35,8 @@ from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
 from fogpy.filters import CirrusCloudFilter
 from fogpy.filters import WaterCloudFilter
-
+from fogpy.utils import add_synop
+from pyresample import geometry
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
 # lat, lon, cth
@@ -47,6 +48,8 @@ testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
 testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testdata = np.load(testfile)
 testdata2 = np.load(testfile2)
+stationfile = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
+stationfile2 = os.path.join(base[0], '..', 'etc', 'result_20140827.bufr')
 
 
 class Test_BaseSatelliteAlgorithm(unittest.TestCase):
@@ -109,7 +112,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
                       'plot': True,
                       'save': True,
                       'dir': '/tmp/FLS',
-                      'resize': '5'}
+                      'resize': '5',
+                      'single': True}
         # Load second test dataset
         inputs = np.dsplit(testdata2, 14)
         self.ir108 = inputs[0]
@@ -147,7 +151,22 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
                        'plot': True,
                        'save': True,
                        'dir': '/tmp/FLS',
-                       'resize': '5'}
+                       'resize': '5',
+                       'single': False}
+
+        # Get area definition for test data
+        area_id = "geos_germ"
+        name = "geos_germ"
+        proj_id = "geos"
+        proj_dict = {'a': '6378169.00', 'lon_0': '0.00', 'h': '35785831.00',
+                     'b': '6356583.80', 'proj': 'geos', 'lat_0': '0.00'}
+        x_size = 298
+        y_size = 141
+        area_extent = (214528.82635591552, 4370087.2110124603,
+                       1108648.9697693815, 4793144.0573926577)
+        self.area_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                                proj_dict, x_size, y_size,
+                                                area_extent)
 
     def tearDown(self):
         pass
@@ -162,6 +181,11 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         cthdiff = flsalgo.cluster_cth - self.input['elev'].squeeze()
         self.assertLessEqual(np.nanmax(cthdiff), 1000)
 
+        # Plot result with added station data
+        result_img = flsalgo.plot_result(save=True, resize=1)
+        add_synop.add_to_image(result_img, self.area_def, self.input['time'],
+                               stationfile, bgimg=self.input['ir108'])
+
     # Using other tset data set
     def test_fls_algorithm_other(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input2)
@@ -172,6 +196,11 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
         cthdiff = flsalgo.cluster_cth - self.input['elev'].squeeze()
         self.assertLessEqual(np.nanmax(cthdiff), 1000)
+
+        # Plot result with added station data
+        result_img = flsalgo.plot_result(save=True, resize=1)
+        add_synop.add_to_image(result_img, self.area_def, self.input2['time'],
+                               stationfile2, bgimg=self.input2['ir108'])
 
     def test_fls_cth_tdiff(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input)
