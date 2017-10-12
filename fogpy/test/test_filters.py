@@ -564,6 +564,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         # Create cloud filter
         input_single = self.input
         input_single['single'] = True
+        input_single['substitude'] = True
         testfilter = LowCloudFilter(input_single['ir108'], **input_single)
         ret, mask = testfilter.apply()
 
@@ -577,6 +578,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         # Create cloud filter
         input_single = self.test_lwp1
         input_single['single'] = True
+        input_single['substitude'] = False
         testfilter = LowCloudFilter(input_single['ir108'], **input_single)
         ret, mask = testfilter.apply()
 
@@ -589,6 +591,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         # Create cloud filter
         input_single = self.test_lwp2
         input_single['single'] = True
+        input_single['substitude'] = False
         testfilter = LowCloudFilter(input_single['ir108'], **input_single)
         ret, mask = testfilter.apply()
 
@@ -601,6 +604,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         # Create cloud filter
         input_single = self.test_lwp3
         input_single['single'] = True
+        input_single['substitude'] = False
         testfilter = LowCloudFilter(input_single['ir108'], **input_single)
         ret, mask = testfilter.apply()
 

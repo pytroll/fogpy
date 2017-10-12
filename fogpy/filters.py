@@ -748,6 +748,8 @@ class LowCloudFilter(BaseArrayFilter):
         # Set additional class attribute
         if not hasattr(self, 'single'):
             self.single = False
+        if not hasattr(self, 'substitude'):
+            self.substitude = True
         # Plot cbh and fbh results
         self.plotattr = ['cbh', 'fbh']
 
@@ -771,6 +773,8 @@ class LowCloudFilter(BaseArrayFilter):
         if self.single:  # Run low cloud models parallized for single pixels
             count_cells = 0
             logger.info("Run low cloud models for single cells")
+            applyres = []
+            task_count = self.clusters.count()
             # Get pool result list
             self.result_list = []
             self.index_list = []
@@ -783,6 +787,18 @@ class LowCloudFilter(BaseArrayFilter):
                                  self.ir108[r, c], self.reff[r, c]]
                     pool.apply_async(self.get_fog_base_height, args=workinput,
                                      callback=self.log_result)
+            # Log tasks
+            while True:
+                incomplete_count = sum(1 for x in applyres if not x.ready())
+
+                if incomplete_count == 0:
+                    logger.info("All Done. Completed {} tasks"
+                                .format(task_count))
+                    break
+                remain = float(task_count - incomplete_count) / task_count * 100
+                logger.info("{} Tasks Remaining --- {:.2f} % Complete"
+                            .format(incomplete_count, remain))
+                time.sleep(1)
             # Wait for all processes to finish
             pool.close()
             pool.join()
@@ -810,7 +826,6 @@ class LowCloudFilter(BaseArrayFilter):
             logger.info("Run low cloud models for cloud clusters")
             applyres = []
             task_count = len(lwp_cluster)
-            iter = 1
             # Get pool result list
             self.result_list = []
             for key in lwp_cluster.keys():
@@ -819,6 +834,7 @@ class LowCloudFilter(BaseArrayFilter):
                 applyres.append(pool.apply_async(self.get_fog_base_height,
                                                  args=workinput,
                                                  callback=self.log_result))
+            # Log tasks
             while True:
                 incomplete_count = sum(1 for x in applyres if not x.ready())
 
@@ -869,7 +885,7 @@ class LowCloudFilter(BaseArrayFilter):
             # Calculate cloud base height
             cbh = lowcloud.get_cloud_base_height(-100, 'basin')
             # Get visibility and fog cloud base height
-            fbh = lowcloud.get_fog_base_height()
+            fbh = lowcloud.get_fog_base_height(self.substitude)
         except Exception as e:
             logger.error(e, exc_info=True)
             cbh = np.nan

@@ -239,16 +239,27 @@ class LowWaterCloud(object):
 
         return self.cbh
 
-    def get_fog_base_height(self):
+    def get_fog_base_height(self, substitude=False):
         """This method calculate the fog cloud base height for low clouds
-        with visibilities below 1000 m
+        with visibilities below 1000 m.
+
+        Arguments:
+        substitude    Optional argument to substitude with cbh if no fbh 
+                      could be found.
+        Returns:
+                fbh    Fog base height
         """
         fog_z = [l.z for l in self.layers if (l.visibility <= 1000) & (l.visibility is not None)]
         try:
             self.fbh = min(fog_z)  # Get lowest heights with visibility treshold
         except:
-            logger.warning("No fog base height found")
-            self.fbh = np.nan
+            if substitude:
+                logger.warning("No fog base height found: Substitude with "
+                               "cloud base height: {}".format(self.cbh))
+                self.fbh = self.cbh
+            else:
+                logger.warning("No fog base height found: Set to NaN")
+                self.fbh = np.nan
 
         return self.fbh
 
