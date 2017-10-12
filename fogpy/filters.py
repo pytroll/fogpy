@@ -785,8 +785,9 @@ class LowCloudFilter(BaseArrayFilter):
                     count_cells += 1
                     workinput = [self.lwp[r, c], self.cth[r, c],
                                  self.ir108[r, c], self.reff[r, c]]
-                    pool.apply_async(self.get_fog_base_height, args=workinput,
-                                     callback=self.log_result)
+                    applyres.append(pool.apply_async(self.get_fog_base_height,
+                                                     args=workinput,
+                                                     callback=self.log_result))
             # Log tasks
             while True:
                 incomplete_count = sum(1 for x in applyres if not x.ready())
