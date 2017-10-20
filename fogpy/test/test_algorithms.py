@@ -30,6 +30,7 @@ from datetime import datetime
 from fogpy.algorithms import BaseSatelliteAlgorithm
 from fogpy.algorithms import DayFogLowStratusAlgorithm
 from fogpy.algorithms import LowCloudHeightAlgorithm
+from fogpy.algorithms import PanSharpeningAlgorithm
 from fogpy.filters import CloudFilter
 from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
@@ -45,11 +46,33 @@ from pyresample import geometry
 # Import test data
 base = os.path.split(fogpy.__file__)
 testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
+hrvfile = os.path.join(base[0], '..', 'etc', 'fog_testdata_hrv.npy')
 testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testdata = np.load(testfile)
+hrvdata = np.load(hrvfile)
 testdata2 = np.load(testfile2)
 stationfile = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
 stationfile2 = os.path.join(base[0], '..', 'etc', 'result_20140827.bufr')
+
+# Get area definition for test data
+area_id = "geos_germ"
+name = "geos_germ"
+proj_id = "geos"
+proj_dict = {'a': '6378169.00', 'lon_0': '0.00', 'h': '35785831.00',
+             'b': '6356583.80', 'proj': 'geos', 'lat_0': '0.00'}
+x_size = 298
+y_size = 141
+area_extent = (214528.82635591552, 4370087.2110124603,
+               1108648.9697693815, 4793144.0573926577)
+area_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                   proj_dict, x_size, y_size,
+                                   area_extent)
+# HRV size
+x_size = 893
+y_size = 422
+hrvarea_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                      proj_dict, x_size, y_size,
+                                      area_extent)
 
 
 class Test_BaseSatelliteAlgorithm(unittest.TestCase):
@@ -154,20 +177,6 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
                        'resize': '5',
                        'single': False}
 
-        # Get area definition for test data
-        area_id = "geos_germ"
-        name = "geos_germ"
-        proj_id = "geos"
-        proj_dict = {'a': '6378169.00', 'lon_0': '0.00', 'h': '35785831.00',
-                     'b': '6356583.80', 'proj': 'geos', 'lat_0': '0.00'}
-        x_size = 298
-        y_size = 141
-        area_extent = (214528.82635591552, 4370087.2110124603,
-                       1108648.9697693815, 4793144.0573926577)
-        self.area_def = geometry.AreaDefinition(area_id, name, proj_id,
-                                                proj_dict, x_size, y_size,
-                                                area_extent)
-
     def tearDown(self):
         pass
 
@@ -183,7 +192,7 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
 
         # Plot result with added station data
         result_img = flsalgo.plot_result(save=True, resize=1)
-        add_synop.add_to_image(result_img, self.area_def, self.input['time'],
+        add_synop.add_to_image(result_img, area_def, self.input['time'],
                                stationfile, bgimg=self.input['ir108'])
 
     # Using other tset data set
@@ -199,7 +208,7 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
 
         # Plot result with added station data
         result_img = flsalgo.plot_result(save=True, resize=1)
-        add_synop.add_to_image(result_img, self.area_def, self.input2['time'],
+        add_synop.add_to_image(result_img, area_def, self.input2['time'],
                                stationfile2, bgimg=self.input2['ir108'])
 
     def test_fls_cth_tdiff(self):
@@ -538,6 +547,61 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         center, neigh, ids = lcthalgo.cell_neighbors(elev, 2, 1)
         compare = np.array([700., 1500., 600., 400., 200.])
         self.assertTrue(np.alltrue(compare == neigh))
+
+
+class Test_PanSharpeningAlgorithm(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 14)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.lwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+        self.cth = inputs[13]
+        # Load extra hrv channel
+        self.hrv = hrvdata
+
+        # Remove nodata values (9999) from elevation
+        self.elev[self.elev == 9999] = np.nan
+
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+
+        self.input = {'mspec': [self.vis006],
+                      'pan': self.hrv,
+                      'area': area_def,
+                      'panarea': hrvarea_def,
+                      'bg_img': self.ir108,
+                      'lat': self.lat,
+                      'lon': self.lon,
+                      'time': self.time,
+                      'elev': self.elev,
+                      'cth': self.cth,
+                      'plot': True,
+                      'save': True,
+                      'dir': '/tmp/FLS',
+                      'resize': '1'}
+
+    def tearDown(self):
+        pass
+
+    def test_pansharp_resample(self):
+        """Test resampling to degraded multispectral channel resolution"""
+        # Run pansharpening algorithm
+        panshalgo = PanSharpeningAlgorithm(**self.input)
+        ret, mask = panshalgo.run()
+        # lcthalgo.plot_result()
+        self.assertEqual(panshalgo.mspec[0].shape, (141, 298, 1))
+        self.assertEqual(panshalgo.pan.shape, (422, 893))
 
 
 def suite():

@@ -41,6 +41,7 @@ from filters import SpatialCloudTopHeightFilter
 from filters import SpatialHomogeneityFilter
 from filters import CloudPhysicsFilter
 from filters import LowCloudFilter
+from pyresample import image, geometry
 
 logger = logging.getLogger(__name__)
 
@@ -160,10 +161,9 @@ class BaseSatelliteAlgorithm(object):
                              (self.plotrange[1], (0.0, 1.0, 229 / 255.0)))
         ylorrd.set_range(*self.plotrange)
         logger.info("Set color range to {}".format(self.plotrange))
-        result_img.colorize(ylorrd)
-        print(resize)
-        result_img.resize((self.result.shape[0] * resize,
-                           self.result.shape[1] * resize))
+#         result_img.colorize(ylorrd)
+        result_img.resize((self.result.shape[0] * int(resize),
+                           self.result.shape[1] * int(resize)))
         if save:
             # Get output directory and image name
             savedir = os.path.join(dir, self.name + '_' +
@@ -1010,3 +1010,92 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             plt.show()
         else:
             plt.savefig(saveto)
+
+
+class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
+    """This class provide an algorithm for pansharpening of satellite channels
+    by an spatial high resolution panchromatic channel.
+    The method is based on satellite images for different channels with low
+    resolution and a pan chromatic channel with higher spatial resolution.
+    The low resolution multispectral images are than resampled on the high
+    resolution grid by different approaches.
+
+    Requires:
+        mspec    List of multispectral cahnnels as numpy arrays
+        pan      Panchromatic channel as numpy array
+        area     Area definition object (PyTroll-mpop class) for the
+                 multispectral channels.
+        panarea  Area definition object (PyTroll-mpop class) for the
+                 panchromatic channel.
+
+    Implemented approaches:
+
+    Hill: Local correlation approach
+
+    A window-based pan-sharpening technique using linear local regressions is
+    described by Hill et al. (1999).
+    The idea for the method is not to calculate one regression function for
+    the whole scene but one regression function for the calculation of every
+    single pixel. Each of these is based on the degraded panchromatic high
+    resolution channel.
+
+        References:
+        Hill, J., Diemer, C., St ̈over, O., and Udelhoven, T.: A local corre-
+        lation approach for the fusion of remote sensing data with spa-
+        tial resolutions in forestry applications, Int. Arch. Photogramm.
+        Remote Sens., 32, Part 7-4-3 W6, Valladolid, Spain, 3–4 June,
+        1999.
+
+
+    Returns:
+        Pansharpened satellite channels as numpy arrays.
+    """
+    def __init__(self, *args, **kwargs):
+        super(PanSharpeningAlgorithm, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'method'):
+            self.method = "hill"
+
+    def isprocessible(self):
+        """Test runability here"""
+        attrlist = ['mspec', 'pan', 'area', 'panarea']
+        ret = []
+        for attr in attrlist:
+            if hasattr(self, attr):
+                if attr == 'area' and not isinstance(self.area,
+                                                     geometry.AreaDefinition):
+                    raise ValueError("The are is not of type area definition")
+                ret.append(True)
+            else:
+                ret.append(False)
+                logger.warning("Missing input attribute: {}".format(attr))
+
+        return all(ret)
+
+    def procedure(self):
+        """ Apply pansharpening algorithm to multispectral input arrays"""
+        logger.info("Starting pansharpening algorithm for {} images"
+                    .format(len(self.mspec)))
+
+        # Resample pan channel to degraded resolution
+        pan_quick = image.ImageContainerNearest(self.pan, self.panarea,
+                                                radius_of_influence=50000)
+        pan_shrp_quick = pan_quick.resample(self.area)
+        self.pan_degrad = pan_shrp_quick.image_data
+
+        # Loop over  multispectral channels
+        
+        # Set results
+        self.result = self.pan_degrad
+        self.mask = np.zeros(self.pan_degrad.shape)
+
+        return True
+
+    def check_results(self):
+        """Check processed algorithm for plausible results"""
+        if self.plot:
+            # Overwrite plotrange with valid result array range
+            self.plotrange = (np.nanmin(self.result), np.nanmax(self.result))
+            self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
+        return True
+
