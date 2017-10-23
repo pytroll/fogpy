@@ -25,6 +25,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import time
 
 from copy import deepcopy
 from datetime import datetime
@@ -32,6 +33,7 @@ from matplotlib.cm import get_cmap
 from numpy.lib.stride_tricks import as_strided
 from scipy.ndimage import measurements
 from scipy import interpolate
+from scipy import spatial
 from filters import CloudFilter
 from filters import SnowFilter
 from filters import IceCloudFilter
@@ -42,6 +44,7 @@ from filters import SpatialHomogeneityFilter
 from filters import CloudPhysicsFilter
 from filters import LowCloudFilter
 from pyresample import image, geometry
+from pyresample.utils import generate_nearest_neighbour_linesample_arrays
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +134,8 @@ class BaseSatelliteAlgorithm(object):
         return({key: self.__getattribute__(key) for key in self.attributes
                 if key in keys})
 
-    def plot_result(self, array=None, save=False, dir="/tmp", resize=1):
+    def plot_result(self, array=None, save=False, dir="/tmp", resize=1,
+                    name='_array', type='png'):
         """Plotting the algorithm result"""
         # Using Trollimage if available, else matplotlib is used to plot
         try:
@@ -162,13 +166,22 @@ class BaseSatelliteAlgorithm(object):
         ylorrd.set_range(*self.plotrange)
         logger.info("Set color range to {}".format(self.plotrange))
 #         result_img.colorize(ylorrd)
-        result_img.resize((self.result.shape[0] * int(resize),
-                           self.result.shape[1] * int(resize)))
+        if array is None:
+            shape = self.result.shape
+        else:
+            shape = array.shape
+        result_img.resize((shape[0] * int(resize),
+                           shape[1] * int(resize)))
         if save:
             # Get output directory and image name
-            savedir = os.path.join(dir, self.name + '_' +
+            if array is None:
+                outname = self.name
+            else:
+                outname = self.name + '_' + name
+            savedir = os.path.join(dir, outname + '_' +
                                    datetime.strftime(self.time,
-                                                     '%Y%m%d%H%M') + '.png')
+                                                     '%Y%m%d%H%M') +
+                                   '.' + type)
             result_img.save(savedir)
             logger.info("{} results are plotted to: {}". format(self.name,
                                                                 self.dir))
@@ -216,6 +229,19 @@ class BaseSatelliteAlgorithm(object):
                                                                 self.dir))
         else:
             cluster_img.show()
+
+    def plot_linreg(self, x, y, m, c, saveto=None, xlabel='x', ylabel='y', title='Regression plot'):
+        """ Plot result of linear regression for DEM and lapse rate extracted
+        low cloud top height and cloud top temperatures"""
+        plt.plot(x, y, '.')
+        plt.plot(x, m * x + c)
+        plt.title(title)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        if saveto is None:
+            plt.show()
+        else:
+            plt.savefig(saveto)
 
 
 class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
@@ -476,67 +502,6 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                      % np.nanmax(np.unique(result)))
 
         return result
-
-    def sliding_window(self, arr, window_size):
-        """ Construct a sliding window view of the array"""
-        arr = np.asarray(arr)
-        window_size = int(window_size)
-        if arr.ndim != 2:
-            try:
-                arr = arr.squeeze()  # Try to reduce dimension
-            except:
-                raise ValueError("need 2-D input")
-        if not (window_size > 0):
-            raise ValueError("need a positive window size")
-        shape = (arr.shape[0] - window_size + 1,
-                 arr.shape[1] - window_size + 1,
-                 window_size, window_size)
-        if shape[0] <= 0:
-            shape = (1, shape[1], arr.shape[0], shape[3])
-        if shape[1] <= 0:
-            shape = (shape[0], 1, shape[2], arr.shape[1])
-        strides = (arr.shape[1]*arr.itemsize, arr.itemsize,
-                   arr.shape[1]*arr.itemsize, arr.itemsize)
-        return as_strided(arr, shape=shape, strides=strides)
-
-    def cell_neighbors(self, arr, i, j, d, value):
-        """Return d-th neighbors of cell (i, j)"""
-        if arr.ndim != 2:
-            try:
-                arr = arr.squeeze()  # Try to reduce dimension
-            except:
-                raise ValueError("need 2-D input")
-        w = self.sliding_window(arr, 2*d+1)
-
-        ix = np.clip(i - d, 0, w.shape[0]-1)
-        jx = np.clip(j - d, 0, w.shape[1]-1)
-
-        i0 = max(0, i - d - ix)
-        j0 = max(0, j - d - jx)
-        i1 = w.shape[2] - max(0, d - i + ix)
-        j1 = w.shape[3] - max(0, d - j + jx)
-
-        # Get cell value
-        if i1 - i0 == 3:
-            icell = 1
-        elif (i1 - i0 == 2) & (i0 == 0):
-            icell = 0
-        elif (i1 - i0 == 2) & (i0 == 1):
-            icell = 2
-        if j1 - j0 == 3:
-            jcell = 1
-        elif (j1 - j0 == 2) & (j0 == 0):
-            jcell = 0
-        elif (j1 - j0 == 2) & (j0 == 1):
-            jcell = 2
-
-        irange = range(i0, i1)
-        jrange = range(j0, j1)
-        neighbors = [w[ix, jx][k, l] for k in irange for l in jrange
-                     if k != icell or l != jcell]
-        center = value[i, j]  # Get center cell value from additional array
-
-        return center, neighbors
 
     def get_lowcloud_cth(self, cluster, cf_arr, bt_cc, elevation):
         """Get neighboring cloud free BT and elevation values of potential
@@ -819,7 +784,9 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                                                         result_c)
                 result[clstindex] = result_c
 
-        #self.plot_linreg(x, y, m, c, savedir)
+#         self.plot_linreg(x, y, m, c, savedir, 'Cloud top temperature [K]',
+#                          'Low cloud top height [m]',
+#                          'Linear Regression for LCTH and CTT')
         if np.any(np.isnan(result)):
             logger.warning("LCTH linear regression created NaN values")
         # Set invalide values
@@ -998,19 +965,6 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
 
         return result
 
-    def plot_linreg(self, x, y, m, c, saveto=None):
-        """ Plot result of linear regression for DEM and lapse rate extracted
-        low cloud top height and cloud top temperatures"""
-        plt.plot(x, y, '.')
-        plt.plot(x, m * x + c)
-        plt.title("Linear Regression for LCTH and CTT")
-        plt.xlabel('Cloud top temperature [K]')
-        plt.ylabel('Low cloud top height [m]')
-        if saveto is None:
-            plt.show()
-        else:
-            plt.savefig(saveto)
-
 
 class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
     """This class provide an algorithm for pansharpening of satellite channels
@@ -1040,7 +994,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
     resolution channel.
 
         References:
-        Hill, J., Diemer, C., St ̈over, O., and Udelhoven, T.: A local corre-
+        Hill, J., Diemer, C., Stover, O., and Udelhoven, T.: A local corre-
         lation approach for the fusion of remote sensing data with spa-
         tial resolutions in forestry applications, Int. Arch. Photogramm.
         Remote Sens., 32, Part 7-4-3 W6, Valladolid, Spain, 3–4 June,
@@ -1069,6 +1023,9 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
             else:
                 ret.append(False)
                 logger.warning("Missing input attribute: {}".format(attr))
+        # Convert multispetral channel option to list if required
+        if not isinstance(self.mspec, list):
+            self.mspec = [self.mspec]
 
         return all(ret)
 
@@ -1082,11 +1039,23 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
                                                 radius_of_influence=50000)
         pan_shrp_quick = pan_quick.resample(self.area)
         self.pan_degrad = pan_shrp_quick.image_data
+        # Calculate row and column indices to translate multispectral channels
+        # to  panchromatic
+        panrow, pancol = generate_nearest_neighbour_linesample_arrays(self.area,
+                                                                      self.panarea,
+                                                                      50000)
+
+        self.result = []
 
         # Loop over  multispectral channels
-        
+        for chn in self.mspec:
+            # Prepare empty pansharpened array
+            panshrp_chn = np.empty(self.pan.shape)
+            logger.info("Sharpen {} image to {}".format(chn.shape,
+                                                        self.pan.shape))
+            if self.method == 'hill':
+                self.apply_hill_sharpening(chn, panrow, pancol, panshrp_chn)
         # Set results
-        self.result = self.pan_degrad
         self.mask = np.zeros(self.pan_degrad.shape)
 
         return True
@@ -1095,7 +1064,72 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         """Check processed algorithm for plausible results"""
         if self.plot:
             # Overwrite plotrange with valid result array range
-            self.plotrange = (np.nanmin(self.result), np.nanmax(self.result))
-            self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
+            n = 0
+            for chn in self.result:
+                self.plotrange = (np.nanmin(chn), np.nanmax(chn))
+                self.plot_result(array=chn, save=self.save, dir=self.dir,
+                                 resize=self.resize, name='output_{}'.format(n),
+                                 type='tif')
+                self.plot_result(array=self.mspec[n], save=self.save,
+                                 dir=self.dir, resize=self.resize,
+                                 name='input_{}'.format(n), type='tif')
+                n += 1
         return True
 
+    def apply_linear_regression(self, x, y):
+        """ Simple method to derive slope and offset by linear regression"""
+        # Rearrange line equation to  y = Ap  from y = mx  + c with p = [m , c]
+        A = np.vstack([x, np.ones(len(x))]).T
+        # Solve by leat square fitting.
+        m, c = np.linalg.lstsq(A, y)[0]
+
+        return(m, c)
+
+    def apply_hill_sharpening(self, chn, panrow, pancol, output):
+        """ Local regresssion based pansharpening algorithm by HILL et al.
+        1999. The nearest neighbor search is based on the scipy KDtree
+        implementation, whereas remapping is done with pyresample methods.
+        """
+        logger.info("Using local regression approach by Hill")
+        # Setup KDtree for nearest neighbor search
+        indices = np.indices(chn.shape)
+        tree = spatial.KDTree(zip(indices[0].ravel(), indices[1].ravel()))
+        # Track progress
+        todo = chn.size
+        # Log tasks
+        while True:
+            if todo == 0:
+                logger.info("All Done. Completed {} tasks"
+                            .format(chn.size))
+                break
+            remain = float(todo) / chn.size * 100
+#             logger.info("{} Tasks Remaining --- {:.2f} % Complete"
+#                         .format(todo, remain))
+            time.sleep(1)
+        # Loop over channel array
+        for index, val in np.ndenumerate(chn):
+            row = index[0]
+            col = index[1]
+            # Query tree for neighbors
+            queryresult = tree.query(np.array([[row, col]]), k=25)
+            neighs = tree.data[queryresult[1][0][1:]]
+            # Get channel values for neighbors
+            chn_neigh = chn[tuple(neighs.T)].squeeze()
+            # Get panchromatic channel values for neighbors
+            pan_neigh = self.pan_degrad[tuple(neighs.T)].squeeze()
+            m, c = self.apply_linear_regression(chn_neigh, pan_neigh)
+            # Apply local regression to panchromatic channel
+            # Get values matching selected degaded pixel
+            panvalues = self.pan[(panrow == row) & (pancol == col)]
+            # Aplly linear regression to cell selection
+            panvalues_corr = c + panvalues * m
+            # Add corrected values to pansharpening channel output
+            output[(panrow == row) & (pancol == col)] = panvalues_corr
+#                 self.plot_linreg(chn_neigh, pan_neigh, m, c)
+            todo -= 1
+
+        # Add pansharpend channel to result
+        logger.info("Append pansharpened channel to result list...")
+        self.result.append(output)
+
+        return(output)
