@@ -25,6 +25,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
 import time
 
 from copy import deepcopy
@@ -1096,16 +1097,8 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         tree = spatial.KDTree(zip(indices[0].ravel(), indices[1].ravel()))
         # Track progress
         todo = chn.size
-        # Log tasks
-        while True:
-            if todo == 0:
-                logger.info("All Done. Completed {} tasks"
-                            .format(chn.size))
-                break
-            remain = float(todo) / chn.size * 100
-#             logger.info("{} Tasks Remaining --- {:.2f} % Complete"
-#                         .format(todo, remain))
-            time.sleep(1)
+        ready = 1
+
         # Loop over channel array
         for index, val in np.ndenumerate(chn):
             row = index[0]
@@ -1126,10 +1119,20 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
             # Add corrected values to pansharpening channel output
             output[(panrow == row) & (pancol == col)] = panvalues_corr
 #                 self.plot_linreg(chn_neigh, pan_neigh, m, c)
-            todo -= 1
+            # Log tasks
+            ready, todo = self.progressbar(ready, todo, chn.size)
 
         # Add pansharpend channel to result
         logger.info("Append pansharpened channel to result list...")
         self.result.append(output)
 
         return(output)
+
+    def progressbar(self, ready, todo, size):
+        """ simple method for printing a progress bar to stdout"""
+        s = ('<' + (ready/(size/50)*'#') + (todo/(size/50)*'-') +
+             '> ') + str(ready) + (' / {}'.format(size))
+        print ('\r'+s),
+        todo -= 1
+        ready += 1
+        return(ready, todo)
