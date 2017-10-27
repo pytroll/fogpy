@@ -1082,7 +1082,20 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         # Rearrange line equation to  y = Ap  from y = mx  + c with p = [m , c]
         A = np.vstack([x, np.ones(len(x))]).T
         # Solve by leat square fitting.
-        m, c = np.linalg.lstsq(A, y)[0]
+        results, resids, rank, s = np.linalg.lstsq(A, y)
+        m = results[0]
+        c = results[1]
+        # Calculate coefficient of determination
+        var = np.sum((np.square(y - np.mean(y))))
+        rsqrt = 1 - (resids / var)
+
+        if rsqrt < 0.2:
+            print(np.nanmin(x), np.nanmax(x))
+            print(np.nanmin(y), np.nanmax(y))
+            print(results, resids, rank, s)
+            print(np.sum((np.square(y - (x * m + c)))))
+            print(rsqrt)
+            self.plot_linreg(x, y, m, c)
 
         return(m, c)
 
@@ -1118,7 +1131,6 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
             panvalues_corr = c + panvalues * m
             # Add corrected values to pansharpening channel output
             output[(panrow == row) & (pancol == col)] = panvalues_corr
-#                 self.plot_linreg(chn_neigh, pan_neigh, m, c)
             # Log tasks
             ready, todo = self.progressbar(ready, todo, chn.size)
 
