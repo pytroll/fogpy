@@ -600,7 +600,12 @@ class Test_PanSharpeningAlgorithm(unittest.TestCase):
         panshalgo = PanSharpeningAlgorithm(**self.input)
         ret, mask = panshalgo.run()
         panshalgo.plot_result(array=panshalgo.pan, save=panshalgo.save,
-                              dir=panshalgo.dir, type='tif')
+                              name='pan', dir=panshalgo.dir, type='tif',
+                              area=panshalgo.panarea)
+        panshalgo.plot_result(array=panshalgo.pan_degrad, save=panshalgo.save,
+                              name='pan_degraded', dir=panshalgo.dir,
+                              type='tif',
+                              area=panshalgo.area)
         self.assertEqual(panshalgo.mspec[0].shape, (141, 298, 1))
         self.assertEqual(panshalgo.pan.shape, (422, 893))
 

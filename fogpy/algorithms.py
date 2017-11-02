@@ -136,7 +136,7 @@ class BaseSatelliteAlgorithm(object):
                 if key in keys})
 
     def plot_result(self, array=None, save=False, dir="/tmp", resize=1,
-                    name='_array', type='png'):
+                    name='array', type='png', area=None):
         """Plotting the algorithm result"""
         # Using Trollimage if available, else matplotlib is used to plot
         try:
@@ -144,20 +144,33 @@ class BaseSatelliteAlgorithm(object):
             from trollimage.colormap import rainbow
             from trollimage.colormap import ylorrd
             from trollimage.colormap import Colormap
+            from mpop.imageo.geo_image import GeoImage
         except:
             logger.info("{} results can't be plotted to: {}". format(self.name,
                                                                      dir))
             return 0
+        if area is None:
+            area = self.area
         # Create image from data
         if array is None:
             if np.nanmax(self.result) > 1:
                 self.plotrange = (np.nanmin(self.result),
                                   np.nanmax(self.result))
-            result_img = Image(self.result.squeeze(), mode='L',
-                               fill_value=None)
+            if type == 'tif':
+                result_img = GeoImage(self.result.squeeze(), area,
+                                      self.time, fill_value=9999,
+                                      mode="L")
+            else:
+                result_img = Image(self.result.squeeze(), mode='L',
+                                   fill_value=None)
         else:
             self.plotrange = (np.nanmin(array), np.nanmax(array))
-            result_img = Image(array.squeeze(), mode='L', fill_value=None)
+            if type == 'tif':
+                result_img = GeoImage(array.squeeze(), area,
+                                      self.time, fill_value=9999,
+                                      mode="L")
+            else:
+                result_img = Image(array.squeeze(), mode='L', fill_value=None)
         result_img.stretch("crude")
         # Colorize image
         # Define custom fog colormap
@@ -1070,10 +1083,11 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
                 self.plotrange = (np.nanmin(chn), np.nanmax(chn))
                 self.plot_result(array=chn, save=self.save, dir=self.dir,
                                  resize=self.resize, name='output_{}'.format(n),
-                                 type='tif')
+                                 type='tif', area=self.panarea)
                 self.plot_result(array=self.mspec[n], save=self.save,
                                  dir=self.dir, resize=self.resize,
-                                 name='input_{}'.format(n), type='tif')
+                                 name='input_{}'.format(n), type='tif',
+                                 area=self.area)
                 n += 1
         return True
 
@@ -1090,12 +1104,8 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         rsqrt = 1 - (resids / var)
 
         if rsqrt < 0.2:
-            print(np.nanmin(x), np.nanmax(x))
-            print(np.nanmin(y), np.nanmax(y))
-            print(results, resids, rank, s)
-            print(np.sum((np.square(y - (x * m + c)))))
-            print(rsqrt)
-            self.plot_linreg(x, y, m, c)
+            logger.warning("Computed low qualitiy regression R²: {}"
+                           .format(rsqrt))
 
         return(m, c)
 
