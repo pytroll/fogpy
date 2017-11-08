@@ -136,7 +136,7 @@ class BaseSatelliteAlgorithm(object):
                 if key in keys})
 
     def plot_result(self, array=None, save=False, dir="/tmp", resize=1,
-                    name='array', type='png', area=None):
+                    name='array', type='png', area=None, floating_point=False):
         """Plotting the algorithm result"""
         # Using Trollimage if available, else matplotlib is used to plot
         try:
@@ -196,7 +196,10 @@ class BaseSatelliteAlgorithm(object):
                                    datetime.strftime(self.time,
                                                      '%Y%m%d%H%M') +
                                    '.' + type)
-            result_img.save(savedir)
+            if type == 'tif':
+                result_img.save(savedir, floating_point=floating_point)
+            else:
+                result_img.save(savedir)
             logger.info("{} results are plotted to: {}". format(self.name,
                                                                 self.dir))
         else:
@@ -1060,6 +1063,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
                                                                       50000)
 
         self.result = []
+        self.eval = []
 
         # Loop over  multispectral channels
         for chn in self.mspec:
@@ -1088,6 +1092,10 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
                                  dir=self.dir, resize=self.resize,
                                  name='input_{}'.format(n), type='tif',
                                  area=self.area)
+                self.plot_result(array=self.eval[n], save=self.save,
+                                 dir=self.dir, resize=self.resize,
+                                 name='eval_{}'.format(n), type='tif',
+                                 area=self.area, floating_point=True)
                 n += 1
         return True
 
@@ -1099,15 +1107,16 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         results, resids, rank, s = np.linalg.lstsq(A, y)
         m = results[0]
         c = results[1]
+        mean = np.mean(y)
         # Calculate coefficient of determination
-        var = np.sum((np.square(y - np.mean(y))))
+        var = np.sum((np.square(y - mean)))
         rsqrt = 1 - (resids / var)
 
-        if rsqrt < 0.2:
-            logger.warning("Computed low qualitiy regression R²: {}"
-                           .format(rsqrt))
+#         if rsqrt < 0.2:
+#             logger.warning("Computed low qualitiy regression R²: {}"
+#                            .format(rsqrt))
 
-        return(m, c)
+        return(m, c, rsqrt, mean)
 
     def apply_hill_sharpening(self, chn, panrow, pancol, output):
         """ Local regresssion based pansharpening algorithm by HILL et al.
@@ -1121,6 +1130,12 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         # Track progress
         todo = chn.size
         ready = 1
+        # Array of evaluation criteria
+        eval_array = np.empty(chn.shape)
+
+        # Compute global regression
+        gm, gc, grsqrt, gmean = self.apply_linear_regression(chn.ravel(),
+                                                             self.pan_degrad.ravel())
 
         # Loop over channel array
         for index, val in np.ndenumerate(chn):
@@ -1133,20 +1148,31 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
             chn_neigh = chn[tuple(neighs.T)].squeeze()
             # Get panchromatic channel values for neighbors
             pan_neigh = self.pan_degrad[tuple(neighs.T)].squeeze()
-            m, c = self.apply_linear_regression(chn_neigh, pan_neigh)
+            m, c, rsqrt, mean = self.apply_linear_regression(chn_neigh,
+                                                             pan_neigh)
             # Apply local regression to panchromatic channel
             # Get values matching selected degaded pixel
             panvalues = self.pan[(panrow == row) & (pancol == col)]
-            # Aplly linear regression to cell selection
-            panvalues_corr = c + panvalues * m
+            # Apply linear regression to cell selection
+            if rsqrt >= 0.66:  # Condition for regression application
+                panvalues_corr = c + panvalues * m
+            else:   # Otherwith apply average value
+                panvalues_corr = gc + panvalues * gm
             # Add corrected values to pansharpening channel output
             output[(panrow == row) & (pancol == col)] = panvalues_corr
+            # Write coefficient of determination to evaluation array
+            try:
+                eval_array[index] = rsqrt
+            except:
+                Warning("Local linear regression not possible at: {}, {}"
+                        .format(row, col))
             # Log tasks
             ready, todo = self.progressbar(ready, todo, chn.size)
 
         # Add pansharpend channel to result
         logger.info("Append pansharpened channel to result list...")
         self.result.append(output)
+        self.eval.append(eval_array)
 
         return(output)
 
