@@ -150,7 +150,12 @@ class BaseSatelliteAlgorithm(object):
                                                                      dir))
             return 0
         if area is None:
-            area = self.area
+            try:
+                area = self.area
+            except:
+                Warning("Area object not found. Plotting filter result as"
+                        " image")
+                type = 'png'
         # Create image from data
         if array is None:
             if np.nanmax(self.result) > 1:
@@ -179,7 +184,7 @@ class BaseSatelliteAlgorithm(object):
                              (self.plotrange[1], (0.0, 1.0, 229 / 255.0)))
         ylorrd.set_range(*self.plotrange)
         logger.info("Set color range to {}".format(self.plotrange))
-#         result_img.colorize(ylorrd)
+        result_img.colorize(ylorrd)
         if array is None:
             shape = self.result.shape
         else:
