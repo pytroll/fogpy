@@ -94,6 +94,10 @@ def read_synop(file, params, min=None, max=None):
                         stationdict['type'] = v
                     elif k == 20001:  # Visibility
                         stationdict['visibility'] = v
+                    elif k == 12101:  # Mean air temperature in K
+                        stationdict['air temperature'] = v
+                    elif k == 12103:  # Dew point temperature in K
+                        stationdict['dew point'] = v
                     elif k == 1002:  # WMO station number
                         stationdict['wmo'] = v
                 # Apply thresholds
@@ -125,14 +129,12 @@ def read_synop(file, params, min=None, max=None):
                     result[stationtime].append([stationdict['name'],
                                                 stationdict['altitude'],
                                                 stationdict['lat'],
-                                                stationdict['lon'],
-                                                paralist])
+                                                stationdict['lon']] + paralist)
                 else:
                     result[stationtime] = [[stationdict['name'],
-                                            stationdict['altitude'],
-                                            stationdict['lat'],
-                                            stationdict['lon'],
-                                            paralist]]
+                                           stationdict['altitude'],
+                                           stationdict['lat'],
+                                           stationdict['lon']] + paralist]
         except Exception as e:
             print("ERROR: Unresolved station request: {}".format(e))
     return(result)
@@ -249,14 +251,12 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                     result[stationtime].append([stationdict['name'],
                                                 stationdict['altitude'],
                                                 stationdict['lat'],
-                                                stationdict['lon'],
-                                                paralist])
+                                                stationdict['lon']] + paralist)
                 else:
                     result[stationtime] = [[stationdict['name'],
-                                            stationdict['altitude'],
-                                            stationdict['lat'],
-                                            stationdict['lon'],
-                                            paralist]]
+                                           stationdict['altitude'],
+                                           stationdict['lat'],
+                                           stationdict['lon']] + paralist]
         except Exception as e:
             print("ERROR: Unresolved station request: {}".format(e))
     return(result)
@@ -378,14 +378,12 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                     result[stationtime].append([stationdict['name'],
                                                 stationdict['altitude'],
                                                 stationdict['lat'],
-                                                stationdict['lon'],
-                                                paralist])
+                                                stationdict['lon']] + paralist)
                 else:
                     result[stationtime] = [[stationdict['name'],
-                                            stationdict['altitude'],
-                                            stationdict['lat'],
-                                            stationdict['lon'],
-                                            paralist]]
+                                           stationdict['altitude'],
+                                           stationdict['lat'],
+                                           stationdict['lon']] + paralist]
         except Exception as e:
             print("ERROR: Unresolved station request: {}".format(e))
     return(result)
