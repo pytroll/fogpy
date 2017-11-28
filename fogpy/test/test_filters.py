@@ -38,6 +38,7 @@ from fogpy.filters import SpatialHomogeneityFilter
 from fogpy.filters import LowCloudFilter
 from fogpy.filters import CloudMotionFilter
 from fogpy.algorithms import DayFogLowStratusAlgorithm
+from pyresample import geometry
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -52,6 +53,26 @@ testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testdata = np.load(testfile)
 testdata_pre = np.load(testfile_pre)
 testdata2 = np.load(testfile2)
+
+# Get area definition for test data
+area_id = "geos_germ"
+name = "geos_germ"
+proj_id = "geos"
+proj_dict = {'a': '6378169.00', 'lon_0': '0.00', 'h': '35785831.00',
+             'b': '6356583.80', 'proj': 'geos', 'lat_0': '0.00'}
+x_size = 298
+y_size = 141
+area_extent = (214528.82635591552, 4370087.2110124603,
+               1108648.9697693815, 4793144.0573926577)
+area_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                   proj_dict, x_size, y_size,
+                                   area_extent)
+# HRV size
+x_size = 893
+y_size = 422
+hrvarea_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                      proj_dict, x_size, y_size,
+                                      area_extent)
 
 
 class Test_ArrayFilter(unittest.TestCase):
@@ -124,6 +145,7 @@ class Test_CloudFilter(unittest.TestCase):
         ret, mask = testfilter.apply()
         testfilter.plot_cloud_hist('/tmp/cloud_filter_hist_20131120830.png')
         testfilter.plot_filter(save=True)
+        testfilter.plot_filter(save=True, area=area_def, type='tif')
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
         self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)

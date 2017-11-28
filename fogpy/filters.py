@@ -167,19 +167,21 @@ class BaseArrayFilter(object):
                             self.filter_size, self.filter_num, self.inmask_num,
                             self.new_masked, self.remain_num))
 
-    def plot_filter(self, save=False, dir="/tmp", resize=0, attr=None):
+    def plot_filter(self, save=False, dir="/tmp", resize=0, attr=None,
+                    type='png', area=None):
         """Plotting the filter result"""
         # Get output directory and image name
         savedir = os.path.join(dir, self.name + '_' +
                                datetime.strftime(self.time,
-                                                 '%Y%m%d%H%M') + '.png')
+                                                 '%Y%m%d%H%M') + '.' + type)
         maskdir = os.path.join(dir, self.name + '_mask_' +
                                datetime.strftime(self.time,
-                                                 '%Y%m%d%H%M') + '.png')
+                                                 '%Y%m%d%H%M') + '.' + type)
         # Using Trollimage if available, else matplotlib is used to plot
         try:
             from trollimage.image import Image
             from trollimage.colormap import Colormap
+            from mpop.imageo.geo_image import GeoImage
         except:
             cmap = get_cmap('gray')
             cmap.set_bad('goldenrod', 1.)
@@ -192,10 +194,19 @@ class BaseArrayFilter(object):
                                                                     self.dir))
             else:
                 plt.show()
+        # check area attribute
+        if area is None and type == 'tif':
+            try:
+                area = self.area
+            except:
+                Warning("Area object not found. Plotting filter result as"
+                        " image")
+                type = 'png'
         # Define custom fog colormap
         fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
                           (1., (1.0, 1.0, 229 / 255.0)))
-        maskcol = Colormap((1., (230 / 255.0, 50 / 255.0, 50 / 255.0)))
+        maskcol = Colormap((1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
+
         # Create image from data
         if self.result is None:
             self.result = self.arr
@@ -222,9 +233,15 @@ class BaseArrayFilter(object):
         except:
             logger.warning("No merging for filter plot possible")
         if save:
-            filter_img.save(savedir)
+            if type == 'tif':
+                result_img = GeoImage(filter_img.channels, area,
+                                      self.time, fill_value=None,
+                                      mode="RGB")
+                result_img.save(savedir)
+            else:
+                filter_img.save(savedir)
             logger.info("{} results are plotted to: {}". format(self.name,
-                                                                self.dir))
+                                                                   savedir))
         else:
             filter_img.show()
         # Create mask image
@@ -234,7 +251,7 @@ class BaseArrayFilter(object):
             mask_img = Image(mask, mode='L', fill_value=None)
             mask_img.stretch("crude")
             mask_img.invert()
-            mask_img.colorize(fogcol)
+            mask_img.colorize(maskcol)
             if resize != 0:
                 if not isinstance(resize, int):
                     resize = int(resize)
@@ -242,7 +259,13 @@ class BaseArrayFilter(object):
                                  self.result.shape[1] * resize))
             # mask_img.merge(bg_img)
             if save:
-                mask_img.save(maskdir)
+                if type == 'tif':
+                    result_img = GeoImage(mask_img.channels, area,
+                                          self.time, fill_value=None,
+                                          mode="RGB")
+                    result_img.save(maskdir)
+                else:
+                    mask_img.save(maskdir)
             else:
                 mask_img.show()
         # Create optional attribute images
