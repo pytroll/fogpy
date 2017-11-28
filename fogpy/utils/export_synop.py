@@ -32,7 +32,7 @@ import osgeo.osr
 from fogpy.utils import import_synop
 
 
-def create_shpfile(data, outfile, epsg=4326, para=['vis']):
+def create_shpfile(data, outfile, epsg=4326, para=['vis'], nodata=-9999):
     """ Function to export synoptical station data as ESRI shape file"""
     # Init spatial reference locally
     spatialReference = osgeo.osr.SpatialReference()
@@ -65,7 +65,11 @@ def create_shpfile(data, outfile, epsg=4326, para=['vis']):
         feature.SetFID(index)
         for field in fields:
             i = feature.GetFieldIndex(field)
-            feature.SetField(i, row[fielddict[field]])
+            if row[fielddict[field]] is None:
+                val = nodata
+            else:
+                val = row[fielddict[field]]
+            feature.SetField(i, val)
         layer.CreateFeature(feature)
         index += 1
     shapeData.Destroy()  # Close the shapefile
