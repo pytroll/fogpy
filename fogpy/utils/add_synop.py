@@ -22,6 +22,7 @@
 
 """This script adds synope data for visibility to given geolocated image"""
 
+import fogpy
 import numpy as np
 import os
 from datetime import datetime
@@ -43,12 +44,12 @@ vis_colset = Colormap((0, (228 / 255.0, 26 / 255.0, 28 / 255.0)),
                       (10000, (77 / 255.0, 175 / 255.0, 74 / 255.0)))
 
 
-def add_to_array(arr, area, time, bufr, savedir='/tmp', name=None):
+def add_to_array(arr, area, time, bufr, savedir='/tmp', name=None, mode='L'):
     """Add synoptical reports from stations to provided geolocated image array
     """
     # Create array image
     arrshp = arr.shape[:2]
-    arr_img = Image(arr, mode='L')
+    arr_img = Image(arr, mode=mode)
     # arr_img = Image(channels=[arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]],
     #                mode='RGB')
     # arr_img.stretch('crude')
@@ -119,6 +120,9 @@ def add_to_image(image, area, time, bufr, savedir='/tmp', name=None,
     visarr_ma = np.ma.masked_invalid(visarr)
     station_img = Image(visarr_ma, mode='L')
     station_img.colorize(vis_colset)
+    station_img.show()
+    print(station_img.mode)
+    print(image.mode)
     station_img.merge(image)
     station_img.resize((arrshp[0] * 5, arrshp[1] * 5))
     if name is None:
@@ -136,28 +140,33 @@ if __name__ == '__main__':
     time = datetime(2013, 11, 12, 8, 30)
     # Import image
     # imgfile = 'LowCloudFilter_201311120830.png'
-    imgfile = 'LowCloudFilter_mask_201311120830.png'
+    imgfile = 'LowCloudFilter_201311120830.png'
     imgdir = '/tmp/FLS'
+    resize = 5  # Resize factor of FLS image
     imgpath = os.path.join(imgdir, imgfile)
     arr = misc.imread(imgpath)
     arr = np.ma.masked_where(arr == 0, arr)
     print(arr.shape)
     print(np.min(arr))
     # Get bufr file
-    bufr_dir = '/data/tleppelt/skydata/'
-    bufr_file = "result_{}".format(time.strftime("%Y%m%d"))
-    inbufr = os.path.join(bufr_dir, bufr_file)
+    base = os.path.split(fogpy.__file__)
+    inbufr = os.path.join(base[0], '..', 'etc', 'result_{}.bufr'
+                          .format(time.strftime("%Y%m%d")))
+#     bufr_dir = '/data/tleppelt/skydata/'
+#     bufr_file = "result_{}".format(time.strftime("%Y%m%d"))
+#     inbufr = os.path.join(bufr_dir, bufr_file)
 
     area_id = "geos_germ"
     name = "geos_germ"
     proj_id = "geos"
     proj_dict = {'a': '6378169.00', 'lon_0': '0.00', 'h': '35785831.00',
                  'b': '6356583.80', 'proj': 'geos', 'lat_0': '0.00'}
-    x_size = 298
-    y_size = 141
+    x_size = 298 * resize
+    y_size = 141 * resize
     area_extent = (214528.82635591552, 4370087.2110124603, 1108648.9697693815,
                    4793144.0573926577)
     area_def = geometry.AreaDefinition(area_id, name, proj_id, proj_dict,
                                        x_size, y_size, area_extent)
     print(area_def)
-    add_to_array(arr, area_def, time, inbufr)
+    img = Image(arr[:, :, :3], mode='RGB')
+    add_to_image(img, area_def, time, inbufr)
