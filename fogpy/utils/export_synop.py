@@ -32,7 +32,7 @@ import osgeo.osr
 from fogpy.utils import import_synop
 
 
-def create_shpfile(data, outfile, epsg=4326, para='vis'):
+def create_shpfile(data, outfile, epsg=4326, para=['vis']):
     """ Function to export synoptical station data as ESRI shape file"""
     # Init spatial reference locally
     spatialReference = osgeo.osr.SpatialReference()
@@ -46,20 +46,24 @@ def create_shpfile(data, outfile, epsg=4326, para='vis'):
     # Gets parameters of the current shapefile
     layer_defn = layer.GetLayerDefn()
     index = 0
-    fielddict = {'name': 0, 'altitude': 1, 'lat': 2, 'lon': 3, para: 4}
+    fielddict = {'name': 0, 'altitude': 1, 'lat': 2, 'lon': 3}
+    fields = ['name', 'altitude', 'lat', 'lon'] + para
+    addindex = 4
+    for ele in para:
+        fielddict[ele] = addindex
+        addindex += 1
     # Create new fields with the content of read synop data
-    for field in ['name', 'altitude', 'lat', 'lon', para]:
+    for field in fields:
         new_field = osgeo.ogr.FieldDefn(field, osgeo.ogr.OFTString)
         layer.CreateField(new_field)
     # Loop over stations and add them as vector points
     for row in data:
-        name, alt, lat, lon, value = row
         point = osgeo.ogr.Geometry(osgeo.ogr.wkbPoint)
-        point.AddPoint(lon, lat)
+        point.AddPoint(row[3], row[2])
         feature = osgeo.ogr.Feature(layer_defn)
         feature.SetGeometry(point)  # Set the coordinates
         feature.SetFID(index)
-        for field in ['name', 'altitude', 'lat', 'lon', para]:
+        for field in fields:
             i = feature.GetFieldIndex(field)
             feature.SetField(i, row[fielddict[field]])
         layer.CreateFeature(feature)
