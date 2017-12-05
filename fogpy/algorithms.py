@@ -501,6 +501,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         ret = True
         return ret
 
+    @classmethod
     def get_cloud_cluster(self, mask, reduce=True):
         """ Enumerate low water cloud clusters by spatial vicinity
 
@@ -595,6 +596,8 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             self.method = "nearest"
         if not hasattr(self, 'single'):
             self.single = False
+        if not hasattr(self, 'plottype'):
+            self.plottype = 'png'
         self.nlcthneg = 0
 
     def isprocessible(self):
@@ -700,7 +703,8 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if self.plot:
             # Overwrite plotrange with valid result array range
             self.plotrange = (np.nanmin(self.result), np.nanmax(self.result))
-            self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
+            self.plot_result(save=self.save, dir=self.dir, resize=self.resize,
+                             type=self.plottype)
         return True
 
     def lcth_stats(self):

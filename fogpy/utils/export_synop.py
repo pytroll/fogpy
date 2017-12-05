@@ -69,7 +69,12 @@ def create_shpfile(data, outfile, epsg=4326, para=['vis'], nodata=-9999):
                 val = nodata
             else:
                 val = row[fielddict[field]]
-            feature.SetField(i, val)
+            try:
+                feature.SetField(i, val)
+            except:
+                Warning("Index: {} - Value {} of type: {} can't be added"
+                        .format(i, val, type(val)))
+                feature.SetField(i, None)
         layer.CreateFeature(feature)
         index += 1
     shapeData.Destroy()  # Close the shapefile
