@@ -412,12 +412,19 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
         self.low_sd_cluster = np.ma.masked_invalid(np.ones((10, 10)))
         self.low_sd_clusterma = flsalgo.get_cloud_cluster(self.low_sd_mask)
         # Define artificial test data with high standard deviation
-        self.high_sd_ir = 20.0 * np.random.randn(10, 10) + 260
+        self.high_sd_ir = 30.0 * np.random.randn(10, 10) + 260
         self.high_sd_mask = np.random.randint(2, size=(10, 10))
         self.high_sd_ir_masked = np.ma.masked_where(self.high_sd_mask,
                                                     self.high_sd_ir)
         self.high_sd_cluster = np.ma.masked_invalid(np.ones((10, 10)))
         self.high_sd_clusterma = flsalgo.get_cloud_cluster(self.high_sd_mask)
+        # Define artificial test data with oversized cloud cluster
+        self.large_ir = 1.0 * np.random.randn(150, 150) + 260
+        self.large_mask = np.zeros((150, 150))
+        self.large_mask[0, 0] = 1
+        self.large_masked = np.ma.masked_where(self.large_mask,
+                                               self.large_ir)
+        self.large_clusterma = flsalgo.get_cloud_cluster(self.large_mask)
 
     def tearDown(self):
         pass
@@ -462,8 +469,28 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
         ret, mask = testfilter.apply()
 
         # Evaluate results
+        msum = 0
+        print(np.max(self.high_sd_clusterma))
+        print(self.high_sd_clusterma)
+        for i in np.arange(np.max(self.high_sd_clusterma + 1)):
+            nval = np.count_nonzero(self.high_sd_clusterma == i)
+            print(i, nval)
+            if nval > 1:
+                msum += nval
+
         self.assertNotEqual(np.nansum(testfilter.mask), 0)
-        self.assertEqual(np.nansum(testfilter.mask), 100)
+        self.assertEqual(np.nansum(testfilter.mask), msum)
+
+    def test_spatial_homogenity_filter_maxsize(self):
+        # Create cloud filter
+        testfilter = SpatialHomogeneityFilter(self.large_masked,
+                                              ir108=self.large_masked,
+                                              clusters=self.large_clusterma)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertNotEqual(np.nansum(testfilter.mask), 0)
+        self.assertEqual(np.nansum(testfilter.mask), 1)
 
 
 class Test_LowCloudFilter(unittest.TestCase):

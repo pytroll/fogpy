@@ -693,6 +693,12 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
     # Required inputs
     attrlist = ['ir108', 'clusters']
 
+    def __init__(self, *args, **kwargs):
+        super(SpatialHomogeneityFilter, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'maxsize'):
+            self.maxsize = 10000  # Number of maximal clustered cloud pixel
+
     def filter_function(self):
         """Cloud cluster filter routine
 
@@ -700,6 +706,9 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
         cloud top height to mask cloud clusters with  with spatial inhomogen
         cloud clusters. Cloud top temperature standard deviations less than 2.5
         are filtered.
+        A maximal size is used to prevent filtering of large cloud clusters
+        which exhibit bigger variability due to its size. The filter is only
+        applied to cloud clusters below the given limit.
         """
         logger.info("Applying Spatial Clustering Inhomogeneity Filter")
         # Surface homogeneity test
@@ -714,7 +723,14 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
         sd_mask = cluster_sd > 2.5
         cluster_dict = {key: sd_mask[key - 1] for key in np.arange(1, nlbl+1)}
         for val in np.arange(1, nlbl+1):
-            cluster_mask[cluster_ma == val] = cluster_dict[val]
+            ncluster = np.count_nonzero(cluster_ma == val)
+            print(ncluster)
+            if ncluster <= self.maxsize:
+                cluster_mask[cluster_ma == val] = cluster_dict[val]
+            else:
+                logger.info("Exclude cloud cluster {} of size {} from filter"
+                            .format(val, ncluster))
+                cluster_mask[cluster_ma == val] = 0
 
         # Create cluster mask for image array
         self.mask = cluster_mask
