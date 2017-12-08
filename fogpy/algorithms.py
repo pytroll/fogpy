@@ -512,7 +512,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         """
         logger.info("Clustering low clouds")
         # Enumerate fog cloud clusters
-        cluster = measurements.label(~mask)
+        cluster = measurements.label(~mask.astype('bool'))
         # Get 10.8 channel sampled by the previous fog filters
         result = np.ma.masked_where(mask, cluster[0])
         # Check dimension
