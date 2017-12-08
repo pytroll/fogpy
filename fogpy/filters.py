@@ -724,7 +724,6 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
         cluster_dict = {key: sd_mask[key - 1] for key in np.arange(1, nlbl+1)}
         for val in np.arange(1, nlbl+1):
             ncluster = np.count_nonzero(cluster_ma == val)
-            print(ncluster)
             if ncluster <= self.maxsize:
                 cluster_mask[cluster_ma == val] = cluster_dict[val]
             else:
