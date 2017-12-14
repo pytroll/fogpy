@@ -33,9 +33,12 @@ from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
 from fogpy.filters import CirrusCloudFilter
 from fogpy.filters import WaterCloudFilter
+from fogpy.filters import SpatialCloudTopHeightFilter
 from fogpy.filters import SpatialHomogeneityFilter
 from fogpy.filters import LowCloudFilter
+from fogpy.filters import CloudMotionFilter
 from fogpy.algorithms import DayFogLowStratusAlgorithm
+from pyresample import geometry
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -45,9 +48,31 @@ from fogpy.algorithms import DayFogLowStratusAlgorithm
 # Import test data
 base = os.path.split(fogpy.__file__)
 testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
+testfile_pre = os.path.join(base[0], '..', 'etc', 'fog_testdata_pre.npy')
 testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testdata = np.load(testfile)
+testdata_pre = np.load(testfile_pre)
 testdata2 = np.load(testfile2)
+
+# Get area definition for test data
+area_id = "geos_germ"
+name = "geos_germ"
+proj_id = "geos"
+proj_dict = {'a': '6378169.00', 'lon_0': '0.00', 'h': '35785831.00',
+             'b': '6356583.80', 'proj': 'geos', 'lat_0': '0.00'}
+x_size = 298
+y_size = 141
+area_extent = (214528.82635591552, 4370087.2110124603,
+               1108648.9697693815, 4793144.0573926577)
+area_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                   proj_dict, x_size, y_size,
+                                   area_extent)
+# HRV size
+x_size = 893
+y_size = 422
+hrvarea_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                      proj_dict, x_size, y_size,
+                                      area_extent)
 
 
 class Test_ArrayFilter(unittest.TestCase):
@@ -120,6 +145,7 @@ class Test_CloudFilter(unittest.TestCase):
         ret, mask = testfilter.apply()
         testfilter.plot_cloud_hist('/tmp/cloud_filter_hist_20131120830.png')
         testfilter.plot_filter(save=True)
+        testfilter.plot_filter(save=True, area=area_def, type='tif')
         # Evaluate results
         self.assertAlmostEqual(self.ir108[0, 0], 244.044000086)
         self.assertAlmostEqual(self.ir039[20, 100], 269.573815979)
@@ -347,6 +373,33 @@ class Test_WaterCloudFilter(unittest.TestCase):
         self.assertEqual(testfilter.line, 141)
 
 
+class Test_SpatialCloudTopHeightFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Define artificial test data with random cth around 1000 mean value
+        self.ir108 = 1.0 * np.random.randn(10, 10) + 260
+        self.elev = np.zeros((10, 10))
+        self.cth = np.random.randn(10, 10) + 1000
+        self.masksum = np.sum(self.cth > 1000)
+
+    def tearDown(self):
+        pass
+
+    def test_spatial_cth_filter_artifical(self):
+        # Create cloud filter
+        testfilter = SpatialCloudTopHeightFilter(self.ir108,
+                                                 cth=self.cth,
+                                                 elev=self.elev)
+        ret, mask = testfilter.apply()
+        lowcth = np.ma.masked_where(mask, testfilter.cth)
+        lowcth2 = np.ma.masked_where(testfilter.mask, testfilter.cth)
+        # Evaluate results
+        np.testing.assert_array_equal(ret, self.ir108)
+        self.assertEqual(np.nansum(testfilter.mask), self.masksum)
+        self.assertLessEqual(np.max(lowcth), 1000)
+        self.assertLessEqual(np.max(lowcth2), 1000)
+
+
 class Test_SpatialHomogeneityFilter(unittest.TestCase):
 
     def setUp(self):
@@ -359,12 +412,19 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
         self.low_sd_cluster = np.ma.masked_invalid(np.ones((10, 10)))
         self.low_sd_clusterma = flsalgo.get_cloud_cluster(self.low_sd_mask)
         # Define artificial test data with high standard deviation
-        self.high_sd_ir = 20.0 * np.random.randn(10, 10) + 260
+        self.high_sd_ir = 30.0 * np.random.randn(10, 10) + 260
         self.high_sd_mask = np.random.randint(2, size=(10, 10))
         self.high_sd_ir_masked = np.ma.masked_where(self.high_sd_mask,
                                                     self.high_sd_ir)
         self.high_sd_cluster = np.ma.masked_invalid(np.ones((10, 10)))
         self.high_sd_clusterma = flsalgo.get_cloud_cluster(self.high_sd_mask)
+        # Define artificial test data with oversized cloud cluster
+        self.large_ir = 1.0 * np.random.randn(150, 150) + 260
+        self.large_mask = np.zeros((150, 150))
+        self.large_mask[0, 0] = 1
+        self.large_masked = np.ma.masked_where(self.large_mask,
+                                               self.large_ir)
+        self.large_clusterma = flsalgo.get_cloud_cluster(self.large_mask)
 
     def tearDown(self):
         pass
@@ -409,8 +469,28 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
         ret, mask = testfilter.apply()
 
         # Evaluate results
+        msum = 0
+        print(np.max(self.high_sd_clusterma))
+        print(self.high_sd_clusterma)
+        for i in np.arange(np.max(self.high_sd_clusterma + 1)):
+            nval = np.count_nonzero(self.high_sd_clusterma == i)
+            print(i, nval)
+            if nval > 1:
+                msum += nval
+
         self.assertNotEqual(np.nansum(testfilter.mask), 0)
-        self.assertEqual(np.nansum(testfilter.mask), 100)
+        self.assertEqual(np.nansum(testfilter.mask), msum)
+
+    def test_spatial_homogenity_filter_maxsize(self):
+        # Create cloud filter
+        testfilter = SpatialHomogeneityFilter(self.large_masked,
+                                              ir108=self.large_masked,
+                                              clusters=self.large_clusterma)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertNotEqual(np.nansum(testfilter.mask), 0)
+        self.assertEqual(np.nansum(testfilter.mask), 1)
 
 
 class Test_LowCloudFilter(unittest.TestCase):
@@ -463,6 +543,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         # Get clusters
         fls = FLS(**self.input)
         self.clusters = FLS.get_cloud_cluster(fls, self.cloudmask, False)
+        self.clusters.mask[self.clusters != 120] = True
         self.input = {'ir108': self.ir108,
                       'lwp': self.lwp,
                       'reff': self.reff,
@@ -470,17 +551,139 @@ class Test_LowCloudFilter(unittest.TestCase):
                       'clusters': self.clusters,
                       'cth': self.cth}
 
+        # Define small artificial test data
+        dim = (2, 2, 1)
+        test_ir = np.empty(dim)
+        test_ir.fill(260)
+        lwp_choice = np.array([0.01, 0.1, 1, 10, 100, 1000])
+        test_lwp_choice = np.random.choice(lwp_choice, dim)
+        test_lwp_static = np.empty(dim)
+        test_lwp_static.fill(94)
+        test_reff = np.empty(dim)
+        test_reff.fill(10e-6)
+        test_cmask = np.empty(dim)
+        test_cmask.fill(0)
+        test_clusters = np.empty(dim)
+        test_clusters.fill(1)
+        test_clusters = np.ma.masked_array(test_clusters, test_cmask)
+        test_elev = np.empty(dim)
+        test_elev.fill(100)
+        test_cth = np.empty(dim)
+        test_cth.fill(200)
+        # Testdata for ground cloud fog
+        self.test_lwp1 = {'ir108': test_ir,
+                          'lwp': test_lwp_static,
+                          'reff': test_reff,
+                          'elev': test_elev,
+                          'clusters': test_clusters,
+                          'cth': test_cth}
+        # Init with big droplet radius
+        # Increase in droplet radius prevend declaration as ground fog
+        test_reff = np.empty(dim)
+        test_reff.fill(20e-5)
+        self.test_lwp2 = {'ir108': test_ir,
+                          'lwp': test_lwp_static,
+                          'reff': test_reff,
+                          'elev': test_elev,
+                          'clusters': test_clusters,
+                          'cth': test_cth}
+        # Randomly choose liquid water paths
+        test_reff = np.empty(dim)
+        test_reff.fill(10e-6)  # Reset radius
+        self.test_lwp3 = {'ir108': test_ir,
+                          'lwp': test_lwp_choice,
+                          'reff': test_reff,
+                          'elev': test_elev,
+                          'clusters': test_clusters,
+                          'cth': test_cth}
+
     def tearDown(self):
         pass
 
-    def test_lowcloud_filter(self):
+    def test_lowcloud_filter_clusters(self):
         # Create cloud filter
         testfilter = LowCloudFilter(self.input['ir108'], **self.input)
         ret, mask = testfilter.apply()
 
         # Evaluate results
         self.assertEqual(np.sum(self.cloudmask), 20551)
-        self.assertEqual(np.nanmax(len(testfilter.result_list)), 122)
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 1)
+
+    def test_lowcloud_filter_single(self):
+        # Create cloud filter
+        input_single = self.input
+        input_single['single'] = True
+        input_single['substitude'] = True
+        testfilter = LowCloudFilter(input_single['ir108'], **input_single)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.sum(self.cloudmask), 20551)
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 16)
+        self.assertEqual(np.sum(testfilter.fog_mask), 42018)
+        self.assertEqual(np.sum(testfilter.mask), 42018)
+
+    def test_lowcloud_filter_single_lwp_allfog(self):
+        # Create cloud filter
+        input_single = self.test_lwp1
+        input_single['single'] = True
+        input_single['substitude'] = False
+        testfilter = LowCloudFilter(input_single['ir108'], **input_single)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 4)
+        self.assertEqual(np.sum(testfilter.fog_mask), 0)
+        self.assertEqual(np.sum(testfilter.mask), 0)
+
+    def test_lowcloud_filter_single_lwp_nofog(self):
+        # Create cloud filter
+        input_single = self.test_lwp2
+        input_single['single'] = True
+        input_single['substitude'] = False
+        testfilter = LowCloudFilter(input_single['ir108'], **input_single)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 4)
+        self.assertEqual(np.sum(testfilter.fog_mask), 4)
+        self.assertEqual(np.sum(testfilter.mask), 4)
+
+    def test_lowcloud_filter_single_lwp_randomfog(self):
+        # Create cloud filter
+        input_single = self.test_lwp3
+        input_single['single'] = True
+        input_single['substitude'] = False
+        testfilter = LowCloudFilter(input_single['ir108'], **input_single)
+        ret, mask = testfilter.apply()
+
+        # Evaluate results
+        self.assertEqual(np.nanmax(len(testfilter.result_list)), 4)
+        nfog = np.sum(input_single['lwp'] <= 10)
+        self.assertEqual(np.sum(testfilter.fog_mask), nfog)
+        self.assertEqual(np.sum(testfilter.mask), nfog)
+
+
+class Test_CloudMotionFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        self.ir108 = np.dsplit(testdata, 14)[0]
+        self.preir108 = np.dsplit(testdata_pre, 14)[0]
+        print(type(self.ir108))
+        print(type(self.preir108))
+
+    def tearDown(self):
+        pass
+
+    def test_cloud_motion_filter(self):
+        # Create cloud filter
+        testfilter = CloudMotionFilter(self.ir108,
+                                       ir108=self.ir108,
+                                       preir108=self.preir108)
+        ret, mask = testfilter.apply()
+        # Evaluate results
+        self.assertEqual(ret, self.ir108)
 
 
 def suite():
@@ -495,6 +698,8 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CirrusCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_WaterCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_SpatialHomogeneityFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_CloudMotionFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudFilter))
 
     return mysuite
 

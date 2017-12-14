@@ -31,6 +31,7 @@ from fogpy.algorithms import BaseSatelliteAlgorithm
 from fogpy.algorithms import DayFogLowStratusAlgorithm
 from fogpy.algorithms import NightFogLowStratusAlgorithm
 from fogpy.algorithms import LowCloudHeightAlgorithm
+from fogpy.algorithms import PanSharpeningAlgorithm
 from fogpy.filters import CloudFilter
 from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
@@ -38,6 +39,8 @@ from fogpy.filters import CirrusCloudFilter
 from fogpy.filters import WaterCloudFilter
 from pyorbital.orbital import Orbital
 from pyorbital import tlefile
+from fogpy.utils import add_synop
+from pyresample import geometry
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
 # lat, lon, cth
@@ -46,13 +49,36 @@ from pyorbital import tlefile
 # Import test data
 base = os.path.split(fogpy.__file__)
 testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
+hrvfile = os.path.join(base[0], '..', 'etc', 'fog_testdata_hrv.npy')
 testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testfile_night = os.path.join(base[0], '..', 'etc', 'fog_testdata_night.npy')
 testfile_night2 = os.path.join(base[0], '..', 'etc', 'fog_testdata_night2.npy')
 testdata = np.load(testfile)
+hrvdata = np.load(hrvfile)
 testdata2 = np.load(testfile2)
+stationfile = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
+stationfile2 = os.path.join(base[0], '..', 'etc', 'result_20140827.bufr')
 testdata_night = np.load(testfile_night)
 testdata_night2 = np.load(testfile_night2)
+# Get area definition for test data
+area_id = "geos_germ"
+name = "geos_germ"
+proj_id = "geos"
+proj_dict = {'a': '6378169.00', 'lon_0': '0.00', 'h': '35785831.00',
+             'b': '6356583.80', 'proj': 'geos', 'lat_0': '0.00'}
+x_size = 298
+y_size = 141
+area_extent = (214528.82635591552, 4370087.2110124603,
+               1108648.9697693815, 4793144.0573926577)
+area_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                   proj_dict, x_size, y_size,
+                                   area_extent)
+# HRV size
+x_size = 893
+y_size = 422
+hrvarea_def = geometry.AreaDefinition(area_id, name, proj_id,
+                                      proj_dict, x_size, y_size,
+                                      area_extent)
 
 
 class Test_BaseSatelliteAlgorithm(unittest.TestCase):
@@ -115,7 +141,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
                       'plot': True,
                       'save': True,
                       'dir': '/tmp/FLS',
-                      'resize': '5'}
+                      'resize': '5',
+                      'single': True}
         # Load second test dataset
         inputs = np.dsplit(testdata2, 14)
         self.ir108 = inputs[0]
@@ -153,7 +180,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
                        'plot': True,
                        'save': True,
                        'dir': '/tmp/FLS',
-                       'resize': '5'}
+                       'resize': '5',
+                       'single': False}
 
     def tearDown(self):
         pass
@@ -165,7 +193,13 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(flsalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
-        self.assertLessEqual(np.nanmax(flsalgo.cluster_cth), 2000)
+        cthdiff = flsalgo.cluster_cth - self.input['elev'].squeeze()
+        self.assertLessEqual(np.nanmax(cthdiff), 1000)
+
+        # Plot result with added station data
+        result_img = flsalgo.plot_result(save=True, resize=1)
+        add_synop.add_to_image(result_img, area_def, self.input['time'],
+                               stationfile, bgimg=self.input['ir108'])
 
     # Using other tset data set
     def test_fls_algorithm_other(self):
@@ -175,7 +209,13 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(ret.shape, (141, 298))
         self.assertEqual(flsalgo.shape, (141, 298))
         self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
-        self.assertLessEqual(np.nanmax(flsalgo.cluster_cth), 2000)
+        cthdiff = flsalgo.cluster_cth - self.input['elev'].squeeze()
+        self.assertLessEqual(np.nanmax(cthdiff), 1000)
+
+        # Plot result with added station data
+        result_img = flsalgo.plot_result(save=True, resize=1)
+        add_synop.add_to_image(result_img, area_def, self.input2['time'],
+                               stationfile2, bgimg=self.input2['ir108'])
 
     def test_fls_cth_tdiff(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input)
@@ -287,9 +327,47 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
                            'elev': test_elev2,
                            'ccl': test_ccl,
                            'cloudmask': test_cmask}
+        # Another small test dataset
+        testnext_ir = np.array([[269.60339551, 270.09388231, 269.93068546],
+                                [269.60339551, 270.093882314, 269.93068546],
+                                [272.98212591, 273.61175134, 272.66569258]])
+        testnext_ccl = np.array([[0.5, 0.5, 0],
+                                 [0.5, 0.5, 0],
+                                 [0, 0, 0]])
+        testnext_cmask = np.array([[False, False, True],
+                                   [False, False, True],
+                                   [True, True, True]], dtype=bool)
+        testnext_elev = np.array([[120., 124., 128.],
+                                  [116., 121., 128.],
+                                  [116., 123., 124.]])
+        self.testnextinput = {'ir108': testnext_ir,
+                              'elev': testnext_elev,
+                              'ccl': testnext_ccl,
+                              'cloudmask': testnext_cmask}
 
     def tearDown(self):
         pass
+
+    def test_lcth_algorithm_linreg_cluster(self):
+        """Test single cloud cluster linear regression interpolation"""
+        # Get cloud parameters
+        from fogpy.filters import CloudFilter
+        cloudfilter = CloudFilter(self.ir108, **self.input)
+        ret, mask = cloudfilter.apply()
+        input = {'ir108': self.ir108,
+                 'elev': self.elev,
+                 'ccl': cloudfilter.ccl,
+                 'cloudmask': cloudfilter.mask,
+                 'interpolate': False,
+                 'single': True}
+        # Run LCTH algorithm
+        lcthalgo = LowCloudHeightAlgorithm(**input)
+        ret, mask = lcthalgo.run()
+        # lcthalgo.plot_result()
+        self.assertEqual(ret.shape, (141, 298))
+        self.assertEqual(lcthalgo.shape, (141, 298))
+        self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        self.assertLessEqual(round(np.nanmax(lcthalgo.dz), 2), 1900)
 
     def test_lcth_algorithm_interpolate(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
@@ -303,10 +381,10 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
 
     def test_lcth_algorithm_linreg(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
-        cth = np.random.random_integers(0, 10, (5, 5)).astype(float)
-        ctt = np.random.random_integers(260, 290, (5, 5)).astype(float)
+        cth = np.random.randint(0, 10, (5, 5)).astype(float)
+        ctt = np.random.randint(260, 290, (5, 5)).astype(float)
         cth[cth > 7] = np.nan
-        mask = np.random.random_integers(0, 1, (5, 5)).astype(bool)
+        mask = np.random.randint(0, 2, (5, 5)).astype(bool)
         result = lcthalgo.linreg_cth(cth, mask, ctt)
         self.assertEqual(result.shape, (5, 5))
         self.assertTrue(np.all(np.isnan(result[mask])))
@@ -371,6 +449,16 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
         self.assertEqual(np.nanmax(lcthalgo.dz), 1300.)
         self.assertEqual(np.nanmax(np.around(lcthalgo.cth, 2)), 6168.06)
+
+    def test_lcth_algorithm_artificial_next(self):
+        lcthalgo = LowCloudHeightAlgorithm(**self.testnextinput)
+        ret, mask = lcthalgo.run()
+        self.assertEqual(lcthalgo.ir108.shape, (3, 3))
+        self.assertEqual(ret.shape, (3, 3))
+        self.assertEqual(lcthalgo.shape, (3, 3))
+        self.assertEqual(np.ma.is_mask(lcthalgo.mask), True)
+        self.assertEqual(np.nanmax(lcthalgo.dz), 12.)
+        self.assertEqual(np.around(lcthalgo.cth[1, 1], 2), 444.23)
 
     def test_lcth_lapse_rate(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
@@ -446,7 +534,7 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         compare = np.array([900., 1500., 600.])
         self.assertTrue(np.alltrue(compare == neigh))
         # Test lower right corner
-        center, neigh, ids = lcthalgo.get_neighbors(elev, 2, 2)
+        center, neigh, ids = lcthalgo.cell_neighbors(elev, 2, 2)
         compare = np.array([1500., 600., 300.])
         self.assertTrue(np.alltrue(compare == neigh))
         # Test middle right cell
@@ -465,6 +553,67 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         center, neigh, ids = lcthalgo.cell_neighbors(elev, 2, 1)
         compare = np.array([700., 1500., 600., 400., 200.])
         self.assertTrue(np.alltrue(compare == neigh))
+
+
+class Test_PanSharpeningAlgorithm(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        inputs = np.dsplit(testdata, 14)
+        self.ir108 = inputs[0]
+        self.ir039 = inputs[1]
+        self.vis008 = inputs[2]
+        self.nir016 = inputs[3]
+        self.vis006 = inputs[4]
+        self.ir087 = inputs[5]
+        self.ir120 = inputs[6]
+        self.elev = inputs[7]
+        self.cot = inputs[8]
+        self.reff = inputs[9]
+        self.lwp = inputs[10]
+        self.lat = inputs[11]
+        self.lon = inputs[12]
+        self.cth = inputs[13]
+        # Load extra hrv channel
+        self.hrv = hrvdata
+
+        # Remove nodata values (9999) from elevation
+        self.elev[self.elev == 9999] = np.nan
+
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+
+        self.input = {'mspec': [self.vis006],
+                      'pan': self.hrv,
+                      'area': area_def,
+                      'panarea': hrvarea_def,
+                      'bg_img': self.ir108,
+                      'lat': self.lat,
+                      'lon': self.lon,
+                      'time': self.time,
+                      'elev': self.elev,
+                      'cth': self.cth,
+                      'plot': True,
+                      'save': True,
+                      'dir': '/tmp/FLS',
+                      'resize': '1'}
+
+    def tearDown(self):
+        pass
+
+    def test_pansharp_resample(self):
+        """Test resampling to degraded multispectral channel resolution"""
+        # Run pansharpening algorithm
+        panshalgo = PanSharpeningAlgorithm(**self.input)
+        ret, mask = panshalgo.run()
+        panshalgo.plot_result(array=panshalgo.pan, save=panshalgo.save,
+                              name='pan', dir=panshalgo.dir, type='tif',
+                              area=panshalgo.panarea)
+        panshalgo.plot_result(array=panshalgo.pan_degrad, save=panshalgo.save,
+                              name='pan_degraded', dir=panshalgo.dir,
+                              type='tif',
+                              area=panshalgo.area)
+        self.assertEqual(panshalgo.mspec[0].shape, (141, 298, 1))
+        self.assertEqual(panshalgo.pan.shape, (422, 893))
 
 
 class Test_NightFogLowStratusAlgorithm(unittest.TestCase):

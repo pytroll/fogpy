@@ -138,6 +138,32 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(round(cl2.lwc, 3), 0.304)
         self.assertAlmostEqual(round(cl3.lwc, 3), 0.)
 
+    def test_cloud_layer_small(self):
+        lwc = LowWaterCloud(1000., 235., 400., 950)
+        cl = CloudLayer(950, 960, lwc, False)
+        cl1 = CloudLayer(960, 970, lwc, False)
+        cl2 = CloudLayer(970, 980, lwc, False)
+        cl3 = CloudLayer(980, 990, lwc, False)
+        cl4 = CloudLayer(990, 1000, lwc, False)
+        self.assertAlmostEqual(round(cl.lwc, 5), 8e-5)
+        self.assertAlmostEqual(round(cl1.lwc, 5), 6e-05)
+        self.assertAlmostEqual(round(cl2.lwc, 5), 4e-05)
+        self.assertAlmostEqual(round(cl3.lwc, 5), 3e-05)
+        self.assertAlmostEqual(round(cl4.lwc, 5), 1e-05)
+        self.assertAlmostEqual(lwc.upthres, 49)
+        self.assertAlmostEqual(round(lwc.maxlwc, 6), 8.2e-5)
+
+    def test_cloud_layer_small2(self):
+        lwc = LowWaterCloud(1000., 235., 400., 950)
+        cl1 = CloudLayer(970, 980, lwc, False)
+        cl2 = CloudLayer(980, 990, lwc, False)
+        cl3 = CloudLayer(990, 1000, lwc, False)
+        self.assertAlmostEqual(round(cl1.lwc, 5), 4e-5)
+        self.assertAlmostEqual(round(cl2.lwc, 5), 3e-05)
+        self.assertAlmostEqual(round(cl3.lwc, 5), 1e-05)
+        self.assertAlmostEqual(lwc.upthres, 49)
+        self.assertAlmostEqual(round(lwc.maxlwc, 6), 8.2e-5)
+
     def test_get_moist_air_density(self):
         self.lwc.cbh = 0
         empiric_hrho_0 = self.lwc.get_moist_air_density(100000, 0, 273.15,
@@ -180,11 +206,30 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(round(beta_3, 2), 0.3)
         self.assertAlmostEqual(beta_4, 0.3)
 
-    def test_optimize_cbh(self):
+    def test_get_incloud_mixing_ratio_limit(self):
+        self.lwc.cbh = 950
+        self.lwc.cth = 1000
+        beta_0 = self.lwc.get_incloud_mixing_ratio(950, 1000, 950)
+        beta_1 = self.lwc.get_incloud_mixing_ratio(960, 1000, 950)
+        beta_2 = self.lwc.get_incloud_mixing_ratio(970, 1000, 950)
+        beta_3 = self.lwc.get_incloud_mixing_ratio(980, 1000, 950)
+        beta_4 = self.lwc.get_incloud_mixing_ratio(990, 1000, 950)
+        beta_5 = self.lwc.get_incloud_mixing_ratio(1000, 1000, 950)
+        self.assertAlmostEqual(beta_0, 0.3)
+        self.assertAlmostEqual(beta_1, 0.3)
+        self.assertAlmostEqual(beta_2, 0.3)
+        self.assertAlmostEqual(round(beta_3, 2), 0.3)
+        self.assertAlmostEqual(beta_4, 0.3)
+        self.assertAlmostEqual(beta_5, 0.3)
+
+    def test_optimize_cbh_brute(self):
         self.lwc.thickness = 100
         ret_brute = self.lwc.optimize_cbh(100., method='brute')
-        ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertAlmostEqual(round(ret_brute, 1), 421.)
+
+    def test_optimize_cbh_basin(self):
+        self.lwc.thickness = 100
+        ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertIn(round(ret_basin, 0), [421, 479, 478, 477])
 
     def test_get_visibility(self):
@@ -246,6 +291,7 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowWaterCloud))
 
     return mysuite
+
 
 if __name__ == "__main__":
     unittest.main()

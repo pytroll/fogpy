@@ -25,6 +25,8 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
+import time
 
 from copy import deepcopy
 from datetime import datetime
@@ -33,6 +35,7 @@ from numpy.lib.stride_tricks import as_strided
 from scipy.ndimage import measurements
 from scipy.stats import linregress
 from scipy import interpolate
+from scipy import spatial
 from filters import CloudFilter
 from filters import SnowFilter
 from filters import IceCloudFilter
@@ -42,6 +45,8 @@ from filters import SpatialCloudTopHeightFilter
 from filters import SpatialHomogeneityFilter
 from filters import CloudPhysicsFilter
 from filters import LowCloudFilter
+from pyresample import image, geometry
+from pyresample.utils import generate_nearest_neighbour_linesample_arrays
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +85,7 @@ class BaseSatelliteAlgorithm(object):
         if not hasattr(self, 'dir'):
             self.dir = '/tmp'
         if not hasattr(self, 'resize'):
-            self.resize = 0
+            self.resize = 1
         if not hasattr(self, 'plotrange'):
             self.plotrange = (0, 1)
 
@@ -131,41 +136,82 @@ class BaseSatelliteAlgorithm(object):
         return({key: self.__getattribute__(key) for key in self.attributes
                 if key in keys})
 
-    def plot_result(self, array=None, save=False, dir="/tmp", resize=0,
-                    name="result"):
+    def plot_result(self, array=None, save=False, dir="/tmp", resize=1,
+                    name='array', type='png', area=None, floating_point=False):
         """Plotting the algorithm result"""
-        # Get output directory and image name
-        savedir = os.path.join(dir, self.name + '_' + name + "_" +
-                               datetime.strftime(self.time,
-                                                 '%Y%m%d%H%M') + '.png')
         # Using Trollimage if available, else matplotlib is used to plot
         try:
             from trollimage.image import Image
             from trollimage.colormap import rainbow
             from trollimage.colormap import ylorrd
+            from trollimage.colormap import Colormap
+            from mpop.imageo.geo_image import GeoImage
         except:
             logger.info("{} results can't be plotted to: {}". format(self.name,
                                                                      dir))
             return 0
+        if area is None:
+            try:
+                area = self.area
+            except:
+                Warning("Area object not found. Plotting filter result as"
+                        " image")
+                type = 'png'
         # Create image from data
         if array is None:
-            result_img = Image(self.result.squeeze(), mode='L',
-                               fill_value=None)
+            if np.nanmax(self.result) > 1:
+                self.plotrange = (np.nanmin(self.result),
+                                  np.nanmax(self.result))
+            if type == 'tif':
+                result_img = GeoImage(self.result.squeeze(), area,
+                                      self.time, fill_value=9999,
+                                      mode="L")
+            else:
+                result_img = Image(self.result.squeeze(), mode='L',
+                                   fill_value=None)
         else:
-            result_img = Image(array.squeeze(), mode='L', fill_value=None)
+            self.plotrange = (np.nanmin(array), np.nanmax(array))
+            if type == 'tif':
+                result_img = GeoImage(array.squeeze(), area,
+                                      self.time, fill_value=9999,
+                                      mode="L")
+            else:
+                result_img = Image(array.squeeze(), mode='L', fill_value=None)
         result_img.stretch("crude")
         # Colorize image
+        # Define custom fog colormap
+        customcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
+                             (1., (1.0, 1.0, 229 / 255.0)),
+                             (self.plotrange[1], (0.0, 1.0, 229 / 255.0)))
         ylorrd.set_range(*self.plotrange)
         logger.info("Set color range to {}".format(self.plotrange))
         result_img.colorize(ylorrd)
-        result_img.resize((self.result.shape[0] * 5,
-                           self.result.shape[1] * 5))
+        if array is None:
+            shape = self.result.shape
+        else:
+            shape = array.shape
+        result_img.resize((shape[0] * int(resize),
+                           shape[1] * int(resize)))
         if save:
-            result_img.save(savedir)
+            # Get output directory and image name
+            if array is None:
+                outname = self.name
+            else:
+                outname = self.name + '_' + name
+            savedir = os.path.join(dir, outname + '_' +
+                                   datetime.strftime(self.time,
+                                                     '%Y%m%d%H%M') +
+                                   '.' + type)
+            if type == 'tif':
+                result_img.save(savedir, floating_point=floating_point)
+            else:
+                result_img.save(savedir)
             logger.info("{} results are plotted to: {}". format(self.name,
                                                                 self.dir))
         else:
             result_img.show()
+
+        return(result_img)
 
     def check_dimension(self, arr):
         """ Check and convert arrays to 2D """
@@ -206,6 +252,19 @@ class BaseSatelliteAlgorithm(object):
                                                                 self.dir))
         else:
             cluster_img.show()
+
+    def plot_linreg(self, x, y, m, c, saveto=None, xlabel='x', ylabel='y', title='Regression plot'):
+        """ Plot result of linear regression for DEM and lapse rate extracted
+        low cloud top height and cloud top temperatures"""
+        plt.plot(x, y, '.')
+        plt.plot(x, m * x + c)
+        plt.title(title)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        if saveto is None:
+            plt.show()
+        else:
+            plt.savefig(saveto)
 
 
 class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
@@ -282,6 +341,12 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                                                     |
             Output: fog and low stratus mask <-------
      """
+    def __init__(self, *args, **kwargs):
+        super(DayFogLowStratusAlgorithm, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'single'):
+            self.single = False
+
     def isprocessible(self):
         """Test runability here"""
         attrlist = ['ir108', 'ir039', 'vis008', 'nir016', 'vis006', 'ir087',
@@ -351,16 +416,21 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         if self.plot:
             self.plot_clusters(self.save, self.dir)
 
-        # 7. Calculate cloud top height
-        cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir', 'plot',
-                                     'save'])
-        cth_input['ccl'] = cloudfilter.ccl
-        cth_input['cloudmask'] = self.mask
-        lcthalgo = LowCloudHeightAlgorithm(**cth_input)
-        lcthalgo.run()
+        # 7. Calculate cloud top height if no CTH array is given
+        if not hasattr(self, 'cth') or self.cth is None:
+            cth_input = self.get_kwargs(['ir108', 'elev', 'time', 'dir',
+                                         'plot', 'save'])
+            cth_input['ccl'] = cloudfilter.ccl
+            cth_input['cloudmask'] = self.mask
+            cth_input['interpolate'] = True
+            lcthalgo = LowCloudHeightAlgorithm(**cth_input)
+            lcthalgo.run()
+            cth = lcthalgo.result
+        else:
+            cth = self.cth
         # Apply cloud top height filter
         cthfilter = SpatialCloudTopHeightFilter(waterfilter.result,
-                                                cth=lcthalgo.result,
+                                                cth=cth,
                                                 elev=self.elev,
                                                 time=self.time,
                                                 bg_img=self.ir108,
@@ -404,6 +474,9 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         lowcloud_input = self.get_kwargs(['ir108', 'lwp', 'reff', 'elev',
                                           'time', 'save', 'resize', 'plot',
                                           'dir'])
+        # Choose cluster computation method
+        lowcloud_input['single'] = self.single
+
         lowcloudfilter = LowCloudFilter(physicfilter.result,
                                         cth=self.cluster_cth,
                                         clusters=self.clusters,
@@ -418,11 +491,11 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
         # Compute separate products for validaiton
         # Get cloud mask
-        self.vcloudmask = icefilter.mask | cirrusfilter.mask | ~cloudfilter.mask
+        self.vcloudmask = icefilter.mask | cirrusfilter.mask #| ~cloudfilter.mask
         # Extract cloud base and top heights products
         self.cbh = lowcloudfilter.cbh  # Cloud base height
         self.fbh = lowcloudfilter.fbh  # Fog base height
-        self.lcth = lcthalgo.result  # Low cloud top height
+        self.lcth = cth  # Low cloud top height
 
         return True
 
@@ -431,6 +504,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         ret = True
         return ret
 
+    @classmethod
     def get_cloud_cluster(self, mask, reduce=True):
         """ Enumerate low water cloud clusters by spatial vicinity
 
@@ -441,7 +515,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         """
         logger.info("Clustering low clouds")
         # Enumerate fog cloud clusters
-        cluster = measurements.label(~mask)
+        cluster = measurements.label(~mask.astype('bool'))
         # Get 10.8 channel sampled by the previous fog filters
         result = np.ma.masked_where(mask, cluster[0])
         # Check dimension
@@ -454,67 +528,6 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
                      % np.nanmax(np.unique(result)))
 
         return result
-
-    def sliding_window(self, arr, window_size):
-        """ Construct a sliding window view of the array"""
-        arr = np.asarray(arr)
-        window_size = int(window_size)
-        if arr.ndim != 2:
-            try:
-                arr = arr.squeeze()  # Try to reduce dimension
-            except:
-                raise ValueError("need 2-D input")
-        if not (window_size > 0):
-            raise ValueError("need a positive window size")
-        shape = (arr.shape[0] - window_size + 1,
-                 arr.shape[1] - window_size + 1,
-                 window_size, window_size)
-        if shape[0] <= 0:
-            shape = (1, shape[1], arr.shape[0], shape[3])
-        if shape[1] <= 0:
-            shape = (shape[0], 1, shape[2], arr.shape[1])
-        strides = (arr.shape[1]*arr.itemsize, arr.itemsize,
-                   arr.shape[1]*arr.itemsize, arr.itemsize)
-        return as_strided(arr, shape=shape, strides=strides)
-
-    def cell_neighbors(self, arr, i, j, d, value):
-        """Return d-th neighbors of cell (i, j)"""
-        if arr.ndim != 2:
-            try:
-                arr = arr.squeeze()  # Try to reduce dimension
-            except:
-                raise ValueError("need 2-D input")
-        w = self.sliding_window(arr, 2*d+1)
-
-        ix = np.clip(i - d, 0, w.shape[0]-1)
-        jx = np.clip(j - d, 0, w.shape[1]-1)
-
-        i0 = max(0, i - d - ix)
-        j0 = max(0, j - d - jx)
-        i1 = w.shape[2] - max(0, d - i + ix)
-        j1 = w.shape[3] - max(0, d - j + jx)
-
-        # Get cell value
-        if i1 - i0 == 3:
-            icell = 1
-        elif (i1 - i0 == 2) & (i0 == 0):
-            icell = 0
-        elif (i1 - i0 == 2) & (i0 == 1):
-            icell = 2
-        if j1 - j0 == 3:
-            jcell = 1
-        elif (j1 - j0 == 2) & (j0 == 0):
-            jcell = 0
-        elif (j1 - j0 == 2) & (j0 == 1):
-            jcell = 2
-
-        irange = range(i0, i1)
-        jrange = range(j0, j1)
-        neighbors = [w[ix, jx][k, l] for k in irange for l in jrange
-                     if k != icell or l != jcell]
-        center = value[i, j]  # Get center cell value from additional array
-
-        return center, neighbors
 
     def get_lowcloud_cth(self, cluster, cf_arr, bt_cc, elevation):
         """Get neighboring cloud free BT and elevation values of potential
@@ -584,6 +597,10 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             self.interpolate = False
         if not hasattr(self, 'method'):
             self.method = "nearest"
+        if not hasattr(self, 'single'):
+            self.single = False
+        if not hasattr(self, 'plottype'):
+            self.plottype = 'png'
         self.nlcthneg = 0
 
     def isprocessible(self):
@@ -667,12 +684,13 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                 self.cth[index] = cth
         # Interpolate height values
         if not np.all(np.isnan(self.cth)):
+            logger.info("Perform low cloud height interpolation")
             if self.interpolate:  # Optional interpolation
                 self.cth_result = self.interpol_cth(self.cth, self.cloudmask,
                                                     self.method)
             else:  # Default linear regression height estimation
                 self.cth_result = self.linreg_cth(self.cth, self.cloudmask,
-                                                  ctt)
+                                                  ctt, self.single)
         else:
             self.cth_result = self.cth
             logger.warning("No LCTH interpolated height estimation possible")
@@ -688,7 +706,8 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if self.plot:
             # Overwrite plotrange with valid result array range
             self.plotrange = (np.nanmin(self.result), np.nanmax(self.result))
-            self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
+            self.plot_result(save=self.save, dir=self.dir, resize=self.resize,
+                             type=self.plottype)
         return True
 
     def lcth_stats(self):
@@ -753,7 +772,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
 
         return result
 
-    def linreg_cth(self, cth, mask, ctt):
+    def linreg_cth(self, cth, mask, ctt, single=False):
         """Interpolate cth for given cloud clusters by linear regression with
         provided cloud top temperature data.
 
@@ -761,19 +780,47 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         cth (Numpy array): Array of computed heigh values with gaps
         mask (Numpy mask): Mask for valid cloud cluster pixels
         ctt (Numpy array): Array of cloud top temperatures
+        single (Bool): Boolean value for activating single cloud regressions
 
         Returns:
             Numpy array with interpolated cloud top height values in unmasked
             areas
         """
         result = deepcopy(cth)
+        # Overall cloud cluster regression
         # Enumerate dimensions
         x = ctt[~mask & ~np.isnan(cth)]
         y = cth[~mask & ~np.isnan(cth)]
-        # Rearrange line equation to  y = Ap  from y = mx  + c with p = [m , c]
-        A = np.vstack([x, np.ones(len(x))]).T
-        # Solve by leat square fitting.
-        m, c = np.linalg.lstsq(A, y)[0]
+        result = self.apply_linear_regression(x, y, ctt, cth, result)
+        if single:
+            # Single cloud cluster regression
+            for index in np.arange(0, np.nanmax(self.clusters)):
+                clstindex = self.clusters == index
+                ctt_c = ctt[clstindex]
+                cth_c = cth[clstindex]
+                mask_c = mask[clstindex]
+                result_c = result[clstindex]
+                if np.sum(np.isnan(cth_c)) == 0:
+                    continue
+                elif np.sum(~np.isnan(cth_c)) == 0:
+                    continue
+                # Enumerate dimensions
+                x = ctt_c[~np.isnan(cth_c)]
+                y = cth_c[~np.isnan(cth_c)]
+                # Get slope and offset and apply regression
+                result_c = self.apply_linear_regression(x, y, ctt_c,
+                                                        cth_c,
+                                                        result_c)
+                result[clstindex] = result_c
+
+#         self.plot_linreg(x, y, m, c, savedir, 'Cloud top temperature [K]',
+#                          'Low cloud top height [m]',
+#                          'Linear Regression for LCTH and CTT')
+        if np.any(np.isnan(result)):
+            logger.warning("LCTH linear regression created NaN values")
+        # Set invalide values
+        result[mask] = np.nan
+
         # Save regression plot
         if hasattr(self, 'time'):
             ts = self.time
@@ -782,15 +829,18 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         savedir = os.path.join(self.dir, self.name + '_linreg_' +
                                datetime.strftime(ts,
                                                  '%Y%m%d%H%M') + '.png')
-        self.plot_linreg(x, y, m, c, savedir)
-        # Apply coefficients
-        result[np.isnan(cth)] = m * ctt[np.isnan(cth)] + c
-        if np.any(np.isnan(result)):
-            logger.warning("LCTH linear regression created NaN values")
-        # Set invalide values
-        result[mask] = np.nan
-
         return result
+
+    def apply_linear_regression(self, x, y, x_arr, y_arr, out):
+        """ Simple method to derive slope and offset by linear regression"""
+        # Rearrange line equation to  y = Ap  from y = mx  + c with p = [m , c]
+        A = np.vstack([x, np.ones(len(x))]).T
+        # Solve by leat square fitting.
+        m, c = np.linalg.lstsq(A, y)[0]
+        # Apply regression
+        out[np.isnan(y_arr)] = m * x_arr[np.isnan(y_arr)] + c
+
+        return(out)
 
     def get_neighbors(self, arr, i, j, nan=False, mask=None):
         """Get neighbor cells by simple array indexing
@@ -824,7 +874,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if mask is not None:
             neighbors[mask] = np.nan
         # Create valid neighbor mask
-        ids = np.zeros(shp).astype(bool)
+        ids = np.zeros(neighbors.shape).astype(bool)
         ids[np.isnan(neighbors)] = True
         # Return optional only non nan values
         if not nan:
@@ -944,18 +994,291 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
 
         return result
 
-    def plot_linreg(self, x, y, m, c, saveto=None):
-        """ Plot result of linear regression for DEM and lapse rate extracted
-        low cloud top height and cloud top temperatures"""
-        plt.plot(x, y, '.')
-        plt.plot(x, m * x + c)
-        plt.title("Linear Regression for LCTH and CTT")
-        plt.xlabel('Cloud top temperature [K]')
-        plt.ylabel('Low cloud top height [m]')
+
+class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
+    """This class provide an algorithm for pansharpening of satellite channels
+    by an spatial high resolution panchromatic channel.
+    The method is based on satellite images for different channels with low
+    resolution and a pan chromatic channel with higher spatial resolution.
+    The low resolution multispectral images are than resampled on the high
+    resolution grid by different approaches.
+
+    Requires:
+        mspec    List of multispectral cahnnels as numpy arrays
+        pan      Panchromatic channel as numpy array
+        area     Area definition object (PyTroll-mpop class) for the
+                 multispectral channels.
+        panarea  Area definition object (PyTroll-mpop class) for the
+                 panchromatic channel.
+
+    Implemented approaches:
+
+    Hill: Local correlation approach
+
+    A window-based pan-sharpening technique using linear local regressions is
+    described by Hill et al. (1999).
+    The idea for the method is not to calculate one regression function for
+    the whole scene but one regression function for the calculation of every
+    single pixel. Each of these is based on the degraded panchromatic high
+    resolution channel.
+
+        References:
+        Hill, J., Diemer, C., Stover, O., and Udelhoven, T.: A local corre-
+        lation approach for the fusion of remote sensing data with spa-
+        tial resolutions in forestry applications, Int. Arch. Photogramm.
+        Remote Sens., 32, Part 7-4-3 W6, Valladolid, Spain, 3–4 June,
+        1999.
+
+
+    Returns:
+        Pansharpened satellite channels as numpy arrays.
+    """
+    def __init__(self, *args, **kwargs):
+        super(PanSharpeningAlgorithm, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'method'):
+            self.method = "hill"
+
+    def isprocessible(self):
+        """Test runability here"""
+        attrlist = ['mspec', 'pan', 'area', 'panarea']
+        ret = []
+        for attr in attrlist:
+            if hasattr(self, attr):
+                if attr == 'area' and not isinstance(self.area,
+                                                     geometry.AreaDefinition):
+                    raise ValueError("The are is not of type area definition")
+                ret.append(True)
+            else:
+                ret.append(False)
+                logger.warning("Missing input attribute: {}".format(attr))
+        # Convert multispetral channel option to list if required
+        if not isinstance(self.mspec, list):
+            self.mspec = [self.mspec]
+
+        return all(ret)
+
+    def procedure(self):
+        """ Apply pansharpening algorithm to multispectral input arrays"""
+        logger.info("Starting pansharpening algorithm for {} images"
+                    .format(len(self.mspec)))
+
+        # Resample pan channel to degraded resolution
+        pan_quick = image.ImageContainerNearest(self.pan, self.panarea,
+                                                radius_of_influence=50000)
+        pan_shrp_quick = pan_quick.resample(self.area)
+        self.pan_degrad = pan_shrp_quick.image_data
+        # Calculate row and column indices to translate multispectral channels
+        # to  panchromatic
+        panrow, pancol = generate_nearest_neighbour_linesample_arrays(self.area,
+                                                                      self.panarea,
+                                                                      50000)
+
+        self.result = []
+        self.eval = []
+
+        # Loop over  multispectral channels
+        for chn in self.mspec:
+            # Prepare empty pansharpened array
+            panshrp_chn = np.empty(self.pan.shape)
+            logger.info("Sharpen {} image to {}".format(chn.shape,
+                                                        self.pan.shape))
+            if self.method == 'hill':
+                self.apply_hill_sharpening(chn, panrow, pancol, panshrp_chn)
+        # Set results
+        self.mask = np.zeros(self.pan_degrad.shape)
+
+        return True
+
+    def check_results(self):
+        """Check processed algorithm for plausible results"""
+        if self.plot:
+            # Overwrite plotrange with valid result array range
+            n = 0
+            for chn in self.result:
+                self.plotrange = (np.nanmin(chn), np.nanmax(chn))
+                self.plot_result(array=chn, save=self.save, dir=self.dir,
+                                 resize=self.resize, name='output_{}'.format(n),
+                                 type='tif', area=self.panarea)
+                self.plot_result(array=self.mspec[n], save=self.save,
+                                 dir=self.dir, resize=self.resize,
+                                 name='input_{}'.format(n), type='tif',
+                                 area=self.area)
+                self.plot_result(array=self.eval[n], save=self.save,
+                                 dir=self.dir, resize=self.resize,
+                                 name='eval_{}'.format(n), type='tif',
+                                 area=self.area, floating_point=True)
+                n += 1
+        return True
+
+    def apply_linear_regression(self, x, y):
+        """ Simple method to derive slope and offset by linear regression"""
+        # Rearrange line equation to  y = Ap  from y = mx  + c with p = [m , c]
+        A = np.vstack([x, np.ones(len(x))]).T
+        # Solve by leat square fitting.
+        results, resids, rank, s = np.linalg.lstsq(A, y)
+        m = results[0]
+        c = results[1]
+        mean = np.mean(y)
+        # Calculate coefficient of determination
+        var = np.sum((np.square(y - mean)))
+        rsqrt = 1 - (resids / var)
+
+#         if rsqrt < 0.2:
+#             logger.warning("Computed low qualitiy regression R²: {}"
+#                            .format(rsqrt))
+
+        return(m, c, rsqrt, mean)
+
+    def apply_hill_sharpening(self, chn, panrow, pancol, output):
+        """ Local regresssion based pansharpening algorithm by HILL et al.
+        1999. The nearest neighbor search is based on the scipy KDtree
+        implementation, whereas remapping is done with pyresample methods.
+        """
+        logger.info("Using local regression approach by Hill")
+        # Setup KDtree for nearest neighbor search
+        indices = np.indices(chn.shape)
+        tree = spatial.KDTree(zip(indices[0].ravel(), indices[1].ravel()))
+        # Track progress
+        todo = chn.size
+        ready = 1
+        # Array of evaluation criteria
+        eval_array = np.empty(chn.shape)
+
+        # Compute global regression
+        gm, gc, grsqrt, gmean = self.apply_linear_regression(chn.ravel(),
+                                                             self.pan_degrad.ravel())
+
+        # Loop over channel array
+        for index, val in np.ndenumerate(chn):
+            row = index[0]
+            col = index[1]
+            # Query tree for neighbors
+            queryresult = tree.query(np.array([[row, col]]), k=25)
+            neighs = tree.data[queryresult[1][0][1:]]
+            # Get channel values for neighbors
+            chn_neigh = chn[tuple(neighs.T)].squeeze()
+            # Get panchromatic channel values for neighbors
+            pan_neigh = self.pan_degrad[tuple(neighs.T)].squeeze()
+            m, c, rsqrt, mean = self.apply_linear_regression(chn_neigh,
+                                                             pan_neigh)
+            # Apply local regression to panchromatic channel
+            # Get values matching selected degaded pixel
+            panvalues = self.pan[(panrow == row) & (pancol == col)]
+            # Apply linear regression to cell selection
+            if rsqrt >= 0.66:  # Condition for regression application
+                panvalues_corr = c + panvalues * m
+            else:   # Otherwith apply average value
+                panvalues_corr = gc + panvalues * gm
+            # Add corrected values to pansharpening channel output
+            output[(panrow == row) & (pancol == col)] = panvalues_corr
+            # Write coefficient of determination to evaluation array
+            try:
+                eval_array[index] = rsqrt
+            except:
+                Warning("Local linear regression not possible at: {}, {}"
+                        .format(row, col))
+            # Log tasks
+            ready, todo = self.progressbar(ready, todo, chn.size)
+
+        # Add pansharpend channel to result
+        logger.info("Append pansharpened channel to result list...")
+        self.result.append(output)
+        self.eval.append(eval_array)
+
+        return(output)
+
+    def progressbar(self, ready, todo, size):
+        """ simple method for printing a progress bar to stdout"""
+        s = ('<' + (ready/(size/50)*'#') + (todo/(size/50)*'-') +
+             '> ') + str(ready) + (' / {}'.format(size))
+        print ('\r'+s),
+        todo -= 1
+        ready += 1
+        return(ready, todo)
+
+    def get_dist_threshold(self, value, distance):
+        # Calculate distributions and corresponding thresholds
+        dist = self.get_bt_dist(value, distance)
+        # Get turning points
+        tvalues, valleyx = self.get_turningpoints(dist[0], dist[1][:-1])
+        # Test modality of frequency distribution
+        if np.alen(valleyx) == 1:
+            thres = valleyx[0]  # Bimodal distribution valley point
+        elif np.alen(valleyx) == 0:
+            # Use point of slope declination
+            slope, thres = self.get_slope(dist[0], dist[1][:-1])
+        else:
+            thres = np.nan
+#             raise ValueError("Unknown form of distribution")
+        return(thres)
+
+    def get_sza_in_range(self, value, range):
+        """Method to compute number of satellite zenith angles in given range
+        around a value
+        """
+        mask = np.logical_and(self.sza > (value - range),
+                              self.sza <= (value + range))
+        count = mask.sum()
+        return(count)
+
+    def get_bt_dist(self, value, range):
+        """Method to compute brightness temperature difference distribution
+        for given range of satellite zenith angles.
+        """
+        mask = np.logical_and(self.sza > (value - range),
+                              self.sza <= (value + range))
+        btdist = np.histogram(self.bt_diff[mask])
+        return(btdist)
+
+    def plot_bt_hist(self, hist, saveto=None):
+        plt.bar(hist[1][:-1], hist[0])
+        plt.title("Histogram with 'auto' bins")
         if saveto is None:
             plt.show()
         else:
             plt.savefig(saveto)
+
+    def plot_thres(self, saveto=None):
+        plt.plot(self.sza, self.thres, 'ro')
+        if self.slope and self.intercept:
+            plt.plot(self.sza, self.slope * self.sza + self.intercept, 'b-')
+        plt.title("Thresholds for different satellite zenith angles")
+        plt.xlabel('Satellite zenith angle')
+        plt.ylabel('BT difference threshold [K]')
+        if saveto is None:
+            plt.show()
+        else:
+            plt.savefig(os.path.join(saveto, self.name + "_" +
+                                     datetime.strftime(self.time,
+                                                       '%Y%m%d%H%M') +
+                                     "_btthres.png"))
+
+    def get_turningpoints(self, y, x=None):
+        """Calculate turning points of bimodal histogram data and extract
+        values for valleys or corresponding x-locations"""
+        dx = np.diff(y)
+        tvalues = dx[1:] * dx[:-1] < 0
+        # Extract valley ids
+        valley_ids = np.where(np.logical_and(dx[1:] > 0, tvalues))[0]
+        valleys = y[valley_ids + 1]
+        if x is not None:
+            thres = x[valley_ids + 1]
+            return(tvalues, thres)
+        else:
+            return(tvalues, valleys)
+
+    def get_slope(self, y, x):
+        """ Compute the slope of a one dimensional array"""
+        slope = np.diff(y) / np.diff(x)
+        decline = slope[1:] * slope[:-1]
+        # Point of slope declination
+        thres_id = np.where(np.logical_and(slope[1:] < 0, decline > 0))[0]
+        if len(thres_id) != 0:
+            thres = np.min(x[thres_id + 2])
+        else:
+            thres = None
+        return(slope, thres)
 
 
 class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
@@ -1194,3 +1517,4 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         else:
             thres = None
         return(slope, thres)
+

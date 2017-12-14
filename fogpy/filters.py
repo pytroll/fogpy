@@ -27,6 +27,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import time
 import types
 
 from copy import deepcopy
@@ -99,6 +100,9 @@ class BaseArrayFilter(object):
         # Get number of cores
         if not hasattr(self, 'nprocs'):
             self.nprocs = mp.cpu_count()
+        # Get attribute names for plotting
+        if not hasattr(self, 'plotattr'):
+            self.plotattr = None
 
     def apply(self):
         """Apply the given filter function"""
@@ -135,7 +139,8 @@ class BaseArrayFilter(object):
         """Check filter results for plausible results"""
         self.filter_stats()
         if self.plot:
-            self.plot_filter(self.save, self.dir, self.resize)
+            self.plot_filter(self.save, self.dir, self.resize,
+                             attr=self.plotattr)
         ret = True
         return ret
 
@@ -162,19 +167,21 @@ class BaseArrayFilter(object):
                             self.filter_size, self.filter_num, self.inmask_num,
                             self.new_masked, self.remain_num))
 
-    def plot_filter(self, save=False, dir="/tmp", resize=0):
+    def plot_filter(self, save=False, dir="/tmp", resize=0, attr=None,
+                    type='png', area=None):
         """Plotting the filter result"""
         # Get output directory and image name
         savedir = os.path.join(dir, self.name + '_' +
                                datetime.strftime(self.time,
-                                                 '%Y%m%d%H%M') + '.png')
+                                                 '%Y%m%d%H%M') + '.' + type)
         maskdir = os.path.join(dir, self.name + '_mask_' +
                                datetime.strftime(self.time,
-                                                 '%Y%m%d%H%M') + '.png')
+                                                 '%Y%m%d%H%M') + '.' + type)
         # Using Trollimage if available, else matplotlib is used to plot
         try:
             from trollimage.image import Image
             from trollimage.colormap import Colormap
+            from mpop.imageo.geo_image import GeoImage
         except:
             cmap = get_cmap('gray')
             cmap.set_bad('goldenrod', 1.)
@@ -187,10 +194,19 @@ class BaseArrayFilter(object):
                                                                     self.dir))
             else:
                 plt.show()
+        # check area attribute
+        if area is None and type == 'tif':
+            try:
+                area = self.area
+            except:
+                Warning("Area object not found. Plotting filter result as"
+                        " image")
+                type = 'png'
         # Define custom fog colormap
         fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
                           (1., (1.0, 1.0, 229 / 255.0)))
-        maskcol = Colormap((1., (230 / 255.0, 50 / 255.0, 50 / 255.0)))
+        maskcol = Colormap((1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
+
         # Create image from data
         if self.result is None:
             self.result = self.arr
@@ -217,9 +233,15 @@ class BaseArrayFilter(object):
         except:
             logger.warning("No merging for filter plot possible")
         if save:
-            filter_img.save(savedir)
+            if type == 'tif':
+                result_img = GeoImage(filter_img.channels, area,
+                                      self.time, fill_value=None,
+                                      mode="RGB")
+                result_img.save(savedir)
+            else:
+                filter_img.save(savedir)
             logger.info("{} results are plotted to: {}". format(self.name,
-                                                                self.dir))
+                                                                   savedir))
         else:
             filter_img.show()
         # Create mask image
@@ -229,7 +251,7 @@ class BaseArrayFilter(object):
             mask_img = Image(mask, mode='L', fill_value=None)
             mask_img.stretch("crude")
             mask_img.invert()
-            mask_img.colorize(fogcol)
+            mask_img.colorize(maskcol)
             if resize != 0:
                 if not isinstance(resize, int):
                     resize = int(resize)
@@ -237,9 +259,63 @@ class BaseArrayFilter(object):
                                  self.result.shape[1] * resize))
             # mask_img.merge(bg_img)
             if save:
-                mask_img.save(maskdir)
+                if type == 'tif':
+                    result_img = GeoImage(mask_img.channels, area,
+                                          self.time, fill_value=None,
+                                          mode="RGB")
+                    result_img.save(maskdir)
+                else:
+                    mask_img.save(maskdir)
             else:
                 mask_img.show()
+        # Create optional attribute images
+        if attr is not None:
+            if isinstance(attr, list):
+                for a in attr:
+                    self._plot_image(a, self.save, self.dir, self.resize)
+            elif isinstance(attr, str):
+                self._plot_image(attr, self.save, self.dir, self.resize)
+
+    def _plot_image(self, name, save=False, dir="/tmp", resize=0):
+        from trollimage.image import Image
+        from trollimage.colormap import Colormap
+        # Define custom fog colormap
+        fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
+                          (1., (1.0, 1.0, 229 / 255.0)))
+        maskcol = Colormap((1., (230 / 255.0, 50 / 255.0, 50 / 255.0)))
+        # Get save directory
+        attrdir = os.path.join(dir, self.name + '_' + name + '_' +
+                               datetime.strftime(self.time,
+                                                 '%Y%m%d%H%M') + '.png')
+        # Generate image
+        attr_img = Image(getattr(self, name).squeeze(), mode='L',
+                         fill_value=None)
+        attr_img.stretch("crude")
+        attr_img.invert()
+        attr_img.colorize(fogcol)
+        # Get background image
+        bg_img = Image(self.bg_img.squeeze(), mode='L', fill_value=None)
+        bg_img.stretch("crude")
+        bg_img.convert("RGB")
+        bg_img.invert()
+        if resize != 0:
+            if not isinstance(resize, int):
+                resize = int(resize)
+            bg_img.resize((self.bg_img.shape[0] * resize,
+                           self.bg_img.shape[1] * resize))
+            attr_img.resize((self.result.shape[0] * resize,
+                             self.result.shape[1] * resize))
+        try:
+            # Merging
+            attr_img.merge(bg_img)
+        except:
+            logger.warning("No merging for attribute plot possible")
+        if save:
+            attr_img.save(attrdir)
+        else:
+            attr_img.show()
+
+        return(attr_img)
 
 
 class CloudFilter(BaseArrayFilter):
@@ -285,21 +361,26 @@ class CloudFilter(BaseArrayFilter):
         histpeaks = self.hist[1][peakind]
         peakrange = histpeaks[(histpeaks >= self.prange[0]) &
                               (histpeaks < self.prange[1])]
-        if len(peakrange) < 2:
-            logger.error("Not enough peaks found in range {} - {}"
+        if len(peakrange) == 1:
+            logger.error("Not enough peaks found in range {} - {} \n"
+                         "Using slope declination as threshold"
                          .format(self.prange[0], self.prange[1]))
+            slope, thres = self.get_slope_decline(self.hist[0],
+                                                  self.hist[1][:-1])
+            self.thres = thres
+        elif len(peakrange) >= 2:
+            self.minpeak = np.min(peakrange)
+            self.maxpeak = np.max(peakrange)
+
+            # Determine threshold
+            logger.debug("Histogram range for cloudy/clear sky pixels: {} - {}"
+                         .format(self.minpeak, self.maxpeak))
+            thres_index = localmin[(self.hist[1][localmin] <= self.maxpeak) &
+                                   (self.hist[1][localmin] >= self.minpeak) &
+                                   (self.hist[1][localmin] < 0.5)]
+            self.thres = np.max(self.hist[1][thres_index])
+        else:
             raise ValueError
-
-        self.minpeak = np.min(peakrange)
-        self.maxpeak = np.max(peakrange)
-
-        # Determine threshold
-        logger.debug("Histogram range for cloudy/clear sky pixels: {} - {}"
-                     .format(self.minpeak, self.maxpeak))
-        thres_index = localmin[(self.hist[1][localmin] <= self.maxpeak) &
-                               (self.hist[1][localmin] >= self.minpeak) &
-                               (self.hist[1][localmin] < 0.5)]
-        self.thres = np.max(self.hist[1][thres_index])
 
         if self.thres > 0 or self.thres < -5:
             logger.warning("Cloud maks difference threshold {} outside normal"
@@ -327,6 +408,19 @@ class CloudFilter(BaseArrayFilter):
             plt.show()
         else:
             plt.savefig(saveto)
+
+    def get_slope_decline(self, y, x):
+        """ Compute the slope declination of a histogram"""
+        slope = np.diff(y) / np.diff(x)
+        decline = slope[1:] * slope[:-1]
+        # Point of slope declination
+        thres_id = np.where(np.logical_and(slope[1:] > 0, decline > 0))[0]
+        if len(thres_id) != 0:
+            decline_points = x[thres_id + 2]
+            thres = np.min(decline_points[decline_points > -5])
+        else:
+            thres = None
+        return(slope, thres)
 
 
 class SnowFilter(BaseArrayFilter):
@@ -599,6 +693,12 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
     # Required inputs
     attrlist = ['ir108', 'clusters']
 
+    def __init__(self, *args, **kwargs):
+        super(SpatialHomogeneityFilter, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'maxsize'):
+            self.maxsize = 10000  # Number of maximal clustered cloud pixel
+
     def filter_function(self):
         """Cloud cluster filter routine
 
@@ -606,6 +706,9 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
         cloud top height to mask cloud clusters with  with spatial inhomogen
         cloud clusters. Cloud top temperature standard deviations less than 2.5
         are filtered.
+        A maximal size is used to prevent filtering of large cloud clusters
+        which exhibit bigger variability due to its size. The filter is only
+        applied to cloud clusters below the given limit.
         """
         logger.info("Applying Spatial Clustering Inhomogeneity Filter")
         # Surface homogeneity test
@@ -620,7 +723,13 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
         sd_mask = cluster_sd > 2.5
         cluster_dict = {key: sd_mask[key - 1] for key in np.arange(1, nlbl+1)}
         for val in np.arange(1, nlbl+1):
-            cluster_mask[cluster_ma == val] = cluster_dict[val]
+            ncluster = np.count_nonzero(cluster_ma == val)
+            if ncluster <= self.maxsize:
+                cluster_mask[cluster_ma == val] = cluster_dict[val]
+            else:
+                logger.info("Exclude cloud cluster {} of size {} from filter"
+                            .format(val, ncluster))
+                cluster_mask[cluster_ma == val] = 0
 
         # Create cluster mask for image array
         self.mask = cluster_mask
@@ -672,6 +781,16 @@ class LowCloudFilter(BaseArrayFilter):
     # Correction factor for 3.7 um LWP retrievals
     lwp_corr = 0.88  # Reference: (Platnick 2000)
 
+    def __init__(self, *args, **kwargs):
+        super(LowCloudFilter, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'single'):
+            self.single = False
+        if not hasattr(self, 'substitude'):
+            self.substitude = True
+        # Plot cbh and fbh results
+        self.plotattr = ['cbh', 'fbh']
+
     def filter_function(self):
         """Cloud microphysics filter routine
 
@@ -688,35 +807,96 @@ class LowCloudFilter(BaseArrayFilter):
         self.cbh = np.empty(self.clusters.shape, dtype=np.float)
         self.fbh = np.empty(self.clusters.shape, dtype=np.float)
         self.fog_mask = self.clusters.mask
-        # Compute mean values for cloud clusters
-        lwp_cluster = self.get_cluster_mean(self.clusters, self.lwp * 1000,
-                                            exclude=[0])
-        cth_cluster = self.get_cluster_mean(self.clusters, self.cth,
-                                            exclude=[0])
-        ctt_cluster = self.get_cluster_mean(self.clusters, self.ir108)
-        reff_cluster = self.get_cluster_mean(self.clusters, self.reff, [],
-                                             False)
-        # Loop over processes
-        logger.info("Run low cloud models")
-        # Get pool result list
-        self.result_list = []
-        for key in lwp_cluster.keys():
-            workinput = [lwp_cluster[key], cth_cluster[key], ctt_cluster[key],
-                         reff_cluster[key]]
-            pool.apply_async(self.get_fog_base_height, args=workinput,
-                             callback=self.log_result)
-        # Wait for all processes to finish
-        pool.close()
-        pool.join()
-        # Create ground fog and low stratus cloud masks and cbh
-        keys = lwp_cluster.keys()
-        for i, res in enumerate(self.result_list):
-            self.cbh[self.clusters == keys[i]] = res[0]
-            self.fbh[self.clusters == keys[i]] = res[1]
+        # Define mode of parallelisation
+        if self.single:  # Run low cloud models parallized for single pixels
+            count_cells = 0
+            logger.info("Run low cloud models for single cells")
+            applyres = []
+            task_count = self.clusters.count()
+            # Get pool result list
+            self.result_list = []
+            self.index_list = []
+            # Loop over single cell processes
+            for r, c in np.ndindex(self.clusters.squeeze().shape):
+                if self.clusters.mask[r, c] == 0:
+                    self.index_list.append((r, c))
+                    count_cells += 1
+                    workinput = [self.lwp[r, c], self.cth[r, c],
+                                 self.ir108[r, c], self.reff[r, c]]
+                    applyres.append(pool.apply_async(self.get_fog_base_height,
+                                                     args=workinput,
+                                                     callback=self.log_result))
+            # Log tasks
+            while True:
+                incomplete_count = sum(1 for x in applyres if not x.ready())
+
+                if incomplete_count == 0:
+                    logger.info("All Done. Completed {} tasks"
+                                .format(task_count))
+                    break
+                remain = float(task_count - incomplete_count) / task_count * 100
+                logger.info("{} Tasks Remaining --- {:.2f} % Complete"
+                            .format(incomplete_count, remain))
+                time.sleep(1)
+            # Wait for all processes to finish
+            pool.close()
+            pool.join()
+            logger.info("Finished low cloud models for {} cells"
+                        .format(count_cells))
+            # Create ground fog and low stratus cloud masks and cbh
+            for i, indices in enumerate(self.index_list):
+                r, c = indices
+                self.cbh[r, c] = self.result_list[i][0]
+                self.fbh[r, c] = self.result_list[i][1]
             # Mask non ground fog clouds
-            self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
-                                                        self.elev >
-                                                        0)] = True
+            self.fog_mask[(self.fbh - self.elev > 0) \
+                          | np.isnan(self.fbh)] = True
+
+        else:  # Run low cloud models parallized aggregated for cloud clusters
+            # Compute mean values for cloud clusters
+            lwp_cluster = self.get_cluster_mean(self.clusters, self.lwp * 1000,
+                                                exclude=[0])
+            cth_cluster = self.get_cluster_mean(self.clusters, self.cth,
+                                                exclude=[0])
+            ctt_cluster = self.get_cluster_mean(self.clusters, self.ir108)
+            reff_cluster = self.get_cluster_mean(self.clusters, self.reff, [],
+                                                 False)
+            # Loop over processes
+            logger.info("Run low cloud models for cloud clusters")
+            applyres = []
+            task_count = len(lwp_cluster)
+            # Get pool result list
+            self.result_list = []
+            for key in lwp_cluster.keys():
+                workinput = [lwp_cluster[key], cth_cluster[key],
+                             ctt_cluster[key], reff_cluster[key]]
+                applyres.append(pool.apply_async(self.get_fog_base_height,
+                                                 args=workinput,
+                                                 callback=self.log_result))
+            # Log tasks
+            while True:
+                incomplete_count = sum(1 for x in applyres if not x.ready())
+
+                if incomplete_count == 0:
+                    logger.info("All Done. Completed {} tasks"
+                                .format(task_count))
+                    break
+                remain = float(task_count - incomplete_count) / task_count * 100
+                logger.info("{} Tasks Remaining --- {:.2f} % Complete"
+                            .format(incomplete_count, remain))
+                time.sleep(1)
+            # Wait for all processes to finish
+            pool.close()
+            pool.join()
+            # Create ground fog and low stratus cloud masks and cbh
+            keys = lwp_cluster.keys()
+            for i, res in enumerate(self.result_list):
+                self.cbh[self.clusters == keys[i]] = res[0]
+                self.fbh[self.clusters == keys[i]] = res[1]
+                # Mask non ground fog clouds
+                self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
+                                                            self.elev >
+                                                            0)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
@@ -744,8 +924,9 @@ class LowCloudFilter(BaseArrayFilter):
             # Calculate cloud base height
             cbh = lowcloud.get_cloud_base_height(-100, 'basin')
             # Get visibility and fog cloud base height
-            fbh = lowcloud.get_fog_base_height()
-        except:
+            fbh = lowcloud.get_fog_base_height(self.substitude)
+        except Exception as e:
+            logger.error(e, exc_info=True)
             cbh = np.nan
             fbh = np.nan
 
@@ -775,3 +956,99 @@ class LowCloudFilter(BaseArrayFilter):
         result = {k: np.nanmean(v) for k, v in result.iteritems()}
 
         return result
+
+
+class CloudMotionFilter(BaseArrayFilter):
+    """Filtering FLS cloud by motion trakcing for satellite images.
+    """
+    # Required inputs
+    attrlist = ['preir108', 'ir108']
+    try:
+        import cv2
+    except:
+        Warning("openCV Python package cv2 not found. Please install"
+                "opencv and/or the cv-python interface")
+
+    def filter_function(self):
+        """Cloud motion filter routine
+
+        Fog clouds are a stationary phenomena and therefore exhibit little
+        observable cloud motion, Except in the stage of development and
+        dissipation, where the motion should be different to the wind direction
+        and in dependency og the terraim elevation.
+        This filter utilizes atmospheric motion vectors that are calculated by
+        an optical flow (tvl1 algorithm) approach to distinguish between
+        stationary low clouds and moving non fog clouds.
+        """
+        logger.info("Applying Cloud Motion Filter")
+
+        # Calculate motion vectors
+        logger.info("Calculate optical flow...")
+
+        optflow = self.cv2.createOptFlow_DualTVL1()
+        # DWD Radar parameterization by M. Werner
+        optflow.setEpsilon(0.01)
+        optflow.setLambda(0.05)
+        optflow.setOuterIterations(300)
+        optflow.setInnerIterations(2)
+        optflow.setGamma(0.1)
+        optflow.setScalesNumber(5)
+        optflow.setTau(0.25)
+        optflow.setTheta(0.3)
+        optflow.setWarpingsNumber(2)
+        optflow.setScaleStep(0.5)
+        optflow.setMedianFiltering(1)
+        optflow.setUseInitialFlow(0)
+
+        optflow.setWarpingsNumber(5) #default
+        optflow.setScaleStep(0.8)
+        optflow.setLambda(0.15)
+
+        # Rescale values to 0->1 CV_32F1
+        min_val = min(np.ma.amin(self.ir108), np.ma.amin(self.preir108))
+        max_val = max(np.ma.amax(self.ir108), np.ma.amax(self.preir108))
+
+        ult = self.ir108 - min_val
+        ult = ult / (max_val - min_val)
+        ult = ult.astype(np.float32)
+
+        penult = self.preir108 - min_val
+        penult = penult / (max_val - min_val)
+        penult = penult.astype(np.float32)
+
+        flow = optflow.calc(penult.data, ult.data, None)
+        flow_x = flow[:, :, 0]
+        flow_y = flow[:, :, 1]
+
+        # Plot motion field
+        img = self.draw_motion_vectors(flow)
+        img.show()
+
+        # Create cloud physics mask for image array
+        self.mask = self.arr.mask
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return flow
+
+    def draw_motion_vectors(self, flow, step=16):
+        """Draw motion vectors generated by optical flow method"""
+        img = self._plot_image('preir108')
+        h, w = img.shape[:2]
+        y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2, -1)
+        fx, fy = flow[y, x].T
+
+        # create line endpoints
+        lines = np.vstack([x, y, x+fx, y+fy]).T.reshape(-1, 2, 2)
+        lines = np.int32(lines)
+
+        # Ceate image and draw
+        out = deepcopy(img)
+        #out = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+
+        #vis = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+        for (x1, y1), (x2, y2) in lines:
+            self.cv2.arrowedLine(out, (x1, y1), (x2, y2), 255, 1)
+            self.cv2.circle(out, (x1, y1), 1, 255, -1)
+
+        return out
