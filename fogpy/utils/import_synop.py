@@ -136,7 +136,7 @@ def read_synop(file, params, min=None, max=None):
                                            stationdict['lat'],
                                            stationdict['lon']] + paralist]
         except Exception as e:
-            print("ERROR: Unresolved station request: {}".format(e))
+            "ERROR: Unresolved station request: {}".format(e)
     return(result)
 
 
@@ -258,7 +258,7 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                                            stationdict['lat'],
                                            stationdict['lon']] + paralist]
         except Exception as e:
-            print("ERROR: Unresolved station request: {}".format(e))
+            "ERROR: Unresolved station request: {}".format(e)
     return(result)
 
 
@@ -385,7 +385,7 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                                            stationdict['lat'],
                                            stationdict['lon']] + paralist]
         except Exception as e:
-            print("ERROR: Unresolved station request: {}".format(e))
+            "ERROR: Unresolved station request: {}".format(e)
     return(result)
 
 
