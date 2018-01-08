@@ -35,6 +35,7 @@ setup(
     name='fogpy',
     version=version.__version__,
     url='https://github.com/m4sth0/fogpy',
+    download_url='https://github.com/m4sth0/fogpy/archive/v0.1.0.tar.gz',
     license='GNU general public license version 3',
     author='Thomas Leppelt',
     author_email='thomas.leppelt@gmail.com',
