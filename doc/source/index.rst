@@ -7,6 +7,8 @@
 Welcome to fogpy's documentation!
 =================================
 
+.. image:: ./fogpy_logo.png
+
 This package provide algorithmns and methods for satellite based detection and
 nowcasting of fog and low stratus clouds (FLS). 
 
