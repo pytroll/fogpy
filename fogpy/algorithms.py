@@ -1376,16 +1376,30 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         self.vget_dist_threshold = np.vectorize(self.get_dist_threshold)
         # Define starting distance
         distance = self.minrange
-        nsza = self.vget_sza_in_range(self.sza, distance)
+        # Get range partitions
+        szarange = np.arange(np.nanmin(self.sza), np.nanmax(self.sza),
+                             distance)
+        nsza = self.vget_sza_in_range(szarange, distance)
 
         while np.min(nsza) < self.trange:
             distance += 0.5
-            nsza = self.vget_sza_in_range(self.sza, distance)
+            logger.info("Testing SZA distance: {} for target range: {}"
+                        .format(distance, self.trange))
+            szarange = np.arange(np.nanmin(self.sza), np.nanmax(self.sza),
+                                 distance)
+            nsza = self.vget_sza_in_range(szarange, distance)
         logger.info("Calibrated SZA range: {} for n: {} values in range"
                     .format(distance, self.trange))
         self.distance = distance
         # Calculate distributions and corresponding thresholds
-        self.thres = self.vget_dist_threshold(self.sza, distance)
+        thresrange = self.vget_dist_threshold(szarange, distance)
+        self.thres = np.empty(self.sza.shape)
+        self.thres[:] = np.nan
+        for i in np.arange(len(szarange)):
+            if i != len(szarange) - 1:
+                thresmask = np.logical_and(self.sza >= szarange[i],
+                                           self.sza < szarange[i + 1])
+                self.thres[thresmask] = thresrange[i]
         logger.info("Calculated thresholds in the range of {} - {}"
                     .format(np.nanmin(self.thres),
                             np.nanmax(self.thres)))
@@ -1455,8 +1469,8 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         """Method to compute number of satellite zenith angles in given range
         around a value
         """
-        mask = np.logical_and(self.sza > (value - range),
-                              self.sza <= (value + range))
+        mask = np.logical_and(self.sza >= value,
+                              self.sza < (value + range))
         count = mask.sum()
         return(count)
 
@@ -1464,8 +1478,8 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         """Method to compute brightness temperature difference distribution
         for given range of satellite zenith angles.
         """
-        mask = np.logical_and(self.sza > (value - range),
-                              self.sza <= (value + range))
+        mask = np.logical_and(self.sza >= value,
+                              self.sza < (value + range))
         btdist = np.histogram(self.bt_diff[mask])
         return(btdist)
 
