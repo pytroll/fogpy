@@ -69,7 +69,7 @@ A lot of clouds are present over central Europe. Let's test a fog RGB composite 
 .. image:: ./fogpy_docu_example_3.png
 
 The reddish and dark colored clouds represent cold and high altitude clouds, 
-whereas the yellow-greenish color over central and eastern Europe is a indication for low clouds and fog.
+whereas the yellow-greenish color over central and eastern Europe is an indication for low clouds and fog.
 
 Continue with more metadata
 ===========================
@@ -230,7 +230,7 @@ The *fls_day* composite function returns two objects:
 
 .. image:: ./fogpy_docu_example_10.png
  
-The result image shows the area with potential ground fog calculated by the alorithm, fine.
+The result image shows the area with potential ground fog calculated by the algorithm, fine.
 But the remaining areas are missing... maybe a different visualization could be helpful.
 We can improve the image output by colorize the fog mask and blending it over an overview composite using trollimage::
 
