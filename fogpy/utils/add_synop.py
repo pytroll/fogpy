@@ -25,15 +25,17 @@
 import fogpy
 import numpy as np
 import os
+from import_synop import read_synop
 from datetime import datetime
 from trollimage.image import Image
 from trollimage.colormap import Colormap
 
-from import_synop import read_synop
 
 # Define custom fog colormap
 fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
                   (1., (1.0, 1.0, 229 / 255.0)))
+
+maskcol = Colormap((1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
 
 viscol = Colormap((0., (1.0, 0.0, 0.0)),
                   (5000, (0.7, 0.7, 0.7)))
@@ -44,24 +46,27 @@ vis_colset = Colormap((0, (228 / 255.0, 26 / 255.0, 28 / 255.0)),
                       (10000, (77 / 255.0, 175 / 255.0, 74 / 255.0)))
 
 
-def add_to_array(arr, area, time, bufr, savedir='/tmp', name=None, mode='L'):
+def add_to_array(arr, area, time, bufr, savedir='/tmp', name=None, mode='L',
+                 resize=None, ptsize=None, save=False):
     """Add synoptical reports from stations to provided geolocated image array
     """
     # Create array image
     arrshp = arr.shape[:2]
+    print(np.nanmin(arr), np.nanmax(arr))
     arr_img = Image(arr, mode=mode)
     # arr_img = Image(channels=[arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]],
     #                mode='RGB')
-    # arr_img.stretch('crude')
-    # arr_img.invert()
-    arr_img.colorize(fogcol)
+    arr_img.stretch('crude')
+    arr_img.invert()
+    arr_img.colorize(maskcol)
+    arr_img.invert()
 
     # Import bufr
     stations = read_synop(bufr, 'visibility')
     currentstations = stations[time.strftime("%Y%m%d%H0000")]
-    lats = [i[1] for i in currentstations]
-    lons = [i[2] for i in currentstations]
-    vis = [i[3] for i in currentstations]
+    lats = [i[2] for i in currentstations]
+    lons = [i[3] for i in currentstations]
+    vis = [i[4] for i in currentstations]
 
     # Create array for synop parameter
     visarr = np.empty(arrshp)
@@ -69,21 +74,39 @@ def add_to_array(arr, area, time, bufr, savedir='/tmp', name=None, mode='L'):
 
     x, y = (area.get_xy_from_lonlat(lons, lats))
     vis_ma = np.ma.array(vis, mask=x.mask)
-    visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
+    if ptsize:
+        xpt = np.array([])
+        ypt = np.array([])
+        for i, j in zip(x, y):
+            xmesh, ymesh = np.meshgrid(np.linspace(i - ptsize, i + ptsize,
+                                                   ptsize * 2 + 1),
+                                       np.linspace(j - ptsize, j + ptsize,
+                                                   ptsize * 2 + 1))
+            xpt = np.append(xpt, xmesh.ravel())
+            ypt = np.append(ypt, ymesh.ravel())
+        vispt = np.ma.array([np.full(((ptsize * 2 + 1,
+                                       ptsize * 2 + 1)), p) for p in vis_ma])
+        visarr[ypt.astype(int), xpt.astype(int)] = vispt.ravel()
+    else:
+        visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
     visarr_ma = np.ma.masked_invalid(visarr)
     station_img = Image(visarr_ma, mode='L')
     station_img.colorize(vis_colset)
     station_img.merge(arr_img)
-    station_img.resize((arrshp[0] * 5, arrshp[1] * 5))
+    if resize is not None:
+        station_img.resize((arrshp[0] * resize, arrshp[1] * resize))
     if name is None:
         timestr = time.strftime("%Y%m%d%H%M")
         name = "fog_filter_example_stations_{}.png".format(timestr)
-    savepath = os.path.join(savedir, name)
-    station_img.save(savepath)
+    if save:
+        savepath = os.path.join(savedir, name)
+        station_img.save(savepath)
+
+    return(station_img)
 
 
 def add_to_image(image, area, time, bufr, savedir='/tmp', name=None,
-                 bgimg=None):
+                 bgimg=None, resize=None, ptsize=None, save=False):
     """Add synoptical visibility reports from station data to provided
     geolocated image array
     """
@@ -94,14 +117,14 @@ def add_to_image(image, area, time, bufr, savedir='/tmp', name=None,
         bg_img = Image(bgimg.squeeze(), mode='L', fill_value=None)
         bg_img.stretch("crude")
         bg_img.convert("RGB")
-        bg_img.invert()
+#         bg_img.invert()
         image.merge(bg_img)
     # Import bufr
     stations = read_synop(bufr, 'visibility')
     currentstations = stations[time.strftime("%Y%m%d%H0000")]
-    lats = [i[1] for i in currentstations]
-    lons = [i[2] for i in currentstations]
-    vis = [i[3] for i in currentstations]
+    lats = [i[2] for i in currentstations]
+    lons = [i[3] for i in currentstations]
+    vis = [i[4] for i in currentstations]
 
     # Create array for synop parameter
     visarr = np.empty(arrshp)
@@ -116,20 +139,36 @@ def add_to_image(image, area, time, bufr, savedir='/tmp', name=None,
                           (10000, (77 / 255.0, 175 / 255.0, 74 / 255.0)))
     x, y = (area.get_xy_from_lonlat(lons, lats))
     vis_ma = np.ma.array(vis, mask=x.mask)
-    visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
+    if ptsize:
+        xpt = np.array([])
+        ypt = np.array([])
+        for i, j in zip(x, y):
+            xmesh, ymesh = np.meshgrid(np.linspace(i - ptsize, i + ptsize,
+                                                   ptsize * 2 + 1),
+                                       np.linspace(j - ptsize, j + ptsize,
+                                                   ptsize * 2 + 1))
+            xpt = np.append(xpt, xmesh.ravel())
+            ypt = np.append(ypt, ymesh.ravel())
+        vispt = np.ma.array([np.full(((ptsize * 2 + 1,
+                                       ptsize * 2 + 1)), p) for p in vis_ma])
+        visarr[ypt.astype(int), xpt.astype(int)] = vispt.ravel()
+    else:
+        visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
     visarr_ma = np.ma.masked_invalid(visarr)
     station_img = Image(visarr_ma, mode='L')
     station_img.colorize(vis_colset)
-    station_img.show()
-    print(station_img.mode)
-    print(image.mode)
+    image.convert("RGB")
     station_img.merge(image)
-    station_img.resize((arrshp[0] * 5, arrshp[1] * 5))
+    if resize is not None:
+        station_img.resize((arrshp[0] * resize, arrshp[1] * resize))
     if name is None:
         timestr = time.strftime("%Y%m%d%H%M")
         name = "fog_filter_example_stations_{}.png".format(timestr)
-    savepath = os.path.join(savedir, name)
-    station_img.save(savepath)
+    if save:
+        savepath = os.path.join(savedir, name)
+        station_img.save(savepath)
+
+    return(station_img)
 
 if __name__ == '__main__':
 
