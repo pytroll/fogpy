@@ -1282,52 +1282,62 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
 
 
 class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
-    """This algorithm implements a fog and low stratus detection and forecasting
-     for geostationary satellite images from the SEVIRI instrument onboard of
-     METEOSAT second generation MSG satellites for night time scenes.
-     Two infrared MSG channels are used. Therefore the algorithm is applicable
-     for day and night times in general, but is optimized for night time usage.
-     It is utilizing the methods proposed in the following studies:
+    """Night time fog and low stratus algorithm class.
 
-         - Dynamical nighttime fog/low stratus detection based on Meteosat
-           SEVIRI Data: A feasibility study
-            J. Cermak & J. Bendix
+    This algorithm implements a fog and low stratus detection and forecasting
+    for geostationary satellite images from the SEVIRI instrument onboard of
+    METEOSAT second generation MSG satellites for night time scenes.
+    Two infrared MSG channels are used. Therefore the algorithm is applicable
+    for day and night times in general, but is optimized for night time usage.
+    It is utilizing the methods proposed in the following studies:
 
-    Arguements:
-        chn108    Array for the 10.8 μm channel
-        chn39    Array for the 3.9 μm channel
-        sza    Array for the satellite viewing zenith angle
-        elev    Array for the altitude
-        time    Datetime object for the satellite scence
-        lat    Array of latitude values
-        lon    Array of longitude values
+        * Dynamical nighttime fog/low stratus detection based on Meteosat
+          SEVIRI Data: A feasibility study
+          J. Cermak & J. Bendix
+
+    The emissivity differences between the two window channels 10.8 and 3.9
+    are considerably large for small droplets (effective radius = 4 um) in
+    comparison to large droplets (effective radius of 10 um). Therefore the
+    temperature differnce for these two channels can be utilized to detect
+    small droplet clouds.
+    Due to the large spectral width of SEVIRI middle infrared channel (3.9 um)
+    and partly overlap of CO2 absorption bands the distinction between clear
+    and FLS areas are hampered. The level of absorption influence vary with
+    season and latitude.
+
+    Hence the detection algorithm is based on the following approaches:
+
+        * Dynamic determination of temperature difference thresholds for the
+          given scene.
+        * Consideration of local CO2 absorption variations by
+          satellite-zenith-angel-specific threshold determination.
+
+    Args:
+        | chn108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+        | chn39 (:obj:`ndarray`): Array for the 3.9 μm channel.
+        | sza (:obj:`ndarray`): Array for the satellite viewing zenith angle.
+        | elev (:obj:`ndarray`): Array for the altitude.
+        | time (:obj:`datetime`): Datetime object for the satellite scence.
+        | lat (:obj:`ndarray`): Array of latitude values.
+        | lon (:obj:`ndarray`): Array of longitude values.
 
     Returns:
-        Infrared image with fog mask
+        Infrared image with fog mask.
 
-    The algorithm can be applied to satellite zenith angle lower than 70°
-    and a maximum solar zenith angle of 80°.
+    Todo:
+        ============================================ =====================
+        Task description                             Implemented (yes/no):
+        ============================================ =====================
+        1.  Calculate temperature difference         yes
 
-    The algorithm workflow is a succession of differnt masking approaches
-    from coarse to finer selection to find fog and low stratus clouds within
-    provided satellite images. Afterwards a separation between fog and low
-    clouds are made by calibrating a cloud base height with a low cloud model
-    to satellite retrieval information. Then a fog dissipation and subsequently
-    a nowcasting of fog can be done.
+        2.  Retrieve localized difference thresholds yes
 
-            Input: Calibrated satellite images >-----   Implemented:
-                                                            |
-                1.  Calculate temperature difference --------    yes
-                                                            |
-                2.  Retrieve localized difference thresholds     yes
-                                                            |
-                3.  Smooth thresholds -----------------------    yes
-                                                            |
-                4.  Apply result thresholds -----------------    yes
-                                                            |
-                5.  Derive confidence level -----------------    yes
-                                                            |
-            Output: fog and low stratus mask <---------------
+        3.  Smooth thresholds                        yes
+
+        4.  Apply result thresholds                  yes
+
+        5.  Derive confidence level                  yes
+        ============================================ =====================
      """
     def __init__(self, *args, **kwargs):
         super(NightFogLowStratusAlgorithm, self).__init__(*args, **kwargs)
@@ -1340,7 +1350,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             self.fcr = 2  # Fog confidence range in K
 
     def isprocessible(self):
-        """Test runability here"""
+        """Test runability here."""
         attrlist = ['ir108', 'ir039', 'lat', 'lon', 'time', 'sza']
         ret = []
         for attr in attrlist:
@@ -1353,7 +1363,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         return all(ret)
 
     def procedure(self):
-        """ Run nighttime fog and low stratus detection scheme"""
+        """ Run nighttime fog and low stratus detection scheme."""
         logger.info("Starting fog and low cloud detection algorithm"
                     " in nighttime mode")
         #######################################################################
@@ -1436,7 +1446,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         return True
 
     def check_results(self):
-        """Check processed algorithm for plausible results"""
+        """Check processed algorithm for plausible results."""
         if self.plot:
             self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
             self.plot_result(array=self.flsconflvl, save=self.save,
@@ -1450,6 +1460,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         return True
 
     def get_dist_threshold(self, value, distance):
+        """Calculate thresholds for distribution of given sza value range."""
         # Calculate distributions and corresponding thresholds
         dist = self.get_bt_dist(value, distance)
         # Get turning points
@@ -1467,7 +1478,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
     def get_sza_in_range(self, value, range):
         """Method to compute number of satellite zenith angles in given range
-        around a value
+        around a value.
         """
         mask = np.logical_and(self.sza >= value,
                               self.sza < (value + range))
@@ -1484,6 +1495,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         return(btdist)
 
     def plot_bt_hist(self, hist, saveto=None):
+        """Plot histogram of temperature distribution."""
         plt.bar(hist[1][:-1], hist[0])
         plt.title("Histogram with 'auto' bins")
         if saveto is None:
@@ -1492,6 +1504,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             plt.savefig(saveto)
 
     def plot_thres(self, saveto=None):
+        """Potting of satellite-zenith-angles specific thresholds."""
         plt.plot(self.sza, self.thres, 'ro')
         if self.slope and self.intercept:
             plt.plot(self.sza, self.slope * self.sza + self.intercept, 'b-')
@@ -1508,7 +1521,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
     def get_turningpoints(self, y, x=None):
         """Calculate turning points of bimodal histogram data and extract
-        values for valleys or corresponding x-locations"""
+        values for valleys or corresponding x-locations."""
         dx = np.diff(y)
         tvalues = dx[1:] * dx[:-1] < 0
         # Extract valley ids
@@ -1521,7 +1534,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
             return(tvalues, valleys)
 
     def get_slope(self, y, x):
-        """ Compute the slope of a one dimensional array"""
+        """ Compute the slope of a one dimensional array."""
         slope = np.diff(y) / np.diff(x)
         decline = slope[1:] * slope[:-1]
         # Point of slope declination
