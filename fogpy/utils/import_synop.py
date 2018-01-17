@@ -122,9 +122,7 @@ def read_synop(file, params, min=None, max=None):
                     paralist.append(res)
                 if all([i is None for i in paralist]):
                     continue
-                # Extract item for singular list
-                elif len(paralist) == 1:
-                    paralist = paralist[0]
+                # Add station data to result list
                 if stationtime in result.keys():
                     result[stationtime].append([stationdict['name'],
                                                 stationdict['altitude'],
@@ -232,9 +230,6 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                     paralist.append(res)
                 if all([i is None for i in paralist]):
                     continue
-                # Extract item for singular list
-                elif len(paralist) == 1:
-                    paralist = paralist[0]
                 # Test for limited coordinates
                 if latlim is not None:
                     if stationdict['lat'] < latlim[0]:
@@ -246,7 +241,7 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                         continue
                     elif stationdict['lon'] > lonlim[1]:
                         continue
-
+                # Add station data to result list
                 if stationtime in result.keys():
                     result[stationtime].append([stationdict['name'],
                                                 stationdict['altitude'],
@@ -359,9 +354,6 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                     paralist.append(res)
                 if all([i is None for i in paralist]):
                     continue
-                # Extract item for singular list
-                elif len(paralist) == 1:
-                    paralist = paralist[0]
                 # Test for limited coordinates
                 if latlim is not None:
                     if stationdict['lat'] < latlim[0]:
@@ -373,7 +365,7 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                         continue
                     elif stationdict['lon'] > lonlim[1]:
                         continue
- 
+                # Add station data to result list
                 if stationtime in result.keys():
                     result[stationtime].append([stationdict['name'],
                                                 stationdict['altitude'],
