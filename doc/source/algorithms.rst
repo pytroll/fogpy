@@ -1,6 +1,6 @@
-============
+===================
 Algorithms in fogpy
-============
+===================
 
 The package provide different algorithms for fog and low stratus cloud
 detection and nowcasting. The implemented fog algorithms are inherited 

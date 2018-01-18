@@ -39,22 +39,26 @@ fogcol = Colormap((1., (0.0, 0.0, 0.0)),
 
 def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False,
             plot=False, plotdir='/tmp', single=False):
-    """ This method defines a composite for fog and low stratus detection
-    and forecasting at daytime. The fog algorithm is optimized for the
-    Meteosat Second Generation - SERVIRI instrument.
+    """This method defines a composite for fog and low stratus detection
+    and forecasting at daytime.
 
-    Required additional inputs:
-        elevation    Ditital elevation model as array
-        cot    Cloud optical thickness(depth) as array
-        reff    Cloud particle effective radius as array
-        lwp    Liquid water path as array
-        cth    Cloud top height as array, optional
-        validate    Additional cloud mask output, optional
-        plot    Save filter and algorithm results as png images
-        plotdir    Path to plotting directory as string
-        single    Compute lowcloud model single pixelwise. Default is False
+    The fog algorithm is optimized for the Meteosat Second Generation
+    - SERVIRI instrument.
+
+    Args:
+        | elevation (:obj:`ndarray`): Ditital elevation model as array.
+        | cot (:obj:`ndarray`): Cloud optical thickness(depth) as array.
+        | reff (:obj:`ndarray`): Cloud particle effective radius as array.
+        | lwp (:obj:`ndarray`): Liquid water path as array.
+        | cth (:obj:`ndarray`): Cloud top height as array, optional.
+        | validate (:obj:`bool`): Additional cloud mask output, optional.
+        | plot (:obj:`bool`): Save filter and algorithm results as png images.
+        | plotdir (:obj:`str`): Path to plotting directory as string.
+        | single (:obj:`bool`): Compute lowcloud model single pixelwise.
+                                Default is False.
+
     Returns:
-        Infrared image with colorized fog areas and the calculated fog mask
+        Infrared image with colorized fog areas and the calculated fog mask.
     """
     logger.debug("Creating fog composite for {} instrument scene {}"
                  .format(self.fullname, self.time_slot))
@@ -123,12 +127,14 @@ def fls_day(self, elevation, cot, reff, lwp=None, cth=None, validate=False,
 
 
 def fls_night(self, sza):
-    """ This method defines a composite for fog and low stratus detection
-    and forecasting at night. The fog algorithm is optimized for the
-    Meteosat Second Generation - SERVIRI instrument.
+    """This method defines a composite for fog and low stratus detection
+    and forecasting at night.
 
-    Required additional inputs:
-        sza    Satellite zenith angle as array
+    The fog algorithm is optimized for the Meteosat Second Generation
+    - SERVIRI instrument.
+
+    Args:
+        | sza (:obj:`ndarray`): Satellite zenith angle as array.
 
     Returns:
         Infrared image with colorized fog areas and the calculated fog mask

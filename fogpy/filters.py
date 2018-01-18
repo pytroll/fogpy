@@ -63,7 +63,7 @@ class NotApplicableError(Exception):
 class BaseArrayFilter(object):
     """This super filter class provide all functionalities to apply a filter
     funciton on a given numpy array representing a satellite image and return
-    the filtered masked array as result"""
+    the filtered masked array as result."""
     def __init__(self, arr, **kwargs):
         if isinstance(arr, np.ma.MaskedArray):
             self.arr = arr
@@ -105,7 +105,7 @@ class BaseArrayFilter(object):
             self.plotattr = None
 
     def apply(self):
-        """Apply the given filter function"""
+        """Apply the given filter function."""
         if self.isapplicable():
             self.filter_function()
             self.check_results()
@@ -116,7 +116,7 @@ class BaseArrayFilter(object):
         return self.result, self.mask
 
     def isapplicable(self):
-        """Test filter applicability"""
+        """Test filter applicability."""
         ret = []
         for attr in self.attrlist:
             if hasattr(self, attr):
@@ -136,7 +136,7 @@ class BaseArrayFilter(object):
         return True
 
     def check_results(self):
-        """Check filter results for plausible results"""
+        """Check filter results for plausible results."""
         self.filter_stats()
         if self.plot:
             self.plot_filter(self.save, self.dir, self.resize,
@@ -169,7 +169,7 @@ class BaseArrayFilter(object):
 
     def plot_filter(self, save=False, dir="/tmp", resize=0, attr=None,
                     type='png', area=None):
-        """Plotting the filter result"""
+        """Plotting the filter result."""
         # Get output directory and image name
         savedir = os.path.join(dir, self.name + '_' +
                                datetime.strftime(self.time,
@@ -319,8 +319,7 @@ class BaseArrayFilter(object):
 
 
 class CloudFilter(BaseArrayFilter):
-    """Cloud filtering for satellite images.
-    """
+    """Cloud filtering for satellite images."""
     # Required inputs
     attrlist = ['ir108', 'ir039']
 
@@ -334,6 +333,13 @@ class CloudFilter(BaseArrayFilter):
         within a certain range. The nearest significant relative minimum in the
         histogram towards more negative values is detected and used as a
         threshold to separate clear from cloudy pixels in the image.
+
+        Args:
+            | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+            | ir039 (:obj:`ndarray`): Array for the 3.9 μm channel.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Cloud Filter")
 
@@ -402,6 +408,7 @@ class CloudFilter(BaseArrayFilter):
         return True
 
     def plot_cloud_hist(self, saveto=None):
+        """Plot the histogram of brightness temperature differences."""
         plt.bar(self.hist[1][:-1], self.hist[0])
         plt.title("Histogram with 'auto' bins")
         if saveto is None:
@@ -410,7 +417,7 @@ class CloudFilter(BaseArrayFilter):
             plt.savefig(saveto)
 
     def get_slope_decline(self, y, x):
-        """ Compute the slope declination of a histogram"""
+        """ Compute the slope declination of a histogram."""
         slope = np.diff(y) / np.diff(x)
         decline = slope[1:] * slope[:-1]
         # Point of slope declination
@@ -424,8 +431,7 @@ class CloudFilter(BaseArrayFilter):
 
 
 class SnowFilter(BaseArrayFilter):
-    """Snow filtering for satellite images.
-    """
+    """Snow filtering for satellite images."""
     # Required inputs
     attrlist = ['vis006', 'vis008', 'nir016', 'ir108']
 
@@ -438,7 +444,16 @@ class SnowFilter(BaseArrayFilter):
         combined with a slightly higher level of absorption
         (Wiscombe and Warren, 1980)
         thresholds are applied in combination with the Normalized Difference
-        Snow Index
+        Snow Index.
+
+        Args:
+            | vis006 (:obj:`ndarray`): Array for the 0.6 μm channel.
+            | nir016 (:obj:`ndarray`): Array for the 1.6 μm channel.
+            | vis008 (:obj:`ndarray`): Array for the 0.8 μm channel.
+            | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Snow Filter")
         # Calculate Normalized Difference Snow Index
@@ -458,8 +473,7 @@ class SnowFilter(BaseArrayFilter):
 
 
 class IceCloudFilter(BaseArrayFilter):
-    """Ice cloud filtering for satellite images.
-    """
+    """Ice cloud filtering for satellite images."""
     # Required inputs
     attrlist = ['ir120', 'ir087', 'ir108']
 
@@ -472,6 +486,14 @@ class IceCloudFilter(BaseArrayFilter):
         large degree of certainty. This is combined with a straightforward
         temperature test, cutting off at very low 10.8 μm brightness
         temperatures (250 K).
+
+        Args:
+            | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+            | ir087 (:obj:`ndarray`): Array for the 8.7 μm channel.
+            | ir120 (:obj:`ndarray`): Array for the 12.0 μm channel.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Snow Filter")
         # Apply infrared channel difference
@@ -487,8 +509,7 @@ class IceCloudFilter(BaseArrayFilter):
 
 
 class CirrusCloudFilter(BaseArrayFilter):
-    """Thin cirrus cloud filtering for satellite images.
-    """
+    """Thin cirrus cloud filtering for satellite images."""
     # Required inputs
     attrlist = ['ir120', 'ir087', 'ir108', 'lat', 'lon', 'time']
 
@@ -504,6 +525,17 @@ class CirrusCloudFilter(BaseArrayFilter):
         relatively strong cirrus signal at the former wavelength is applied
         (Wiegner et al.1998). Where the difference is greater than 0 K, cirrus
         is assumed to be present.
+
+        Args:
+            | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+            | ir087 (:obj:`ndarray`): Array for the 8.7 μm channel.
+            | ir120 (:obj:`ndarray`): Array for the 12.0 μm channel.
+            | time (:obj:`datetime`): Datetime object for the satellite scence.
+            | lat (:obj:`ndarray`): Array of latitude values.
+            | lon (:obj:`ndarray`): Array of longitude values.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Cirrus Filter")
         # Get infrared channel difference
@@ -545,19 +577,19 @@ class CirrusCloudFilter(BaseArrayFilter):
         return True
 
     def find_nearest_lut_sza(self, sza):
-        """ Get nearest look up table key value for given ssec(sza)"""
+        """ Get nearest look up table key value for given ssec(sza)."""
         sza_opt = [1.0, 1.25, 1.50, 1.75, 2.0]
         sza_idx = np.array([np.abs(sza - i) for i in sza_opt]).argmin()
         return(sza_opt[sza_idx])
 
     def find_nearest_lut_bt(self, bt):
-        """ Get nearest look up table key value for given BT"""
+        """ Get nearest look up table key value for given BT."""
         bt_opt = [260, 270, 280, 290, 300, 310]
         bt_idx = np.array([np.abs(bt - i) for i in bt_opt]).argmin()
         return(bt_opt[bt_idx])
 
     def apply_lut(self, sza, bt):
-        """ Apply LUT to given BT and sza values"""
+        """ Apply LUT to given BT and sza values."""
         return(self.lut[bt][sza])
     # Lookup table for BT difference thresholds at certain sec(sun zenith
     # angles) and 10.8 μm BT
@@ -570,8 +602,7 @@ class CirrusCloudFilter(BaseArrayFilter):
 
 
 class WaterCloudFilter(BaseArrayFilter):
-    """Water cloud filtering for satellite images.
-    """
+    """Water cloud filtering for satellite images."""
     # Required inputs
     attrlist = ['vis006', 'nir016', 'ir039', 'cloudmask']
 
@@ -587,6 +618,15 @@ class WaterCloudFilter(BaseArrayFilter):
         land areas are averaged over 50 rows at a time to obtain an
         approximately latitudinal value. Wherever a cloud-covered pixel
         exceeds this value, it is flagged.
+
+        Args:
+            | ir039 (:obj:`ndarray`): Array for the 3.9 μm channel.
+            | nir016 (:obj:`ndarray`): Array for the 1.6 μm channel.
+            | vis006 (:obj:`ndarray`): Array for the 0.6 μm channel.
+            | cloudmask (:obj:`MaskedArray`): Array for masked cloud objects.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Water Cloud Filter")
         # Weak water cloud test with NDSI
@@ -613,24 +653,22 @@ class WaterCloudFilter(BaseArrayFilter):
         return True
 
     def find_watercloud(self, lat, thres):
-                """Funciton to compare row of BT with given latitudinal thresholds
-                """
-                if not isinstance(lat, np.ma.masked_array):
-                    lat = np.ma.MaskedArray(lat, mask=np.zeros(lat.shape))
-                if all(lat.mask):
-                    res = lat.mask
-                elif np.ma.is_masked(thres[self.line]):
-                    res = lat <= np.mean(self.lat_cloudfree)
-                else:
-                    res = lat <= thres[self.line]
-                self.line += 1
+        """Funciton to compare row of BT with given latitudinal thresholds"""
+        if not isinstance(lat, np.ma.masked_array):
+            lat = np.ma.MaskedArray(lat, mask=np.zeros(lat.shape))
+        if all(lat.mask):
+            res = lat.mask
+        elif np.ma.is_masked(thres[self.line]):
+            res = lat <= np.mean(self.lat_cloudfree)
+        else:
+            res = lat <= thres[self.line]
+        self.line += 1
 
-                return(res)
+        return(res)
 
 
 class SpatialCloudTopHeightFilter_old(BaseArrayFilter):
-    """Filtering cloud clusters by height for satellite images.
-    """
+    """Filtering cloud clusters by height for satellite images."""
     # Required inputs
     attrlist = ['ir108', 'clusters', 'cluster_z']
 
@@ -663,8 +701,7 @@ class SpatialCloudTopHeightFilter_old(BaseArrayFilter):
 
 
 class SpatialCloudTopHeightFilter(BaseArrayFilter):
-    """Filtering cloud clusters by height for satellite images.
-    """
+    """Filtering cloud clusters by height for satellite images."""
     # Required inputs
     attrlist = ['cth', 'elev']
 
@@ -674,6 +711,13 @@ class SpatialCloudTopHeightFilter(BaseArrayFilter):
         This filter uses given cloud top heights arrays for low clouds to mask
         cloud clusters with cloud top height above 1000 m in comparison to
         given ground elevation.
+
+        Args:
+            | cth (:obj:`ndarray`): Array of cloud top height in m.
+            | elev (:obj:`ndarray`): Array of area elevation.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Spatial Cloud Top Height Filter")
         # Apply maximum threshold for cluster height to identify low fog clouds
@@ -688,8 +732,7 @@ class SpatialCloudTopHeightFilter(BaseArrayFilter):
 
 
 class SpatialHomogeneityFilter(BaseArrayFilter):
-    """Filtering cloud clusters by StDev for satellite images.
-    """
+    """Filtering cloud clusters by StDev for satellite images."""
     # Required inputs
     attrlist = ['ir108', 'clusters']
 
@@ -709,6 +752,13 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
         A maximal size is used to prevent filtering of large cloud clusters
         which exhibit bigger variability due to its size. The filter is only
         applied to cloud clusters below the given limit.
+
+        Args:
+            | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+            | clusters (:obj:`MaskedArray`): Masked array for cloud clusters.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Spatial Clustering Inhomogeneity Filter")
         # Surface homogeneity test
@@ -740,8 +790,7 @@ class SpatialHomogeneityFilter(BaseArrayFilter):
 
 
 class CloudPhysicsFilter(BaseArrayFilter):
-    """Filtering cloud microphysics for satellite images.
-    """
+    """Filtering cloud microphysics for satellite images."""
     # Required inputs
     attrlist = ['reff', 'cot']
 
@@ -755,6 +804,13 @@ class CloudPhysicsFilter(BaseArrayFilter):
         radius (20 μm) are applied to the low stratus mask as cut-off levels.
         Where a pixel previously identified as fog/low stratus falls outside
         the range it will now be flagged as a non-fog pixel.
+
+        Args:
+            | cot (:obj:`ndarray`): Array of cloud optical thickness (depth).
+            | reff (:obj:`ndarray`): Array of cloud particle effective raduis.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Spatial Clustering Inhomogenity Filter")
 
@@ -773,8 +829,7 @@ class CloudPhysicsFilter(BaseArrayFilter):
 
 
 class LowCloudFilter(BaseArrayFilter):
-    """Filtering low clouds for satellite images.
-    """
+    """Filtering low clouds for satellite images."""
     # Required inputs
     attrlist = ['lwp', 'cth', 'ir108', 'clusters', 'reff', 'elev']
 
@@ -797,6 +852,17 @@ class LowCloudFilter(BaseArrayFilter):
         The filter separate low stratus clouds from ground fog clouds
         by computing the cloud base height with a 1D low cloud model for
         each cloud cluster.
+
+        Args:
+            | lwp (:obj:`ndarray`): Array of cloud liquid water path.
+            | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+            | clusters (:obj:`MaskedArray`): Masked array for cloud clusters.
+            | cth (:obj:`ndarray`): Array of cloud top height in m.
+            | elev (:obj:`ndarray`): Array of area elevation.
+            | reff (:obj:`ndarray`): Array of cloud particle effective raduis.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Low Cloud Filter")
         # Creating process pool
@@ -913,7 +979,7 @@ class LowCloudFilter(BaseArrayFilter):
         """ Calculate fog base heights for low cloud pixels with a
         numerical 1-D low cloud model and known liquid water path, cloud top
         height / temperature and droplet effective radius from satellite
-        retrievals
+        retrievals.
         """
         lowcloud = LowWaterCloud(cth=cth,
                                  ctt=ctt,
@@ -934,7 +1000,7 @@ class LowCloudFilter(BaseArrayFilter):
 
     def get_cluster_mean(self, clusters, values, exclude=[0], noneg=True):
         """Calculate the mean of an array of values for given cluster
-        structures
+        structures.
         """
         result = defaultdict(list)
         if np.ma.isMaskedArray(clusters):
@@ -959,8 +1025,7 @@ class LowCloudFilter(BaseArrayFilter):
 
 
 class CloudMotionFilter(BaseArrayFilter):
-    """Filtering FLS cloud by motion trakcing for satellite images.
-    """
+    """Filtering FLS cloud by motion trakcing for satellite images."""
     # Required inputs
     attrlist = ['preir108', 'ir108']
     try:
@@ -979,6 +1044,14 @@ class CloudMotionFilter(BaseArrayFilter):
         This filter utilizes atmospheric motion vectors that are calculated by
         an optical flow (tvl1 algorithm) approach to distinguish between
         stationary low clouds and moving non fog clouds.
+
+        Args:
+            | preir108 (:obj:`ndarray`): Array for the 10.8 μm channel for a
+                                         preceding scene.
+            | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+
+        Returns:
+            Filter image and filter mask.
         """
         logger.info("Applying Cloud Motion Filter")
 
@@ -1032,7 +1105,7 @@ class CloudMotionFilter(BaseArrayFilter):
         return flow
 
     def draw_motion_vectors(self, flow, step=16):
-        """Draw motion vectors generated by optical flow method"""
+        """Draw motion vectors generated by optical flow method."""
         img = self._plot_image('preir108')
         h, w = img.shape[:2]
         y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2, -1)

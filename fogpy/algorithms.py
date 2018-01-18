@@ -58,7 +58,7 @@ class NotProcessibleError(Exception):
 
 class BaseSatelliteAlgorithm(object):
     """This super filter class provide all functionalities to run an algorithm
-    on satellite image arrays and return a new array as result"""
+    on satellite image arrays and return a new array as result."""
     def __init__(self, **kwargs):
         self.mask = None
         self.result = None
@@ -90,7 +90,7 @@ class BaseSatelliteAlgorithm(object):
             self.plotrange = (0, 1)
 
     def run(self):
-        """Start the algorithm and return results"""
+        """Start the algorithm and return results."""
         if self.isprocessible():
             self.procedure()
             self.check_results()
@@ -116,14 +116,14 @@ class BaseSatelliteAlgorithm(object):
         return True
 
     def check_results(self):
-        """Check processed algorithm for plausible results"""
+        """Check processed algorithm for plausible results."""
         if self.plot:
             self.plot_result(save=self.save, dir=self.dir, resize=self.resize)
         return True
 
     def add_mask(self, mask):
         """Compute the new array mask as union of all input array masks
-        and computed masks"""
+        and computed masks."""
         if not np.ma.is_mask(mask):
             raise ImportError("Mask type is invalid")
         if self.mask is not None:
@@ -132,13 +132,13 @@ class BaseSatelliteAlgorithm(object):
             self.mask = mask
 
     def get_kwargs(self, keys):
-        """Return dictionary with passed keyword arguments"""
+        """Return dictionary with passed keyword arguments."""
         return({key: self.__getattribute__(key) for key in self.attributes
                 if key in keys})
 
     def plot_result(self, array=None, save=False, dir="/tmp", resize=1,
                     name='array', type='png', area=None, floating_point=False):
-        """Plotting the algorithm result"""
+        """Plotting the algorithm result."""
         # Using Trollimage if available, else matplotlib is used to plot
         try:
             from trollimage.image import Image
@@ -215,7 +215,7 @@ class BaseSatelliteAlgorithm(object):
         return(result_img)
 
     def check_dimension(self, arr):
-        """ Check and convert arrays to 2D """
+        """Check and convert arrays to 2D."""
         if arr.ndim != 2:
             try:
                 result = arr.squeeze()  # Try to reduce dimension
@@ -227,7 +227,7 @@ class BaseSatelliteAlgorithm(object):
         return(result)
 
     def plot_clusters(self, save=False, dir="/tmp"):
-        """Plot the cloud clusters"""
+        """Plot the cloud clusters."""
         # Get output directory and image name
         name = self.__class__.__name__
         savedir = os.path.join(dir, name + '_clusters_' +
@@ -254,9 +254,10 @@ class BaseSatelliteAlgorithm(object):
         else:
             cluster_img.show()
 
-    def plot_linreg(self, x, y, m, c, saveto=None, xlabel='x', ylabel='y', title='Regression plot'):
+    def plot_linreg(self, x, y, m, c, saveto=None, xlabel='x', ylabel='y',
+                    title='Regression plot'):
         """ Plot result of linear regression for DEM and lapse rate extracted
-        low cloud top height and cloud top temperatures"""
+        low cloud top height and cloud top temperatures."""
         plt.plot(x, y, '.')
         plt.plot(x, m * x + c)
         plt.title(title)
@@ -270,38 +271,15 @@ class BaseSatelliteAlgorithm(object):
 
 class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
     """This algorithm implements a fog and low stratus detection and forecasting
-     for geostationary satellite images from the SEVIRI instrument onboard of
-     METEOSAT second generation MSG satellites. Seven MSG channels from the
-     solar and infrared spectra are used. Therefore the algorithm is applicable
-     for daytime scenes only.
-     It is utilizing the methods proposed in different innovative studies:
+    for geostationary satellite images from the SEVIRI instrument onboard of
+    METEOSAT second generation MSG satellites. Seven MSG channels from the
+    solar and infrared spectra are used. Therefore the algorithm is applicable
+    for daytime scenes only.
+    It is utilizing the methods proposed in different innovative studies:
 
          - A novel approach to fog/low stratus detection using Meteosat 8 data
             J. Cermak & J. Bendix
-        - Detecting ground fog from space – a microphysics-based approach
-            J. Cermak & J. Bendix
-
-    Arguements:
-        chn108    Array for the 10.8 μm channel
-        chn39    Array for the 3.9 μm channel
-        chn08    Array for the 0.8 μm channel
-        chn16    Array for the 1.6 μm channel
-        chn06    Array for the 0.6 μm channel
-        chn87    Array for the 8.7 μm channel
-        chn120    Array for the 12.0 μm channel
-        time    Datetime object for the satellite scence
-        lat    Array of latitude values
-        lon    Array of longitude values
-        elevation Array of area elevation
-        cot    Array of cloud optical thickness (depth)
-        reff    Array of cloud particle effective raduis
-
-    Returns:
-        Infrared image with fog mask
-
-    - A novel approach to fog/low stratus detection using Meteosat 8 data
-            J. Cermak & J. Bendix
-    - Detecting ground fog from space – a microphysics-based approach
+         - Detecting ground fog from space – a microphysics-based approach
             J. Cermak & J. Bendix
 
     The algorithm can be applied to satellite zenith angle lower than 70°
@@ -314,33 +292,53 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
     to satellite retrieval information. Then a fog dissipation and subsequently
     a nowcasting of fog can be done.
 
-            Input: Calibrated satellite images >-----   Implemented:
-                                                    |
-                1.  Cloud masking -------------------    yes
-                                                    |
-                2.  Snow masking --------------------    yes
-                                                    |
-                3.  Ice cloud masking ---------------    yes
-                                                    |
-                4.  Thin cirrus masking -------------    yes
-                                                    |
-                5.  Watercloud test -----------------    yes
-                                                    |
-                6.  Spatial clustering---------------    yes
-                                                    |
-                7.  Maximum margin elevation --------    yes
-                                                    |
-                8.  Surface homogenity check --------    yes
-                                                    |
-                9.  Microphysics plausibility check -    yes
-                                                    |
-                10.  Differenciate fog - low status -    yes
-                                                    |
-                11.  Fog dissipation ----------------
-                                                    |
-                12.  Nowcasting ---------------------
-                                                    |
-            Output: fog and low stratus mask <-------
+    Args:
+        | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+        | ir039 (:obj:`ndarray`): Array for the 3.9 μm channel.
+        | vis008 (:obj:`ndarray`): Array for the 0.8 μm channel.
+        | nir016 (:obj:`ndarray`): Array for the 1.6 μm channel.
+        | vis006 (:obj:`ndarray`): Array for the 0.6 μm channel.
+        | ir087 (:obj:`ndarray`): Array for the 8.7 μm channel.
+        | ir120 (:obj:`ndarray`): Array for the 12.0 μm channel.
+        | time (:obj:`datetime`): Datetime object for the satellite scence.
+        | lat (:obj:`ndarray`): Array of latitude values.
+        | lon (:obj:`ndarray`): Array of longitude values.
+        | elevation (:obj:`ndarray`): Array of area elevation.
+        | cot (:obj:`ndarray`): Array of cloud optical thickness (depth).
+        | reff (:obj:`ndarray`): Array of cloud particle effective radius.
+        | lwp (:obj:`ndarray`): Array of cloud liquid water path.
+
+    Returns:
+        Infrared image with fog mask
+
+    Todo:
+        ============================================ =====================
+        Task description                             Implemented (yes/no):
+        ============================================ =====================
+        1.  Cloud masking                            yes
+
+        2.  Snow masking                             yes
+
+        3.  Ice cloud masking                        yes
+
+        4.  Thin cirrus masking                      yes
+
+        5.  Watercloud test                          yes
+
+        6.  Spatial clustering                       yes
+
+        7.  Maximum margin elevation                 yes
+
+        8.  Surface homogenity check                 yes
+
+        9.  Microphysics plausibility check          yes
+
+        10.  Differenciate fog - low status          yes
+
+        11.  Fog dissipation                         No
+
+        12.  Fog Nowcasting                          No
+        ============================================ =====================
      """
     def __init__(self, *args, **kwargs):
         super(DayFogLowStratusAlgorithm, self).__init__(*args, **kwargs)
@@ -363,7 +361,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         return all(ret)
 
     def procedure(self):
-        """ Apply different filters and low cloud model to input data"""
+        """ Apply different filters and low cloud model to input data."""
         logger.info("Starting fog and low cloud detection algorithm"
                     " in daytime mode")
         # 1. Cloud filtering
@@ -492,7 +490,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
         # Compute separate products for validaiton
         # Get cloud mask
-        self.vcloudmask = icefilter.mask | cirrusfilter.mask #| ~cloudfilter.mask
+        self.vcloudmask = icefilter.mask | cirrusfilter.mask
         # Extract cloud base and top heights products
         self.cbh = lowcloudfilter.cbh  # Cloud base height
         self.fbh = lowcloudfilter.fbh  # Fog base height
@@ -501,13 +499,13 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         return True
 
     def check_results(self):
-        """Check processed algorithm for plausible results"""
+        """Check processed algorithm for plausible results."""
         ret = True
         return ret
 
     @classmethod
     def get_cloud_cluster(self, mask, reduce=True):
-        """ Enumerate low water cloud clusters by spatial vicinity
+        """ Enumerate low water cloud clusters by spatial vicinity.
 
         A mask is provided and the non masked values are spatially clustered
         using scipy label method
@@ -535,7 +533,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         fog cloud clusters and compute cloud top height from maximum BT
         differences for fog cloud contaminated pixel in comparison to cloud
         free areas and their corresponding elevation using a constant
-        atmospheric lapse rate
+        atmospheric lapse rate.
         """
         from collections import defaultdict
         result = defaultdict(list)
@@ -574,19 +572,28 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
 
 class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
     """This class provide an algorithm for low cloud top height determination.
+
     The method is based on satellite images and uses additionally a digital
     elevation map in the background.
     The algorithm requires a selection of different masked input arrays.
+
         - Infrared 10.8 channel for cloud top temperature extraction
         - Low cloud areas to find cloudy and cloud free areas
         - Cloud confidence level
         - Digital elevation map
 
     The height assignment is then a two step process:
+
         1. Derive cloud top height by margin terrain relief extraction,
            if possible.
         2. Get cloud top height by applying a constant lapse rate for remaining
            clouds with unassignable margin height
+
+    Args:
+        | ir108 (:obj:`ndarray`): Array of infrared window channel.
+        | cloudmask (:obj:`MaskedArray`): Mask for cloud clusters.
+        | ccl (:obj:`ndarray`): Array of cloud confidence level.
+        | elev (:obj:`ndarray`): Array of elevation information.
 
     Returns:
         Array with cloud top heights in [m]
@@ -618,7 +625,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         return all(ret)
 
     def procedure(self):
-        """ Apply low cloud height algorithm to input arrays"""
+        """ Apply low cloud height algorithm to input arrays."""
         logger.info("Starting low cloud height assignment algorithm")
         # Get cloud top temperatures
         ctt = self.ir108
@@ -702,7 +709,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         return True
 
     def check_results(self):
-        """Check processed algorithm for plausible results"""
+        """Check processed algorithm for plausible results."""
         self.lcth_stats()
         if self.plot:
             # Overwrite plotrange with valid result array range
@@ -712,6 +719,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         return True
 
     def lcth_stats(self):
+        """Print out algorithm results to stdout."""
         self.algo_size = self.mask.size
         self.algo_num = np.nansum(~self.mask)
         self.cthnan = np.sum(np.isnan(self.cth[~self.mask]))
@@ -745,13 +753,14 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         griddata method
 
         Args:
-        cth (Numpy array): Array of computed heigh values with gaps
-        mask (Numpy mask): Mask for valid cloud cluster pixels
-        method (string): Interpolation method (nearest, linear or cubic)
+            | cth (:obj:`ndarray`): Array of computed heigh values with gaps.
+            | mask (:obj:`MaskedArray`): Mask for valid cloud cluster pixels.
+            | method (:obj:`str`): Interpolation method (nearest, linear or
+                                   cubic).
 
         Returns:
             Numpy array with interpolated cloud top height values in unmasked
-            areas
+            areas.
         """
         # Enumerate dimensions
         x = np.arange(0, cth.shape[1])
@@ -778,10 +787,11 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         provided cloud top temperature data.
 
         Args:
-        cth (Numpy array): Array of computed heigh values with gaps
-        mask (Numpy mask): Mask for valid cloud cluster pixels
-        ctt (Numpy array): Array of cloud top temperatures
-        single (Bool): Boolean value for activating single cloud regressions
+            | cth (:obj:`ndarray`): Array of computed heigh values with gaps.
+            | mask (:obj:`MaskedArray`): Mask for valid cloud cluster pixels.
+            | ctt (:obj:`ndarray`): Array of cloud top temperatures.
+            | single (:obj:`bool`): Boolean value for activating single cloud
+                             regressions.
 
         Returns:
             Numpy array with interpolated cloud top height values in unmasked
@@ -847,13 +857,13 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         """Get neighbor cells by simple array indexing
 
         Args:
-        arr (Numpy array): 2d numpy array
-        i, j (integer): x, y indices of selected cell
-        nan (Boolean): Optional return of invalide neighbors
-        mask (Boolean numpy array): Apply mask to neighboring cells
+            | arr (:obj:`ndarray`): 2d numpy array.
+            | i, j (:obj:`int`): x, y indices of selected cell.
+            | nan (:obj:`ndarray`): Optional return of invalide neighbors.
+            | mask (:obj:`MaskedArray`): Apply mask to neighboring cells.
 
         Returns:
-            Centered cell value, neighbor values and mask
+            Centered cell value, neighbor values and mask.
         """
         shp = arr.shape
         i_min = i - 1
@@ -888,10 +898,10 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         lapse rate.
 
         Args:
-        tcc (float): Temperature of cloud contaminated pixel in K
-        tcf (float): Temperature of cloud free margin pixel in K
-        zneigh (float): Elevation of cloud free margin pixel in m
-        lrate (float): Environmental temperature lapse rate in K/m
+            | tcc (:obj:`float`): Temperature of cloud contaminated pixel in K.
+            | tcf (:obj:`float`): Temperature of cloud free margin pixel in K.
+            | zneigh (:obj:`float`): Elevation of cloud free margin pixel in m.
+            | lrate (:obj:`float`): Environmental temperature lapse rate in K/m.
 
         Returns:
             bool: True if successful, False otherwise."""
@@ -1004,17 +1014,9 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
     The low resolution multispectral images are than resampled on the high
     resolution grid by different approaches.
 
-    Requires:
-        mspec    List of multispectral cahnnels as numpy arrays
-        pan      Panchromatic channel as numpy array
-        area     Area definition object (PyTroll-mpop class) for the
-                 multispectral channels.
-        panarea  Area definition object (PyTroll-mpop class) for the
-                 panchromatic channel.
-
     Implemented approaches:
 
-    Hill: Local correlation approach
+    *Hill - Local correlation approach*
 
     A window-based pan-sharpening technique using linear local regressions is
     described by Hill et al. (1999).
@@ -1023,13 +1025,21 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
     single pixel. Each of these is based on the degraded panchromatic high
     resolution channel.
 
-        References:
-        Hill, J., Diemer, C., Stover, O., and Udelhoven, T.: A local corre-
-        lation approach for the fusion of remote sensing data with spa-
-        tial resolutions in forestry applications, Int. Arch. Photogramm.
-        Remote Sens., 32, Part 7-4-3 W6, Valladolid, Spain, 3–4 June,
-        1999.
+        * Hill, J., Diemer, C., Stover, O., and Udelhoven, T.: A local corre-
+          lation approach for the fusion of remote sensing data with spa-
+          tial resolutions in forestry applications, Int. Arch. Photogramm.
+          Remote Sens., 32, Part 7-4-3 W6, Valladolid, Spain, 3–4 June,
+          1999.
 
+    Args:
+        | mspec (:obj:`list`): List of multispectral channels as numpy
+                                  arrays.
+        | pan (:obj:`ndarray`): Panchromatic channel as numpy array.
+        | area (:obj:`areadefinition`) Area definition object (PyTroll-mpop
+                                       class) for the multispectral channels.
+        | panarea (:obj:`areadefinition`): Area definition object
+                                           (PyTroll-mpop class) for the
+                                           panchromatic channel.
 
     Returns:
         Pansharpened satellite channels as numpy arrays.

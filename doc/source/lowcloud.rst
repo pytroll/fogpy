@@ -6,7 +6,7 @@ from satellite retrievable variables like liquid water path, cloud top height
 and temperature.
 
 Low water cloud model
-----------------
+---------------------
 
 .. automodule:: fogpy.lowwatercloud
    :members:

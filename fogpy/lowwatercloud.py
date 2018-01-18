@@ -24,8 +24,9 @@ The approach can be used to determine fog cloud base heights by known
 cloud top height and temperature and cloud liquid water path, e.g. from
 satellite retrievals.
 The implemented approch is based on a publication:
---- Detecting ground fog from space – a microphysics-based approach
-Jan Cermak and Joerg Bendi, 2010 ---
+
+* Detecting ground fog from space – a microphysics-based approach
+  Jan Cermak and Joerg Bendi, 2010
 """
 import math
 import logging
@@ -41,7 +42,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - '
 
 
 class CloudLayer(object):
-    """ This class represent a cloud layer - 1D representation of a
+    """This class represent a cloud layer - 1D representation of a
     cloud section from its vertical profile with defined extent and homogenius
     cloud parameters.
     The layer is defined by the bottom and top height in the cloud profile"""
@@ -121,7 +122,7 @@ class CloudLayer(object):
 
     @classmethod
     def check_temp(self, temp, unit='celsius', debug=False):
-        """ Check for plausible range of temperature value for given unit.
+        """Check for plausible range of temperature value for given unit.
         Convert if required"""
         if unit is 'celsius':
             if temp > 60:
@@ -154,8 +155,8 @@ class CloudLayer(object):
 
 
 class LowWaterCloud(object):
-    """ A class to simulate the water content of a low cloud and calculate its
-    meteorological properties"""
+    """A class to simulate the water content of a low cloud and calculate its
+    meteorological properties."""
     def __init__(self, cth=None, ctt=None, cwp=None, cbh=0, reff=None,
                  cbt=None, upthres=50., lowthres=75., thickness=10.,
                  debug=False):
@@ -206,7 +207,7 @@ class LowWaterCloud(object):
 
     def init_cloud_layers(self, init_cbh, thickness, overwrite=True):
         """Method to initialize cloud layers and corresponding parameters.
-        the method needs a initial cloud base height and thickness in [m]"""
+        the method needs a initial cloud base height and thickness in [m]."""
         self.cbh = init_cbh
         self.get_cloud_based_vapour_mixing_ratio()
 
@@ -233,7 +234,7 @@ class LowWaterCloud(object):
                         .format(len(self.layers), thickness, init_cbh))
 
     def get_cloud_base_height(self, start=0, method='basin'):
-        """ Calculate cloud base height [m]"""
+        """ Calculate cloud base height [m]."""
         # Calculate cloud base height
         self.cbh = self.optimize_cbh(start, method='basin', debug=self.debug)
 
@@ -243,11 +244,12 @@ class LowWaterCloud(object):
         """This method calculate the fog cloud base height for low clouds
         with visibilities below 1000 m.
 
-        Arguments:
-        substitude    Optional argument to substitude with cbh if no fbh 
-                      could be found.
+        Args:
+            | substitude (:obj:`bool`): Optional argument to substitude with
+                                        cbh if no fbh could be found.
+
         Returns:
-                fbh    Fog base height
+            Fog base height
         """
         fog_z = [l.z for l in self.layers if (l.visibility <= 1000) & (l.visibility is not None)]
         try:
@@ -265,8 +267,8 @@ class LowWaterCloud(object):
 
     def get_liquid_water_content(self, z, cth, hrho, lmr, beta, thres,
                                  maxlwc=None, debug=False):
-        """ Calculate liquid water content [g m-3] by air density and
-        liquid water mixing ratio"""
+        """Calculate liquid water content [g m-3] by air density and
+        liquid water mixing ratio."""
         if z > cth - thres:
             if maxlwc is None:
                 maxlwc_layer = CloudLayer(self.cth - self.upthres
@@ -293,8 +295,8 @@ class LowWaterCloud(object):
 
     @classmethod
     def get_moist_air_density(self, pa, pv, temp, empiric=False, debug=False):
-        """ Calculate air density for humid air with known pressure and water
-        vapour pressure and temperature"""
+        """Calculate air density for humid air with known pressure and water
+        vapour pressure and temperature."""
         molar_d = 0.028964  # kg mol-1
         molar_w = 0.018016  # kg mol-1
         Rv = 461.495  # Specific gas constant for water vapour J kg-1 K-1
@@ -320,10 +322,11 @@ class LowWaterCloud(object):
 
     @classmethod
     def get_moist_adiabatic_lapse_temp(self, z, cth, ctt, convert=False):
-        """ Calculate air temperature for height z [K] following a moist
+        """Calculate air temperature for height z [K] following a moist
         adiabatic lapse rate.
+
         Requires values for cloud top height and temperature
-        e.g. known from satellite retrievals"""
+        e.g. known from satellite retrievals."""
         malr = 0.0065  # ##  MALR: Moist adiabatic lapse rate [K m-1]
         temp = (cth - z) * malr + ctt
 
@@ -335,11 +338,13 @@ class LowWaterCloud(object):
 
     @classmethod
     def get_sat_vapour_pressure(self, temp, mode='buck', convert=False, debug=False):
-        """ Calculate satured water vapour pressure for temperature [hPa]
+        """Calculate satured water vapour pressure for temperature [hPa]
         using different empirical approaches.
+
         Options: Buck, Magnus
 
-        Convert temperatures in K to °C"""
+        Convert temperatures in K to °C
+        """
         if convert:
             newtemp = temp - 273.15
             if self.debug:
@@ -375,7 +380,7 @@ class LowWaterCloud(object):
 
     @classmethod
     def get_vapour_pressure(self, z, temp):
-        """ Calculate water vapour pressure for height z [hPa] """
+        """Calculate water vapour pressure for height z [hPa]."""
         # TODO Finish implementation
         wdensity = 0  # Density of water vapour
         gconst = 461.51  # Gas constante of water vapour  in [J kg-1 K-1]
@@ -386,7 +391,7 @@ class LowWaterCloud(object):
 
     @classmethod
     def get_air_pressure(self, z, elevation=0):
-        """ Calculate ambient air pressure for height z [hPa] """
+        """Calculate ambient air pressure for height z [hPa]."""
         p_sea = 101325.  # Static pressure (pressure at sea level) [Pa]
         t_sea = 288.15  # Standard temperature (temperature at sea level) [K]
         TL_rate = 0.0065  # Standard temperature lapse rate [K/m]
@@ -402,8 +407,8 @@ class LowWaterCloud(object):
 
     @classmethod
     def get_vapour_mixing_ratio(self, pa, pv):
-        """ Calculate water vapour mixing ratio for given ambient pressure and
-        water vapour pressure. Also usabale under saturated conditions"""
+        """Calculate water vapour mixing ratio for given ambient pressure and
+        water vapour pressure. Also usabale under saturated conditions."""
         # Calculate water vapour mixing ratio
         vmr = 621.97 * pv / (pa - pv)
 
@@ -411,9 +416,9 @@ class LowWaterCloud(object):
 
     @classmethod
     def get_liquid_mixing_ratio(self, cb_vmr, vmr, debug=False):
-        """ Calculate liquid water mixing ratio for given water vapour mixing
+        """Calculate liquid water mixing ratio for given water vapour mixing
         ratio in a certain height and the maximum water vapour mixing ratio at
-         cloud base condensation level [g/kg] """
+         cloud base condensation level [g/kg]."""
         lmr = cb_vmr - vmr
         if cb_vmr <= vmr and debug:
             logger.debug("Liquid water mixing ratio will be zero or negative"
@@ -439,7 +444,7 @@ class LowWaterCloud(object):
 
     @classmethod
     def get_incloud_mixing_ratio(self, z, cth, cbh, lowthres=75., upthres=50.):
-        """ Calculate in-cloud mixing ratio for given cloud height parameter"""
+        """Calculate in-cloud mixing ratio for given cloud height parameter."""
         midbeta = 0.3 * cth / 1000  # Fixed in cloud mixing ratio
         # Separation in three major cloud layers
         # Apply fixed value for middle layer
@@ -457,7 +462,7 @@ class LowWaterCloud(object):
         return beta
 
     def get_liquid_water_path(self):
-        """ Calculate liquid water path for given cloud layers [g m-2] """
+        """Calculate liquid water path for given cloud layers [g m-2]."""
         z = np.array([l.top - l.bottom for l in self.layers])
         lwc = np.array([l.lwc for l in self.layers])
         # Get sum of single layer water path
@@ -468,10 +473,10 @@ class LowWaterCloud(object):
         return lwp
 
     def optimize_cbh(self, start, method='basin', debug=False):
-        """ Find best fitting cloud base height by comparing calculated
+        """Find best fitting cloud base height by comparing calculated
         liquid water path with given satellite retrieval.
         Minimization with basinhopping or brute force algorithm
-        from python scipy package"""
+        from python scipy package."""
         if method == 'basin':
             minimizer_kwargs = {"method": "BFGS", "bounds": (0, self.cth -
                                                              self.upthres)}
@@ -501,7 +506,7 @@ class LowWaterCloud(object):
         return result
 
     def minimize_cbh(self, x):
-        """Minimization function for liquid water path"""
+        """Minimization function for liquid water path."""
         x = np.reshape(x, (1,))
         self.init_cloud_layers(x[0], self.thickness, True)
         lwp = self.get_liquid_water_path()
@@ -510,8 +515,7 @@ class LowWaterCloud(object):
         return diff
 
     def get_liquid_density(self, temp, press):
-        """Calculate the liquid water density in [kg m-3]
-        """
+        """Calculate the liquid water density in [kg m-3]."""
         t0 = 0.  # Reference temperature in [°C]
         rho_0 = 999.8  # Density of water for 0°C:  [kg/m3]
         p0 = 1e5  # Air pressure at 0°C in [Pa]
@@ -524,7 +528,7 @@ class LowWaterCloud(object):
     def get_visibility(self, extinct, contrast=0.02):
         """Calculate visibility in [m] for given cloud layer.
         Extinction is directly related to visibility by
-        Koschmieder’s law:
+        Koschmieder’s law.
         """
         if extinct is None:
             return None
@@ -536,7 +540,8 @@ class LowWaterCloud(object):
         return vis
 
     def get_extinct(self, lwc, reff, rho):
-        """ Calculate extingtion coeficient [m-1]
+        """Calculate extingtion coeficient [m-1]
+
         The extinction therefore is a combination of radiation loss by
         (diffuse) scattering and molecular absorption.
         Required are the liquid water content, effective radius and
@@ -553,7 +558,7 @@ class LowWaterCloud(object):
         return extinct
 
     def get_effective_radius(self, z):
-        """ The droplet effective radius in [um] for each level is computed on
+        """The droplet effective radius in [um] for each level is computed on
         the assumptions that reff retrieved at 3.9 μm is the cloud top value,
         Cloud base reff is at 1 μm and the intermediate values are scaled
         linearly in between.
@@ -567,7 +572,7 @@ class LowWaterCloud(object):
         return reff
 
     def plot_lowcloud(self, para, xlabel=None, save=None):
-        """ Plotting of selected low water cloud parameters"""
+        """Plotting of selected low water cloud parameters."""
         if self.layers == []:
             logger.info("No layer found. Nothing to plot")
         heights = [getattr(l, 'z') for l in self.layers]

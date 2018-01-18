@@ -18,6 +18,35 @@ import sys, os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #sys.path.insert(0, os.path.abspath('.'))
 
+
+class Mock(object):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return Mock()
+
+    @classmethod
+    def __getattr__(cls, name):
+        if name in ('__file__', '__path__'):
+            return '/dev/null'
+        elif name[0] == name[0].upper():
+            mockType = type(name, (), {})
+            mockType.__module__ = __name__
+            return mockType
+        elif name == "inf":
+            return 0
+        else:
+            return Mock()
+
+MOCK_MODULES = ['matplotlib', 'matplotlib.pyplot', 'matplotlib.cm',
+                'scipy', 'scipy.signal', 'scipy.optimize', 'scipy.ndimage',
+                'scipy.stats', 'pyresample',
+                'pyresample.utils', 'pyresample.geometry', 'h5py']
+
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = Mock()
+
 # -- General configuration -----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
