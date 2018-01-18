@@ -542,7 +542,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         ret, snowmask = snowfilter.apply()
         # Get clusters
         fls = FLS(**self.input)
-        self.clusters = FLS.get_cloud_cluster(fls, self.cloudmask, False)
+        self.clusters = FLS.get_cloud_cluster(self.cloudmask, False)
         self.clusters.mask[self.clusters != 120] = True
         self.input = {'ir108': self.ir108,
                       'lwp': self.lwp,
