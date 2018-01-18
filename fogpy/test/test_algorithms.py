@@ -217,45 +217,6 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         add_synop.add_to_image(result_img, area_def, self.input2['time'],
                                stationfile2, bgimg=self.input2['ir108'])
 
-    def test_fls_cth_tdiff(self):
-        flsalgo = DayFogLowStratusAlgorithm(**self.input)
-        # Prepare input for cluster height detection
-        testshp = (5, 5)
-        testmask = np.ma.make_mask(np.ones(testshp))
-        cfmask = ~testmask
-        cfmask[2, 2] = True
-        ccmask = ~cfmask
-        cluster = np.ma.masked_array(np.ones(testshp, dtype=np.int8),
-                                     mask=ccmask)
-        cf_arr = np.ma.masked_array(np.full(testshp, 280.), mask=cfmask)
-        bt_cc = np.ma.masked_array(np.full(testshp, 250), mask=ccmask)
-        elevation = np.full(testshp, 0)
-        # Test height detection
-        testcth = flsalgo.get_lowcloud_cth(cluster, cf_arr, bt_cc, elevation)
-        comparecth = (280 - 250) / 0.65 * 100 - (0 - 0)
-        # Evaluate results
-        self.assertAlmostEqual(testcth[1][0], comparecth)
-
-    def test_fls_cth_zdiff(self):
-        flsalgo = DayFogLowStratusAlgorithm(**self.input)
-        # Prepare input for cluster height detection
-        testshp = (5, 5)
-        testmask = np.ma.make_mask(np.ones(testshp))
-        cfmask = ~testmask
-        cfmask[2, 2] = True
-        ccmask = ~cfmask
-        cluster = np.ma.masked_array(np.ones(testshp, dtype=np.int8),
-                                     mask=ccmask)
-        cf_arr = np.ma.masked_array(np.full(testshp, 280.), mask=cfmask)
-        bt_cc = np.ma.masked_array(np.full(testshp, 250), mask=ccmask)
-        elevation = np.full(testshp, 2000)
-        elevation[2, 2] = 0
-        # Test height detection
-        testcth = flsalgo.get_lowcloud_cth(cluster, cf_arr, bt_cc, elevation)
-        comparecth = (280 - 250) / 0.65 * 100 - (2000 - 0)
-        # Evaluate results
-        self.assertAlmostEqual(testcth[1][0], comparecth)
-
 
 class Test_LowCloudHeightAlgorithm(unittest.TestCase):
 
