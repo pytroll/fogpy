@@ -164,7 +164,7 @@ class BaseSatelliteAlgorithm(object):
                                   np.nanmax(self.result))
             if type == 'tif':
                 result_img = GeoImage(self.result.squeeze(), area,
-                                      self.time, fill_value=9999,
+                                      self.time,
                                       mode="L")
             else:
                 result_img = Image(self.result.squeeze(), mode='L',
@@ -173,7 +173,7 @@ class BaseSatelliteAlgorithm(object):
             self.plotrange = (np.nanmin(array), np.nanmax(array))
             if type == 'tif':
                 result_img = GeoImage(array.squeeze(), area,
-                                      self.time, fill_value=9999,
+                                      self.time,
                                       mode="L")
             else:
                 result_img = Image(array.squeeze(), mode='L', fill_value=None)
@@ -185,7 +185,8 @@ class BaseSatelliteAlgorithm(object):
                              (self.plotrange[1], (0.0, 1.0, 229 / 255.0)))
         ylorrd.set_range(*self.plotrange)
         logger.info("Set color range to {}".format(self.plotrange))
-        result_img.colorize(ylorrd)
+        if not floating_point:
+            result_img.colorize(ylorrd)
         if array is None:
             shape = self.result.shape
         else:
