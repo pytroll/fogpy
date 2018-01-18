@@ -196,7 +196,7 @@ visualize the cloud optical thickness product with automatic palettized colors i
 
 .. image:: ./fogpy_docu_example_6.png
 
-Creating a FLS product with fogpy
+Get hands-on fogpy at daytime
 =================================
 
 After we imported all required metadata we can continue with a fogpy composite.
@@ -267,4 +267,116 @@ As describt above, the different masks are blendes over the overview RGB composi
 |              Cloud mask                |               Low cloud mask           |         Low cloud mask + Fog RGB       |
 +----------------------------------------+----------------------------------------+----------------------------------------+
 
-It looks like the cloud mask works correctly and low cloud areas that are found by the algorithm fit quite good to the fog RGB yellowish areas.  
+It looks like the cloud mask works correctly and low cloud areas that are found by the algorithm fit quite good to the fog RGB yellowish areas.
+
+On a foggy night ... 
+=================================
+
+We saw how daytime fog detection can be realized with the fogpy *fls_day* composite.
+But mostly fog occuring during nighttime. So let's continue with another composite
+for nighttime fog detection **fls_night**:.
+
+.. note::
+	Again make sure that the fogpy composites are made available in the mpop.cfg!
+
+First we need the nighttime MSG scene::
+
+    >>> from datetime import datetime
+    >>> from mpop.satellites import GeostationaryFactory
+    >>> ntime = datetime(2013, 12, 12, 7, 0)
+    >>> msg_nscene = GeostationaryFactory.create_scene(satname="meteosat",
+    >>>                                               satnumber='10',
+    >>>                                               instrument="seviri",
+    >>>                                               time_slot=ntime)
+    >>> msg_nscene.load()
+
+Reproject it to the central European section from above and have a look at the infrared channel::
+ 
+    >>> dem_nscene = msg_nscene.project(tiffarea)
+    >>> dem_nscene.image[10.8].show()
+
+.. image:: ./fogpy_docu_nexample_1.png
+
+We took the same day (12. December 2017) as above. Now we could check whether the low
+clouds, that are present at 10 am, already can be seen early in the the morning (7 am) before sun rise.
+
+So let's look at the nighttime fog RGB product::
+
+    >>> nfogimg = dem_nscene.image.night_fog()
+    >>> nfogimg.show()
+
+.. image:: ./fogpy_docu_nexample_2.png
+
+As we see, a lot of greenish-yellow colored pixels are present in the night scene. 
+This is a clear indication for low clouds and fog. In addition these areas have a similar form and
+distribution as the low clouds in the daytime scene.
+We can conclude that these low clouds should have formed during the night.
+ 
+So let's create the fogpy nighttime composite.
+Therefore we only need the sun zenith angle as additional input. We can compute the angles with the PyTroll package `pyorbital`_::
+
+    >>> from pyorbital import astronomy
+    >>> lon, lat = tiffarea.get_lonlats()
+    >>> nsza = astronomy.sun_zenith_angle(ntime, lon, lat)
+
+The nightime composite for the resampled MSG scene
+is generated in the same way like the daytime composite with `mpop`_::
+
+    >>> nfls_img, nfogmask = dem_scene.image.fls_night(nsza)
+    >>> nfls_img.show()
+
+.. image:: ./fogpy_docu_nexample_3.png
+
+.. _pyorbital: https://github.com/pytroll/pyorbital
+
+It seems, the detected low cloud cells in the composite overestimate the presence of low clouds,
+if we compare the RGB product to it. In general, the nighttime algorithm exhibit higher uncertainty for the detection of low
+clouds than the daytime approach. Therefore a comparison with weather station data could be useful.
+
+Gimme some ground truth!
+========================
+
+Fogpy features some additional utilities for validation and comparison attempts.
+This include methods to plot weather station data from Bufr files over the FLS image results.
+The Bufr data is thereby processed by the `trollbufr`_ PyTroll package and the images are generated with `trollimage`_.
+Here we load visibility data from German weather stations for the nighttime scene::
+    
+    >>> import os
+    >>> from fogpy.utils import add_synop
+    # Define search path for bufr file
+    >>> bufr_dir = '/path/to/bufr/file/'
+    >>> nbufr_file = "result_{}_synop.bufr".format(ntime.strftime("%Y%m%d%H%M"))
+    >>> inbufrn = os.path.join(bufr_dir, nbufr_file)
+    # Create station image
+    >>> station_nimg = add_synop.add_to_image(nfls_img, tiffarea, ntime, inbufrn, ptsize=4)
+    >>> station_nimg.show()
+
+.. image:: ./fogpy_docu_nexample_4.png
+|
+.. image:: ./fogcolbar.png
+	:scale: 60 %
+
+.. _trollbufr: https://github.com/alexmaul/trollbufr
+
+The red dots represent fog reports with visibilities below 1000 meters (compare with legend),
+whereas green dots show high visibility situations at ground level.
+We see that low clouds, classified by the nighttime algorithm not always correspond to ground fog.
+Here the station data is a useful addition to distinguish between ground fog and low stratus.
+
+At daytime we can make the same comparison with station data::
+
+    >>> bufr_file = "result_{}_synop.bufr".format(time.strftime("%Y%m%d%H%M"))
+    >>> inbufr = os.path.join(bufr_dir, bufr_file)
+    # Create station image
+    >>> station_img = add_synop.add_to_image(fls_img, tiffarea, time, inbufr, ptsize=4)
+    >>> station_img.show()
+
+.. image:: ./fogpy_docu_example_15.png
+
+We see that the low cloud area in Northern Germany has not been classified as ground fog by the algorithm,
+whereas the southern part fits quite good to the station data.
+Furthermore some mountain stations within the area of the ground fog mask exhibit high visibilities.
+This difference is induced by the averaged evelation from the DEM, the deviated lower cloud height and the 
+real altitude of the station which could lie above the expected cloud top.
+These missclassifications could be improved by using ground station visibility data 
+as algorithm input. The usage of station data as additional filter would refine the ground fog mask.
