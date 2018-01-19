@@ -42,7 +42,8 @@ class Mock(object):
 
 MOCK_MODULES = ['matplotlib', 'matplotlib.pyplot', 'matplotlib.cm',
                 'scipy', 'scipy.signal', 'scipy.optimize', 'scipy.ndimage',
-                'scipy.stats', 'pyresample', 'pyorbital', 'numpy',
+                'scipy.stats', 'pyresample', 'pyorbital', 'numpy', 'numpy.core',
+                'numpy.lib',
                 'pyresample.utils', 'pyresample.geometry',
                 'h5py']
 
