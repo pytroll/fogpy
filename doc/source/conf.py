@@ -42,8 +42,9 @@ class Mock(object):
 
 MOCK_MODULES = ['matplotlib', 'matplotlib.pyplot', 'matplotlib.cm',
                 'scipy', 'scipy.signal', 'scipy.optimize', 'scipy.ndimage',
-                'scipy.stats', 'pyresample', 'numpy', 'pyorbital', 'numpy.lib',
-                'pyresample.utils', 'pyresample.geometry', 'h5py']
+                'scipy.stats', 'pyresample', 'pyorbital', 'numpy',
+                'pyresample.utils', 'pyresample.geometry',
+                'h5py']
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
