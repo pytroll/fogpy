@@ -20,6 +20,7 @@ Nowcasting Satellite Application Facility (NWCSAF) for example.
 
 Fogpy algorithms
 ----------------
+
 .. automodule:: fogpy.algorithms
    :members:
    :undoc-members:
