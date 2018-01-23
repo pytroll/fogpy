@@ -40,6 +40,7 @@ from scipy.signal import find_peaks_cwt
 from scipy import ndimage
 
 from lowwatercloud import LowWaterCloud
+from utils.import_synop import read_synop
 
 logger = logging.getLogger(__name__)
 
@@ -1125,3 +1126,63 @@ class CloudMotionFilter(BaseArrayFilter):
             self.cv2.circle(out, (x1, y1), 1, 255, -1)
 
         return out
+
+
+class StationFusionFilter(BaseArrayFilter):
+    """Station data fusion filter for satellite images."""
+    # Required inputs
+    attrlist = ['cloudmask', 'elev', 'bufrfile', 'time', 'area']
+
+    def filter_function(self):
+        """Station data fusion filter routine
+
+        This filter provide a data fusion approach for satellite derived low
+        cloud masked raster data with vector data of visibilities observed by
+        sensors at weather stations. This raster/vector data fusion is done in
+        two steps.
+
+        Args:
+            | cloudmask (:obj:`ndarray`): Low cloud mask array.
+            | elev (:obj:`ndarray`): Array of elevation.
+            | bufrfile (:obj:`str`): Path to weather station BUFR-file.
+            | time (:obj:`Datetime`): Time instance of station data
+                                      as *datetime* object.
+            | area (:obj:`area_def`): Corresponding area definition for
+                                      cloud mask.
+
+        Returns:
+            Filter image and filter mask.
+        """
+        logger.info("Applying Station Data Fusion Filter")
+
+        # 1. Import BUFR file
+        stations = read_synop(self.bufrfile, 'visibility')
+        currentstations = stations[self.time.strftime("%Y%m%d%H0000")]
+        lats = [i[2] for i in currentstations]
+        lons = [i[3] for i in currentstations]
+        vis = [i[4] for i in currentstations]
+
+        # 2. Port visibility vector data to raster array shape
+        self.visarr = np.empty(self.arr.shape[:2])
+        self.visarr.fill(np.nan)
+
+        x, y = (self.area.get_xy_from_lonlat(lons, lats))
+        vis_ma = np.ma.array(vis, mask=x.mask)
+        self.visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
+        # Mask out fog cells
+        self.vismask = self.visarr <= 1000
+
+        # 3. Interpolate station fog mask based on DEM
+
+        # 4. Get low cloud clusters
+
+        # 5. Analyse comparison cases
+
+        # 6. Perfom data fusion with low cloud mask
+
+        # Create fog cloud mask for image array
+        self.mask = self.arr < 0
+
+        self.result = np.ma.array(self.arr, mask=~self.vismask)
+
+        return True

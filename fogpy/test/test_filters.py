@@ -37,6 +37,7 @@ from fogpy.filters import SpatialCloudTopHeightFilter
 from fogpy.filters import SpatialHomogeneityFilter
 from fogpy.filters import LowCloudFilter
 from fogpy.filters import CloudMotionFilter
+from fogpy.filters import StationFusionFilter
 from fogpy.algorithms import DayFogLowStratusAlgorithm
 from pyresample import geometry
 
@@ -53,6 +54,8 @@ testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
 testdata = np.load(testfile)
 testdata_pre = np.load(testfile_pre)
 testdata2 = np.load(testfile2)
+# BUFR files
+testbufr = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
 
 # Get area definition for test data
 area_id = "geos_germ"
@@ -670,8 +673,6 @@ class Test_CloudMotionFilter(unittest.TestCase):
         # Load test data
         self.ir108 = np.dsplit(testdata, 14)[0]
         self.preir108 = np.dsplit(testdata_pre, 14)[0]
-        print(type(self.ir108))
-        print(type(self.preir108))
 
     def tearDown(self):
         pass
@@ -686,6 +687,43 @@ class Test_CloudMotionFilter(unittest.TestCase):
         self.assertEqual(ret, self.ir108)
 
 
+class Test_StationFusionFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        self.ir108 = np.dsplit(testdata, 14)[0]
+        self.elev = np.dsplit(testdata, 14)[7]
+        self.time = datetime(2013, 11, 12, 8, 30, 00)
+
+    def tearDown(self):
+        pass
+
+    def test_bufr_import(self):
+        # Create fusion filter
+        testfilter = StationFusionFilter(self.ir108,
+                                         cloudmask=self.ir108,
+                                         elev=self.elev,
+                                         bufrfile=testbufr,
+                                         time=self.time,
+                                         area=area_def)
+        ret, mask = testfilter.apply()
+        testfilter.plot_filter(save=True)
+        # Evaluate results
+        self.assertEqual(np.sum(testfilter.vismask), 20)
+
+    def test_dem_interpolation(self):
+        # Create fusion filter
+        testfilter = StationFusionFilter(self.ir108,
+                                         cloudmask=self.ir108,
+                                         elev=self.elev,
+                                         bufrfile=testbufr,
+                                         time=self.time,
+                                         area=area_def)
+        ret, mask = testfilter.apply()
+        # Evaluate results
+        np.testing.assert_array_equal(ret, self.ir108)
+
+
 def suite():
     """The test suite for test_filter.
     """
@@ -697,9 +735,11 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_IceCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CirrusCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_WaterCloudFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_SpatialCloudTopHeightFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_SpatialHomogeneityFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CloudMotionFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_StationFusionFilter))
 
     return mysuite
 
