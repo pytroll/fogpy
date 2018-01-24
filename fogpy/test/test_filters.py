@@ -51,9 +51,13 @@ base = os.path.split(fogpy.__file__)
 testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
 testfile_pre = os.path.join(base[0], '..', 'etc', 'fog_testdata_pre.npy')
 testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
+filefogmask = os.path.join(base[0], '..', 'etc', 'fog_testdata_fogmask.npy')
+
 testdata = np.load(testfile)
 testdata_pre = np.load(testfile_pre)
 testdata2 = np.load(testfile2)
+testfogmask = np.load(filefogmask)
+
 # BUFR files
 testbufr = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
 
@@ -692,6 +696,7 @@ class Test_StationFusionFilter(unittest.TestCase):
     def setUp(self):
         # Load test data
         self.ir108 = np.dsplit(testdata, 14)[0]
+        self.ir039 = np.dsplit(testdata, 14)[1]
         self.elev = np.dsplit(testdata, 14)[7]
         self.time = datetime(2013, 11, 12, 8, 30, 00)
 
@@ -701,25 +706,31 @@ class Test_StationFusionFilter(unittest.TestCase):
     def test_bufr_import(self):
         # Create fusion filter
         testfilter = StationFusionFilter(self.ir108,
-                                         cloudmask=self.ir108,
+                                         ir108=self.ir108,
+                                         ir039=self.ir039,
+                                         lowcloudmask=testfogmask,
                                          elev=self.elev,
                                          bufrfile=testbufr,
                                          time=self.time,
                                          area=area_def)
         ret, mask = testfilter.apply()
-        testfilter.plot_filter(save=True)
         # Evaluate results
-        self.assertEqual(np.sum(testfilter.vismask), 20)
+        self.assertEqual(testfilter.visarr.shape, (141, 298))
+        self.assertEqual(np.sum(testfilter.fogmask), 20)
+        self.assertEqual(np.sum(testfilter.nofogmask), 181)
 
     def test_dem_interpolation(self):
         # Create fusion filter
         testfilter = StationFusionFilter(self.ir108,
-                                         cloudmask=self.ir108,
+                                         ir108=self.ir108,
+                                         ir039=self.ir039,
+                                         lowcloudmask=testfogmask,
                                          elev=self.elev,
                                          bufrfile=testbufr,
                                          time=self.time,
                                          area=area_def)
         ret, mask = testfilter.apply()
+        testfilter.plot_filter(save=True, resize=5)
         # Evaluate results
         np.testing.assert_array_equal(ret, self.ir108)
 

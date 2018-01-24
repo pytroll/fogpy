@@ -242,7 +242,7 @@ class BaseArrayFilter(object):
             else:
                 filter_img.save(savedir)
             logger.info("{} results are plotted to: {}". format(self.name,
-                                                                   savedir))
+                                                                savedir))
         else:
             filter_img.show()
         # Create mask image
@@ -1131,7 +1131,20 @@ class CloudMotionFilter(BaseArrayFilter):
 class StationFusionFilter(BaseArrayFilter):
     """Station data fusion filter for satellite images."""
     # Required inputs
-    attrlist = ['cloudmask', 'elev', 'bufrfile', 'time', 'area']
+    attrlist = ['ir108', 'ir039', 'lowcloudmask', 'cloudmask', 'elev',
+                'bufrfile', 'time', 'area']
+
+    def __init__(self, *args, **kwargs):
+        super(StationFusionFilter, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'cloudmask'):
+            self.cloudmask = self.get_cloudmask()
+        if not hasattr(self, 'heightvar'):
+            self.heightvar = 50  # in meters
+        if not hasattr(self, 'heightvar'):
+            self.fogtrhes = 1000  # in meters
+        # Plot cbh and fbh results
+        self.plotattr = ['cbh', 'fbh']
 
     def filter_function(self):
         """Station data fusion filter routine
@@ -1139,16 +1152,27 @@ class StationFusionFilter(BaseArrayFilter):
         This filter provide a data fusion approach for satellite derived low
         cloud masked raster data with vector data of visibilities observed by
         sensors at weather stations. This raster/vector data fusion is done in
-        two steps.
+        several steps.
+        First a BUFR file with WMO standardized weather station data is
+        imported. Next the visibility measurements are extracted and resampled
+        to the given cloud mask raster array shape. Then a fog mask for the
+        station data is created and a DEM based interpolation is performed.
 
         Args:
-            | cloudmask (:obj:`ndarray`): Low cloud mask array.
+            | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
+            | ir039 (:obj:`ndarray`): Array for the 3.9 μm channel.
+            | lowcloudmask (:obj:`ndarray`): Low cloud mask array.
+            | cloudmask (:obj:`ndarray`): General cloud mask array.
             | elev (:obj:`ndarray`): Array of elevation.
             | bufrfile (:obj:`str`): Path to weather station BUFR-file.
             | time (:obj:`Datetime`): Time instance of station data
                                       as *datetime* object.
             | area (:obj:`area_def`): Corresponding area definition for
-                                      cloud mask.
+                                      cloud masks.
+            | heightvar (:obj:`float`): Height variance for fog masking in m.
+                                        Default is 50 m.
+            | fogthres (:obj:`float`): Visibility threshold for fog masking
+                                       in m. Default is 1000 m.
 
         Returns:
             Filter image and filter mask.
@@ -1170,11 +1194,27 @@ class StationFusionFilter(BaseArrayFilter):
         vis_ma = np.ma.array(vis, mask=x.mask)
         self.visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
         # Mask out fog cells
-        self.vismask = self.visarr <= 1000
-
+        self.fogmask = self.visarr <= 1000
+        self.nofogmask = self.visarr > 1000
         # 3. Interpolate station fog mask based on DEM
-
-        # 4. Get low cloud clusters
+        # Get elevation for foggy stations
+        fogelev = self.elev[self.fogmask]
+        fogrow, fogcol = np.where(self.fogmask)
+        # Init fog station DEM mask
+        self.demmask = np.zeros(self.arr.shape[:2], dtype=bool)
+        # Loop over foggy stations and extract heightbased fog mask
+        for i in np.arange(len(fogrow)):
+            # Only values within the given variance around the station
+            # elevation are masked.
+            elevmask = np.logical_and(self.elev >= fogelev[i] - self.heightvar,
+                                      self.elev <= fogelev[i] + self.heightvar)
+            elevcluster, nfogclst = ndimage.label(elevmask)
+            clstnum = elevcluster[fogrow[i], fogcol[i]]
+            selectclst = elevcluster == clstnum
+            # Only values within a given cloud mask are taken.
+            self.demmask[np.logical_and(selectclst.squeeze(),
+                                        self.cloudmask.squeeze())] = True
+        # 4. Compare with low cloud clusters
 
         # 5. Analyse comparison cases
 
@@ -1183,6 +1223,15 @@ class StationFusionFilter(BaseArrayFilter):
         # Create fog cloud mask for image array
         self.mask = self.arr < 0
 
-        self.result = np.ma.array(self.arr, mask=~self.vismask)
+        self.result = np.ma.array(self.arr, mask=~self.demmask)
 
         return True
+
+    def get_cloudmask(self):
+        """Get cloud filter mask"""
+        # Create cloud mask
+        cloudfilter = CloudFilter(self.ir108, ir108=self.ir108,
+                                  ir039=self.ir039)
+        cloudimg, cloudmask = cloudfilter.apply()
+
+        return(cloudmask)
