@@ -201,6 +201,20 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         add_synop.add_to_image(result_img, area_def, self.input['time'],
                                stationfile, bgimg=self.input['ir108'])
 
+    def test_fls_algorithm_no_cth_use_clusters(self):
+        self.input.pop('cth')
+        self.input['single'] = False
+        flsalgo = DayFogLowStratusAlgorithm(**self.input)
+        ret, mask = flsalgo.run()
+        self.assertEqual(flsalgo.ir108.shape, (141, 298))
+        self.assertEqual(ret.shape, (141, 298))
+        self.assertEqual(flsalgo.shape, (141, 298))
+        self.assertEqual(np.ma.is_mask(flsalgo.mask), True)
+
+        # Save lowcloud mask
+#         np.save('/tmp/fog_testdata_fogmask.npy', np.ma.getdata(flsalgo.mask),
+#                 allow_pickle=True)
+
     # Using other tset data set
     def test_fls_algorithm_other(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input2)
