@@ -170,7 +170,12 @@ class BaseArrayFilter(object):
 
     def plot_filter(self, save=False, dir="/tmp", resize=0, attr=None,
                     type='png', area=None):
-        """Plotting the filter result."""
+        """Plotting the filter result.
+
+        .. Note:: Masks should be correctly setup to be plotted:
+                  **True** (1) mask values are not shown, **False** (0) mask
+                  values are displayed.
+        """
         # Get output directory and image name
         savedir = os.path.join(dir, self.name + '_' +
                                datetime.strftime(self.time,
@@ -278,21 +283,28 @@ class BaseArrayFilter(object):
                 self._plot_image(attr, self.save, self.dir, self.resize)
 
     def _plot_image(self, name, save=False, dir="/tmp", resize=0):
+        """Plotting function for additional filter attributes.
+
+        .. Note:: Masks should be correctly setup to be plotted:
+                  **True** (1) mask values are not shown, **False** (0) mask
+                  values are displayed.
+        """
         from trollimage.image import Image
         from trollimage.colormap import Colormap
         # Define custom fog colormap
         fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
                           (1., (1.0, 1.0, 229 / 255.0)))
-        maskcol = Colormap((1., (230 / 255.0, 50 / 255.0, 50 / 255.0)))
+        maskcol = Colormap((1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
         # Get save directory
         attrdir = os.path.join(dir, self.name + '_' + name + '_' +
                                datetime.strftime(self.time,
                                                  '%Y%m%d%H%M') + '.png')
+        logger.info("Plotting filter attribute {} to {}".format(name, attrdir))
         # Generate image
-        attr_img = Image(getattr(self, name).squeeze(), mode='L',
-                         fill_value=None)
-        attr_img.stretch("crude")
-        attr_img.invert()
+        attr = getattr(self, name)
+        if attr.dtype == 'bool':
+            attr = np.ma.masked_where(attr == 1, attr)
+        attr_img = Image(attr.squeeze(), mode='L', fill_value=None)
         attr_img.colorize(fogcol)
         # Get background image
         bg_img = Image(self.bg_img.squeeze(), mode='L', fill_value=None)
@@ -306,11 +318,12 @@ class BaseArrayFilter(object):
                            self.bg_img.shape[1] * resize))
             attr_img.resize((self.result.shape[0] * resize,
                              self.result.shape[1] * resize))
-        try:
-            # Merging
-            attr_img.merge(bg_img)
-        except:
-            logger.warning("No merging for attribute plot possible")
+        attr_img.merge(bg_img)
+#         try:
+#             # Merging
+#             attr_img.merge(bg_img)
+#         except:
+#             logger.warning("No merging for attribute plot possible")
         if save:
             attr_img.save(attrdir)
         else:
@@ -1141,10 +1154,11 @@ class StationFusionFilter(BaseArrayFilter):
             self.cloudmask = self.get_cloudmask()
         if not hasattr(self, 'heightvar'):
             self.heightvar = 50  # in meters
-        if not hasattr(self, 'heightvar'):
+        if not hasattr(self, 'fogthres'):
             self.fogtrhes = 1000  # in meters
-        # Plot cbh and fbh results
-        self.plotattr = ['cbh', 'fbh']
+        # Plot additional filter results
+        self.plotattr = ['lowcloudmask', 'cloudmask', 'fogmask', 'nofogmask',
+                         'demmask']
 
     def filter_function(self):
         """Station data fusion filter routine
@@ -1194,14 +1208,14 @@ class StationFusionFilter(BaseArrayFilter):
         vis_ma = np.ma.array(vis, mask=x.mask)
         self.visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
         # Mask out fog cells
-        self.fogmask = self.visarr <= 1000
-        self.nofogmask = self.visarr > 1000
+        fogstations = self.visarr <= 1000
+        nofogstations = self.visarr > 1000
         # 3. Interpolate station fog mask based on DEM
         # Get elevation for foggy stations
-        fogelev = self.elev[self.fogmask]
-        fogrow, fogcol = np.where(self.fogmask)
+        fogelev = self.elev[fogstations]
+        fogrow, fogcol = np.where(fogstations)
         # Init fog station DEM mask
-        self.demmask = np.zeros(self.arr.shape[:2], dtype=bool)
+        self.demmask = np.ones(self.arr.shape[:2], dtype=bool)
         # Loop over foggy stations and extract heightbased fog mask
         for i in np.arange(len(fogrow)):
             # Only values within the given variance around the station
@@ -1211,9 +1225,7 @@ class StationFusionFilter(BaseArrayFilter):
             elevcluster, nfogclst = ndimage.label(elevmask)
             clstnum = elevcluster[fogrow[i], fogcol[i]]
             selectclst = elevcluster == clstnum
-            # Only values within a given cloud mask are taken.
-            self.demmask[np.logical_and(selectclst.squeeze(),
-                                        self.cloudmask.squeeze())] = True
+            self.demmask[selectclst.squeeze()] = False
         # 4. Compare with low cloud clusters
 
         # 5. Analyse comparison cases
@@ -1222,8 +1234,10 @@ class StationFusionFilter(BaseArrayFilter):
 
         # Create fog cloud mask for image array
         self.mask = self.arr < 0
+        self.fogmask = ~fogstations
+        self.nofogmask = ~nofogstations
 
-        self.result = np.ma.array(self.arr, mask=~self.demmask)
+        self.result = np.ma.array(self.arr, mask=self.lowcloudmask)
 
         return True
 

@@ -728,9 +728,11 @@ class Test_StationFusionFilter(unittest.TestCase):
                                          elev=self.elev,
                                          bufrfile=testbufr,
                                          time=self.time,
-                                         area=area_def)
+                                         area=area_def,
+                                         plot=True,
+                                         save=True,
+                                         resize=5)
         ret, mask = testfilter.apply()
-        testfilter.plot_filter(save=True, resize=5)
         # Evaluate results
         np.testing.assert_array_equal(ret, self.ir108)
 
