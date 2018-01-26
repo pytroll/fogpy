@@ -105,6 +105,24 @@ class BaseArrayFilter(object):
         if not hasattr(self, 'plotattr'):
             self.plotattr = None
 
+    @property
+    def mask(self):
+        """Filter mask getter method."""
+        return self._mask
+
+    @mask.setter
+    def mask(self, value):
+        """Filter mask setter method."""
+        if value is None:
+            self._mask = value
+        elif self.inmask.shape != value.shape:
+            logger.info("Mask dimensions differ. Reshaping to input shape: {}"
+                        .format(self.inmask.shape))
+            newvalue = np.reshape(value, self.inmask.shape)
+            self._mask = newvalue
+        else:
+            self._mask = value
+
     def apply(self):
         """Apply the given filter function."""
         if self.isapplicable():
@@ -1156,9 +1174,11 @@ class StationFusionFilter(BaseArrayFilter):
             self.heightvar = 50  # in meters
         if not hasattr(self, 'fogthres'):
             self.fogtrhes = 1000  # in meters
+        # Remove nodata vlaues from elevation
+        self.elev[self.elev == 9999.0] = np.nan
         # Plot additional filter results
         self.plotattr = ['lowcloudmask', 'cloudmask', 'fogmask', 'nofogmask',
-                         'demmask']
+                         'missdemmask', 'falsedemmask']
 
     def filter_function(self):
         """Station data fusion filter routine
@@ -1171,6 +1191,9 @@ class StationFusionFilter(BaseArrayFilter):
         imported. Next the visibility measurements are extracted and resampled
         to the given cloud mask raster array shape. Then a fog mask for the
         station data is created and a DEM based interpolation is performed.
+
+        Afterwards the stations are compared to the low cloud and cloud masks
+        and case dependant mask corrections are performed.
 
         Args:
             | ir108 (:obj:`ndarray`): Array for the 10.8 μm channel.
@@ -1210,39 +1233,135 @@ class StationFusionFilter(BaseArrayFilter):
         # Mask out fog cells
         fogstations = self.visarr <= 1000
         nofogstations = self.visarr > 1000
-        # 3. Interpolate station fog mask based on DEM
+        # 3. Compare with cloud clusters
+        cloudcluster, ncloudclst = ndimage.label(~self.cloudmask)
+        lowcluster, nlowclst = ndimage.label(~self.lowcloudmask)
+        cloudtrue = cloudcluster[fogstations]
+        lowcloudfog = lowcluster[fogstations]
+        lowcloudnofog = lowcluster[nofogstations]
+        # Compare stations with low cloud mask
+        lchit, lcmiss, lcfalse, lctrue = self.validate_fogmask(fogstations,
+                                                               nofogstations,
+                                                               lowcluster,
+                                                               nlowclst)
+        # 4. Interpolate station fog mask based on DEM
+        self.missdemmask = self.interpolate_dem(lcmiss, self.elev,
+                                                self.heightvar,
+                                                self.cloudmask)
+        self.falsedemmask = self.interpolate_dem(lcfalse, self.elev,
+                                                 self.heightvar,
+                                                 self.cloudmask)
+        # 5. Perfom data fusion with low cloud mask
+        # Station Miss cases --> Add DEM based mask
+        self.mask = np.logical_and(self.lowcloudmask,
+                                   self.missdemmask)
+        # Create fog cloud mask for image array
+        self.fogmask = ~fogstations
+        self.nofogmask = ~nofogstations
+
+        lowcluster, nlowclst = ndimage.label(~self.mask)
+        self.validate_fogmask(fogstations, nofogstations, lowcluster.squeeze(), nlowclst)
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
+
+    def interpolate_dem(self, stations, elev, heightvar, mask=None):
+        """Interpolate a fog mask for stations based on DEM information.
+
+        Args:
+            | stations (:obj:`ndarray`): Boolean array of foggy stations.
+            | elev (:obj:`ndarray`): Array for elevation information (DEM).
+            | heightvar (:obj:`ndarray`): Height variance for fog masking in m.
+            | mask (:obj:`ndarray`): Boolean array with cloud mask,
+                                          optional.
+
+        Returns:
+            Interpolated fog mask
+        """
         # Get elevation for foggy stations
-        fogelev = self.elev[fogstations]
-        fogrow, fogcol = np.where(fogstations)
+        fogelev = elev[stations]
+        fogrow, fogcol = np.where(stations)
         # Init fog station DEM mask
-        self.demmask = np.ones(self.arr.shape[:2], dtype=bool)
+        demmask = np.ones(elev.shape[:2], dtype=bool)
         # Loop over foggy stations and extract heightbased fog mask
         for i in np.arange(len(fogrow)):
             # Only values within the given variance around the station
             # elevation are masked.
-            elevmask = np.logical_and(self.elev >= fogelev[i] - self.heightvar,
-                                      self.elev <= fogelev[i] + self.heightvar)
+            elevmask = np.logical_and(elev >= fogelev[i] - heightvar,
+                                      elev <= fogelev[i] + heightvar)
             elevcluster, nfogclst = ndimage.label(elevmask)
             clstnum = elevcluster[fogrow[i], fogcol[i]]
             selectclst = elevcluster == clstnum
-            self.demmask[selectclst.squeeze()] = False
-        # 4. Compare with low cloud clusters
+            demmask[selectclst.squeeze()] = False
+        logger.info("Interpolated DEM based fog mask for {} stations"
+                    .format(len(fogrow)))
 
-        # 5. Analyse comparison cases
+        # Filter by cloud mask
+        if mask is not None:
+            demmask = ~np.logical_and(~demmask, ~mask.squeeze())
 
-        # 6. Perfom data fusion with low cloud mask
+        return(demmask)
 
-        # Create fog cloud mask for image array
-        self.mask = self.arr < 0
-        self.fogmask = ~fogstations
-        self.nofogmask = ~nofogstations
+    def validate_fogmask(self, fogstations, nofogstations, lowcluster,
+                         nlowclst):
+        """Using station data to validate a low cloud/ fog mask."""
+        lowcloudhit = np.logical_and(fogstations, lowcluster != 0)
+        lowcloudmiss = np.logical_and(fogstations, lowcluster == 0)
+        lowcloudfalse = np.logical_and(nofogstations, lowcluster != 0)
+        lowcloudtrueneg = np.logical_and(nofogstations, lowcluster == 0)
+        logger.info("\n         ------ Station validation ------\n"
+                    "    Station statistics   | Elevation in m\n"
+                    "                       n | min    mean    max\n"
+                    "    Stations:     {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                    "        Fog:      {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                    "        No Fog:   {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                    "    Low clouds:   {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                    "    --------------------------------------------\n"
+                    "    Hits:         {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                    "    Misses:       {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                    "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                    "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                    "    --------------------------------------------"
+                    .format(np.sum(fogstations) + np.sum(nofogstations),
+                            np.nanmin(self.elev[np.logical_or(fogstations,
+                                                              nofogstations)]),
+                            np.nanmean(self.elev[np.logical_or(fogstations,
+                                                               nofogstations)]),
+                            np.nanmax(self.elev[np.logical_or(fogstations,
+                                                              nofogstations)]),
+                            np.sum(fogstations),
+                            np.nanmin(self.elev[fogstations]),
+                            np.nanmean(self.elev[fogstations]),
+                            np.nanmax(self.elev[fogstations]),
+                            np.sum(nofogstations),
+                            np.nanmin(self.elev[nofogstations]),
+                            np.nanmean(self.elev[nofogstations]),
+                            np.nanmax(self.elev[nofogstations]),
+                            nlowclst, np.min(self.elev[lowcluster != 0]),
+                            np.mean(self.elev[lowcluster != 0]),
+                            np.max(self.elev[lowcluster != 0]),
+                            np.sum(lowcloudhit),
+                            np.nanmin(self.elev[lowcloudhit]),
+                            np.nanmean(self.elev[lowcloudhit]),
+                            np.nanmax(self.elev[lowcloudhit]),
+                            np.sum(lowcloudmiss),
+                            np.nanmin(self.elev[lowcloudmiss]),
+                            np.nanmean(self.elev[lowcloudmiss]),
+                            np.nanmax(self.elev[lowcloudmiss]),
+                            np.sum(lowcloudfalse),
+                            np.nanmin(self.elev[lowcloudfalse]),
+                            np.nanmean(self.elev[lowcloudfalse]),
+                            np.nanmax(self.elev[lowcloudfalse]),
+                            np.sum(lowcloudtrueneg),
+                            np.nanmin(self.elev[lowcloudtrueneg]),
+                            np.nanmean(self.elev[lowcloudtrueneg]),
+                            np.nanmax(self.elev[lowcloudtrueneg])))
 
-        self.result = np.ma.array(self.arr, mask=self.lowcloudmask)
-
-        return True
+        return(lowcloudhit, lowcloudmiss, lowcloudfalse, lowcloudtrueneg)
 
     def get_cloudmask(self):
-        """Get cloud filter mask"""
+        """Get cloud filter mask."""
         # Create cloud mask
         cloudfilter = CloudFilter(self.ir108, ir108=self.ir108,
                                   ir039=self.ir039)

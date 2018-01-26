@@ -700,10 +700,21 @@ class Test_StationFusionFilter(unittest.TestCase):
         self.elev = np.dsplit(testdata, 14)[7]
         self.time = datetime(2013, 11, 12, 8, 30, 00)
 
+        # Init test datasets
+        self.test_stations = np.array([[False, False, False],
+                                       [False, True, False],
+                                       [False, False, False]], dtype=bool)
+        self.test_elev = np.array([[800., 900., 1000.],
+                                   [700., 500., 400.],
+                                   [450., 500., 450.]])
+        self.test_cloudmask = np.array([[False, True, True],
+                                        [False, False, True],
+                                        [False, False, True]], dtype=bool)
+
     def tearDown(self):
         pass
 
-    def test_bufr_import(self):
+    def test_fusion_filter_bufr_import(self):
         # Create fusion filter
         testfilter = StationFusionFilter(self.ir108,
                                          ir108=self.ir108,
@@ -716,10 +727,10 @@ class Test_StationFusionFilter(unittest.TestCase):
         ret, mask = testfilter.apply()
         # Evaluate results
         self.assertEqual(testfilter.visarr.shape, (141, 298))
-        self.assertEqual(np.sum(testfilter.fogmask), 20)
-        self.assertEqual(np.sum(testfilter.nofogmask), 181)
+        self.assertEqual(np.sum(~testfilter.fogmask), 20)
+        self.assertEqual(np.sum(~testfilter.nofogmask), 181)
 
-    def test_dem_interpolation(self):
+    def test_fusion_filter_dem_interpolation(self):
         # Create fusion filter
         testfilter = StationFusionFilter(self.ir108,
                                          ir108=self.ir108,
@@ -735,6 +746,34 @@ class Test_StationFusionFilter(unittest.TestCase):
         ret, mask = testfilter.apply()
         # Evaluate results
         np.testing.assert_array_equal(ret, self.ir108)
+
+    def test_dem_interpolation_method(self):
+        # Create fusion filter
+        testfilter = StationFusionFilter(self.ir108,
+                                         ir108=self.ir108,
+                                         ir039=self.ir039,
+                                         lowcloudmask=testfogmask,
+                                         elev=self.elev,
+                                         bufrfile=testbufr,
+                                         time=self.time,
+                                         area=area_def,
+                                         plot=True,
+                                         save=True,
+                                         resize=5)
+        nomask = testfilter.interpolate_dem(self.test_stations, self.test_elev,
+                                            50)
+        nomask200 = testfilter.interpolate_dem(self.test_stations,
+                                               self.test_elev, 200)
+        mask = testfilter.interpolate_dem(self.test_stations, self.test_elev,
+                                          50, self.test_cloudmask)
+        mask200 = testfilter.interpolate_dem(self.test_stations,
+                                             self.test_elev, 200,
+                                             self.test_cloudmask)
+        # Evaluate results
+        self.assertEqual(np.sum(~nomask), 4)
+        self.assertEqual(np.sum(~nomask200), 6)
+        self.assertEqual(np.sum(~mask), 3)
+        self.assertEqual(np.sum(~mask200), 4)
 
 
 def suite():
