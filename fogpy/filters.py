@@ -1105,7 +1105,7 @@ class CloudMotionFilter(BaseArrayFilter):
         optflow.setMedianFiltering(1)
         optflow.setUseInitialFlow(0)
 
-        optflow.setWarpingsNumber(5) #default
+        optflow.setWarpingsNumber(5)  # default
         optflow.setScaleStep(0.8)
         optflow.setLambda(0.15)
 
@@ -1149,9 +1149,9 @@ class CloudMotionFilter(BaseArrayFilter):
 
         # Ceate image and draw
         out = deepcopy(img)
-        #out = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+        # out = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
 
-        #vis = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+        # vis = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
         for (x1, y1), (x2, y2) in lines:
             self.cv2.arrowedLine(out, (x1, y1), (x2, y2), 255, 1)
             self.cv2.circle(out, (x1, y1), 1, 255, -1)
@@ -1240,10 +1240,9 @@ class StationFusionFilter(BaseArrayFilter):
         lowcloudfog = lowcluster[fogstations]
         lowcloudnofog = lowcluster[nofogstations]
         # Compare stations with low cloud mask
-        lchit, lcmiss, lcfalse, lctrue = self.validate_fogmask(fogstations,
-                                                               nofogstations,
-                                                               lowcluster,
-                                                               nlowclst)
+        firstvalid = self.validate_fogmask(fogstations, nofogstations,
+                                           lowcluster, nlowclst, False)
+        lchit, lcmiss, lcfalse, lctrue = firstvalid
         # 4. Interpolate station fog mask based on DEM
         self.missdemmask = self.interpolate_dem(lcmiss, self.elev,
                                                 self.heightvar,
@@ -1252,15 +1251,20 @@ class StationFusionFilter(BaseArrayFilter):
                                                  self.heightvar,
                                                  self.cloudmask)
         # 5. Perfom data fusion with low cloud mask
+        self.mask = self.lowcloudmask
+        # Station false alarm cases  --> Remove DEM based
+        self.mask[~self.falsedemmask] = True
         # Station Miss cases --> Add DEM based mask
         self.mask = np.logical_and(self.lowcloudmask,
                                    self.missdemmask)
-        # Create fog cloud mask for image array
+
+        # 6. Create fog cloud mask for image array
         self.fogmask = ~fogstations
         self.nofogmask = ~nofogstations
 
         lowcluster, nlowclst = ndimage.label(~self.mask)
-        self.validate_fogmask(fogstations, nofogstations, lowcluster.squeeze(), nlowclst)
+        self.validate_fogmask(fogstations, nofogstations, lowcluster.squeeze(),
+                              nlowclst, True, firstvalid)
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 
@@ -1304,61 +1308,105 @@ class StationFusionFilter(BaseArrayFilter):
         return(demmask)
 
     def validate_fogmask(self, fogstations, nofogstations, lowcluster,
-                         nlowclst):
-        """Using station data to validate a low cloud/ fog mask."""
+                         nlowclst, plot=True, compare=[]):
+        """Using station data to validate a low cloud/ fog mask.
+
+        Args:
+            | fogstations (:obj:`ndarray`): Boolean array of foggy stations.
+            | nofogstations (:obj:`ndarray`): Boolean array of no-fog stations.
+            | lowcluster (:obj:`ndarray`): Array of enumerated low cloud
+                                           clusters.
+            | nlowclst (:obj:`int`): Number of low cloud clusters.
+            | plot (:obj:`bool`): Boolean if validation results is plotted as
+                                  logger message.
+            | compare (:obj:`list`): Optional ordered validation result list:
+                                     hits, misses, false-alarm, true-negative
+                                     as boolean numpy ndarrays.
+
+        Returns:
+            List of validation results
+        """
         lowcloudhit = np.logical_and(fogstations, lowcluster != 0)
         lowcloudmiss = np.logical_and(fogstations, lowcluster == 0)
         lowcloudfalse = np.logical_and(nofogstations, lowcluster != 0)
         lowcloudtrueneg = np.logical_and(nofogstations, lowcluster == 0)
-        logger.info("\n         ------ Station validation ------\n"
-                    "    Station statistics   | Elevation in m\n"
-                    "                       n | min    mean    max\n"
-                    "    Stations:     {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
-                    "        Fog:      {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
-                    "        No Fog:   {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
-                    "    Low clouds:   {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
-                    "    --------------------------------------------\n"
-                    "    Hits:         {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
-                    "    Misses:       {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
-                    "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
-                    "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
-                    "    --------------------------------------------"
-                    .format(np.sum(fogstations) + np.sum(nofogstations),
-                            np.nanmin(self.elev[np.logical_or(fogstations,
-                                                              nofogstations)]),
-                            np.nanmean(self.elev[np.logical_or(fogstations,
-                                                               nofogstations)]),
-                            np.nanmax(self.elev[np.logical_or(fogstations,
-                                                              nofogstations)]),
-                            np.sum(fogstations),
-                            np.nanmin(self.elev[fogstations]),
-                            np.nanmean(self.elev[fogstations]),
-                            np.nanmax(self.elev[fogstations]),
-                            np.sum(nofogstations),
-                            np.nanmin(self.elev[nofogstations]),
-                            np.nanmean(self.elev[nofogstations]),
-                            np.nanmax(self.elev[nofogstations]),
-                            nlowclst, np.min(self.elev[lowcluster != 0]),
-                            np.mean(self.elev[lowcluster != 0]),
-                            np.max(self.elev[lowcluster != 0]),
-                            np.sum(lowcloudhit),
-                            np.nanmin(self.elev[lowcloudhit]),
-                            np.nanmean(self.elev[lowcloudhit]),
-                            np.nanmax(self.elev[lowcloudhit]),
-                            np.sum(lowcloudmiss),
-                            np.nanmin(self.elev[lowcloudmiss]),
-                            np.nanmean(self.elev[lowcloudmiss]),
-                            np.nanmax(self.elev[lowcloudmiss]),
-                            np.sum(lowcloudfalse),
-                            np.nanmin(self.elev[lowcloudfalse]),
-                            np.nanmean(self.elev[lowcloudfalse]),
-                            np.nanmax(self.elev[lowcloudfalse]),
-                            np.sum(lowcloudtrueneg),
-                            np.nanmin(self.elev[lowcloudtrueneg]),
-                            np.nanmean(self.elev[lowcloudtrueneg]),
-                            np.nanmax(self.elev[lowcloudtrueneg])))
+        if plot:
+            stationsum = np.sum(fogstations) + np.sum(nofogstations)
+            allelev = self.elev[np.logical_or(fogstations, nofogstations)]
+            fogelev = self.elev[fogstations]
+            nofogelev = self.elev[nofogstations]
+            logmsg = "\n         ------ Station validation ------\n" \
+                     "    Station statistics   | Elevation in m\n" \
+                     "                       n | min    mean    max\n" \
+                     "    Stations:     {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                     "        Fog:      {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                     "        No Fog:   {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                     "    Low clouds:   {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                     "    --------------------------------------------\n" \
+                     "    Hits:         {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                     "    Misses:       {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                     "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                     "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                     "    --------------------------------------------" \
+                     .format(stationsum, np.nanmin(allelev),
+                             np.nanmean(allelev),
+                             np.nanmax(allelev),
+                             np.sum(fogstations),
+                             np.nanmin(fogelev),
+                             np.nanmean(fogelev),
+                             np.nanmax(fogelev),
+                             np.sum(nofogstations),
+                             np.nanmin(nofogelev),
+                             np.nanmean(nofogelev),
+                             np.nanmax(nofogelev),
+                             nlowclst, np.min(self.elev[lowcluster != 0]),
+                             np.mean(self.elev[lowcluster != 0]),
+                             np.max(self.elev[lowcluster != 0]),
+                             np.sum(lowcloudhit),
+                             np.nanmin(self.elev[lowcloudhit]),
+                             np.nanmean(self.elev[lowcloudhit]),
+                             np.nanmax(self.elev[lowcloudhit]),
+                             np.sum(lowcloudmiss),
+                             np.nanmin(self.elev[lowcloudmiss]),
+                             np.nanmean(self.elev[lowcloudmiss]),
+                             np.nanmax(self.elev[lowcloudmiss]),
+                             np.sum(lowcloudfalse),
+                             np.nanmin(self.elev[lowcloudfalse]),
+                             np.nanmean(self.elev[lowcloudfalse]),
+                             np.nanmax(self.elev[lowcloudfalse]),
+                             np.sum(lowcloudtrueneg),
+                             np.nanmin(self.elev[lowcloudtrueneg]),
+                             np.nanmean(self.elev[lowcloudtrueneg]),
+                             np.nanmax(self.elev[lowcloudtrueneg]))
 
-        return(lowcloudhit, lowcloudmiss, lowcloudfalse, lowcloudtrueneg)
+            if compare:
+                compmsg = "\n         ------ Comparision validation ------\n" \
+                          "    Hits:         {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                          "    Misses:       {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                          "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                          "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
+                          "    --------------------------------------------" \
+                          .format(np.nansum(compare[0]),
+                                  np.nanmin(self.elev[compare[0]]),
+                                  np.nanmean(self.elev[compare[0]]),
+                                  np.nanmax(self.elev[compare[0]]),
+                                  np.nansum(compare[1]),
+                                  np.nanmin(self.elev[compare[1]]),
+                                  np.nanmean(self.elev[compare[1]]),
+                                  np.nanmax(self.elev[compare[1]]),
+                                  np.nansum(compare[2]),
+                                  np.nanmin(self.elev[compare[2]]),
+                                  np.nanmean(self.elev[compare[2]]),
+                                  np.nanmax(self.elev[compare[2]]),
+                                  np.nansum(compare[3]),
+                                  np.nanmin(self.elev[compare[3]]),
+                                  np.nanmean(self.elev[compare[3]]),
+                                  np.nanmax(self.elev[compare[3]]),)
+                logger.info(logmsg + compmsg)
+            else:
+                logger.info(logmsg)
+
+        return([lowcloudhit, lowcloudmiss, lowcloudfalse, lowcloudtrueneg])
 
     def get_cloudmask(self):
         """Get cloud filter mask."""
