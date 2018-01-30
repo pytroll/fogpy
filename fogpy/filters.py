@@ -115,7 +115,7 @@ class BaseArrayFilter(object):
         """Filter mask setter method."""
         if value is None:
             self._mask = value
-        elif self.inmask.shape != value.shape:
+        elif self.inmask.ndim != value.ndim:
             logger.info("Mask dimensions differ. Reshaping to input shape: {}"
                         .format(self.inmask.shape))
             newvalue = np.reshape(value, self.inmask.shape)
@@ -336,12 +336,11 @@ class BaseArrayFilter(object):
                            self.bg_img.shape[1] * resize))
             attr_img.resize((self.result.shape[0] * resize,
                              self.result.shape[1] * resize))
-        attr_img.merge(bg_img)
-#         try:
-#             # Merging
-#             attr_img.merge(bg_img)
-#         except:
-#             logger.warning("No merging for attribute plot possible")
+        try:
+            # Merging
+            attr_img.merge(bg_img)
+        except:
+            logger.warning("No merging for attribute plot possible")
         if save:
             attr_img.save(attrdir)
         else:
@@ -1174,6 +1173,8 @@ class StationFusionFilter(BaseArrayFilter):
             self.heightvar = 50  # in meters
         if not hasattr(self, 'fogthres'):
             self.fogtrhes = 1000  # in meters
+        if not hasattr(self, 'limit'):
+            self.limit = False
         # Remove nodata vlaues from elevation
         self.elev[self.elev == 9999.0] = np.nan
         # Plot additional filter results
@@ -1210,6 +1211,8 @@ class StationFusionFilter(BaseArrayFilter):
                                         Default is 50 m.
             | fogthres (:obj:`float`): Visibility threshold for fog masking
                                        in m. Default is 1000 m.
+            | limit (:obj:`bool`): Boolean to limit the output region to
+                                   station data coverage.
 
         Returns:
             Filter image and filter mask.
@@ -1228,6 +1231,8 @@ class StationFusionFilter(BaseArrayFilter):
         self.visarr.fill(np.nan)
 
         x, y = (self.area.get_xy_from_lonlat(lons, lats))
+        xmin, xmax, ymin, ymax = [np.nanmin(x), np.nanmax(x), np.nanmin(y),
+                                  np.nanmax(y)]
         vis_ma = np.ma.array(vis, mask=x.mask)
         self.visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
         # Mask out fog cells
@@ -1259,11 +1264,28 @@ class StationFusionFilter(BaseArrayFilter):
                                    self.missdemmask)
 
         # 6. Create fog cloud mask for image array
+        if self.limit:
+            logger.info("Limit mask to station data region x: {} - {},"
+                        " y: {} - {}".format(xmin, xmax, ymin, ymax))
+            # Crop to limited region with station coverage
+            l = (ymin, ymax, xmin, xmax)
+
+            self.arr = self.arr[l[0]:l[1], l[2]:l[3]]
+            self.inmask = self.inmask[l[0]:l[1], l[2]:l[3]]
+            self.mask = self.mask[l[0]:l[1], l[2]:l[3]]
+            self.missdemmask = self.missdemmask[l[0]:l[1], l[2]:l[3]]
+            self.falsedemmask = self.falsedemmask[l[0]:l[1], l[2]:l[3]]
+            self.cloudmask = self.cloudmask[l[0]:l[1], l[2]:l[3]]
+            self.lowcloudmask = self.lowcloudmask[l[0]:l[1], l[2]:l[3]]
+            fogstations = fogstations[l[0]:l[1], l[2]:l[3]]
+            nofogstations = nofogstations[l[0]:l[1], l[2]:l[3]]
+
         self.fogmask = ~fogstations
         self.nofogmask = ~nofogstations
 
         lowcluster, nlowclst = ndimage.label(~self.mask)
-        self.validate_fogmask(fogstations, nofogstations, lowcluster.squeeze(),
+        self.validate_fogmask(fogstations, nofogstations,
+                              lowcluster.squeeze(),
                               nlowclst, True, firstvalid)
 
         self.result = np.ma.array(self.arr, mask=self.mask)

@@ -238,18 +238,18 @@ We can improve the image output by colorize the fog mask and blending it over an
 	>>> from trollimage.colormap import Colormap
 	>>> fogcol = Colormap((0., (0.0, 0.0, 0.8)),
    	>>> 	              (1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
-	# Overlay fls image
+	    # Overlay fls image
 	>>> fogmaskimg = Image(fogmask.channels[0], mode="L")
 	>>> fogmaskimg.colorize(fogcol)
 	>>> fogmaskimg.convert("RGBA")
 	>>> alpha = np.zeros(fogmask.channels[0].shape)
 	>>> alpha[fogmask.channels[0] == 1] = 0.5
 	>>> fogmaskimg.putalpha(alpha)
-	# Background overview composite
+	    # Background overview composite
 	>>> dem_overview = dem_scene.image.overview()
 	>>> dem_fogimg = Image(dem_overview.channels, mode='RGB')
 	>>> dem_fogimg.convert("RGBA")
-	# Over blend fog mask
+	    # Over blend fog mask
 	>>> dem_fogimg.blend(fogmaskimg)
 	>>> dem_fogimg.show()    	              
 	>>> fls_img.show()
@@ -267,7 +267,9 @@ As describt above, the different masks are blendes over the overview RGB composi
 |              Cloud mask                |               Low cloud mask           |         Low cloud mask + Fog RGB       |
 +----------------------------------------+----------------------------------------+----------------------------------------+
 
-It looks like the cloud mask works correctly and low cloud areas that are found by the algorithm fit quite good to the fog RGB yellowish areas.
+It looks like the cloud mask works correctly, except of some missclassified snow pixels in the Alps.
+But this is not a problem due to the snow filter which successfully masked them out later in the algorithm. 
+Interestingly low cloud areas that are found by the algorithm fit quite good to the fog RGB yellowish areas.
 
 On a foggy night ... 
 =================================
@@ -283,7 +285,7 @@ First we need the nighttime MSG scene::
 
     >>> from datetime import datetime
     >>> from mpop.satellites import GeostationaryFactory
-    >>> ntime = datetime(2013, 12, 12, 7, 0)
+    >>> ntime = datetime(2013, 12, 12, 4, 0)
     >>> msg_nscene = GeostationaryFactory.create_scene(satname="meteosat",
     >>>                                               satnumber='10',
     >>>                                               instrument="seviri",
@@ -298,7 +300,7 @@ Reproject it to the central European section from above and have a look at the i
 .. image:: ./fogpy_docu_nexample_1.png
 
 We took the same day (12. December 2017) as above. Now we could check whether the low
-clouds, that are present at 10 am, already can be seen early in the the morning (7 am) before sun rise.
+clouds, that are present at 10 am, already can be seen early in the the morning (4 am) before sun rise.
 
 So let's look at the nighttime fog RGB product::
 
@@ -343,11 +345,11 @@ Here we load visibility data from German weather stations for the nighttime scen
     
     >>> import os
     >>> from fogpy.utils import add_synop
-    # Define search path for bufr file
+        # Define search path for bufr file
     >>> bufr_dir = '/path/to/bufr/file/'
     >>> nbufr_file = "result_{}_synop.bufr".format(ntime.strftime("%Y%m%d%H%M"))
     >>> inbufrn = os.path.join(bufr_dir, nbufr_file)
-    # Create station image
+        # Create station image
     >>> station_nimg = add_synop.add_to_image(nfls_img, tiffarea, ntime, inbufrn, ptsize=4)
     >>> station_nimg.show()
 
@@ -367,7 +369,7 @@ At daytime we can make the same comparison with station data::
 
     >>> bufr_file = "result_{}_synop.bufr".format(time.strftime("%Y%m%d%H%M"))
     >>> inbufr = os.path.join(bufr_dir, bufr_file)
-    # Create station image
+        # Create station image
     >>> station_img = add_synop.add_to_image(fls_img, tiffarea, time, inbufr, ptsize=4)
     >>> station_img.show()
 
@@ -378,5 +380,58 @@ whereas the southern part fits quite good to the station data.
 Furthermore some mountain stations within the area of the ground fog mask exhibit high visibilities.
 This difference is induced by the averaged evelation from the DEM, the deviated lower cloud height and the 
 real altitude of the station which could lie above the expected cloud top.
+In addition the low cloud top height assignment can exhibit uncertainty in cases where a elevation 
+based height assignment is not possible and a fixed temperature gradient approach is applied.  
 These missclassifications could be improved by using ground station visibility data 
-as algorithm input. The usage of station data as additional filter would refine the ground fog mask.
+as algorithm input. The usage of station data as additional filter could refine the ground fog mask.
+
+Luckily we can use the StationFusionFilter class from fogpy to combine the satellite mask with ground 
+station visibility data. We use several dataset that had been calculated through out the tour as filter input
+and plot the filter result::
+
+    >>> from fogpy.filters import StationFusionFilter
+        # Define filter input
+    >>> flsoutmask = np.array(fogmask.channels[0], dtype=bool)
+    >>> filterinput = {'ir108': dem_scene[10.8].data,
+    >>>                'ir039': dem_scene[3.9].data,
+    >>>                'lowcloudmask': flsoutask,
+    >>>                'elev': elevation.image_data,
+    >>>                'bufrfile': inbufr,
+    >>>                'time': time,
+    >>>                'area': tiffarea}
+        # Create fusion filter
+    >>> stationfilter = StationFusionFilter(dem_scene[10.8].data, **filterinput)
+    >>> stationfilter.apply()
+    >>> stationfilter.plot_filter()
+
+.. image:: ./fogpy_docu_example_16.png
+
+The data fusion revise the low cloud clusters in Northern Germany and East Europe as ground fog again.
+The filter uses ground station data to correct false classification and add missing ground fog cases 
+by utilising a DEM based interpolation. Furthermore cases under high clouds are also extrapolated by 
+elevation information. This cloud lead to low cloud confidence levels. For example the fog mask over
+France and England. The applicatin of this filter should be limited to a region for which station data
+is available to achieve a high qualitiy data fusion product. In this case the area should be cropped to
+Germany, which can be done by setting the *limit* attribute to *True*::
+
+    >>> filterinput['limit'] = True
+        # Create fusion filter with limited region
+    >>> stationfilter = StationFusionFilter(dem_scene[10.8].data, **filterinput)
+    >>> stationfilter.apply()
+    >>> stationfilter.plot_filter()
+
+.. image:: ./fogpy_docu_example_17.png
+    :scale: 120 %
+
+The output is now limited automagically to the area for which station data is available. 
+
+The above station fusion filter example can be used to code any other filter application in fogpy.
+The command sequence more or less looks like the same: 
+ 
+ - Prepare filter input
+ - Instantiate filter class object
+ - Run the filter
+ - Enjoy the results 
+
+All available filters are listed in the chapter :ref:`filters`. Whereas the algorithms that can be directly
+applied to PyTroll *Scene* objects can be found in the :ref:`algorithms` section. 
