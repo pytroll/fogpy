@@ -38,8 +38,7 @@ import multiprocessing as mp
 from pyorbital import astronomy
 from scipy.signal import find_peaks_cwt
 from scipy import ndimage
-
-from lowwatercloud import LowWaterCloud
+from fogpy.lowwatercloud import LowWaterCloud
 from utils.import_synop import read_synop
 
 logger = logging.getLogger(__name__)
