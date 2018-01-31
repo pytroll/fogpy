@@ -699,7 +699,7 @@ class Test_StationFusionFilter(unittest.TestCase):
         self.ir039 = np.dsplit(testdata, 14)[1]
         self.elev = np.dsplit(testdata, 14)[7]
         self.time = datetime(2013, 11, 12, 8, 30, 00)
-
+        self.lowcloudmask = testfogmask
         # Init test datasets
         self.test_stations = np.array([[False, False, False],
                                        [False, True, False],
@@ -719,12 +719,13 @@ class Test_StationFusionFilter(unittest.TestCase):
         testfilter = StationFusionFilter(self.ir108,
                                          ir108=self.ir108,
                                          ir039=self.ir039,
-                                         lowcloudmask=testfogmask,
+                                         lowcloudmask=self.lowcloudmask,
                                          elev=self.elev,
                                          bufrfile=testbufr,
                                          time=self.time,
                                          area=area_def)
         ret, mask = testfilter.apply()
+
         # Evaluate results
         self.assertEqual(testfilter.visarr.shape, (141, 298))
         self.assertEqual(np.sum(~testfilter.fogmask), 20)
@@ -735,7 +736,7 @@ class Test_StationFusionFilter(unittest.TestCase):
         testfilter = StationFusionFilter(self.ir108,
                                          ir108=self.ir108,
                                          ir039=self.ir039,
-                                         lowcloudmask=testfogmask,
+                                         lowcloudmask=self.lowcloudmask,
                                          elev=self.elev,
                                          bufrfile=testbufr,
                                          time=self.time,
@@ -756,10 +757,7 @@ class Test_StationFusionFilter(unittest.TestCase):
                                          elev=self.elev,
                                          bufrfile=testbufr,
                                          time=self.time,
-                                         area=area_def,
-                                         plot=True,
-                                         save=True,
-                                         resize=5)
+                                         area=area_def)
         nomask = testfilter.interpolate_dem(self.test_stations, self.test_elev,
                                             50)
         nomask200 = testfilter.interpolate_dem(self.test_stations,

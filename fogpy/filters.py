@@ -1235,19 +1235,23 @@ class StationFusionFilter(BaseArrayFilter):
                                   np.nanmax(y)]
         vis_ma = np.ma.array(vis, mask=x.mask)
         self.visarr[y.compressed(), x.compressed()] = vis_ma.compressed()
+
         # Mask out fog cells
         fogstations = self.visarr <= 1000
         nofogstations = self.visarr > 1000
+
         # 3. Compare with cloud clusters
         cloudcluster, ncloudclst = ndimage.label(~self.cloudmask)
         lowcluster, nlowclst = ndimage.label(~self.lowcloudmask)
         cloudtrue = cloudcluster[fogstations]
         lowcloudfog = lowcluster[fogstations]
         lowcloudnofog = lowcluster[nofogstations]
+
         # Compare stations with low cloud mask
         firstvalid = self.validate_fogmask(fogstations, nofogstations,
                                            lowcluster, nlowclst, False)
         lchit, lcmiss, lcfalse, lctrue = firstvalid
+
         # 4. Interpolate station fog mask based on DEM
         self.missdemmask = self.interpolate_dem(lcmiss, self.elev,
                                                 self.heightvar,
@@ -1256,7 +1260,7 @@ class StationFusionFilter(BaseArrayFilter):
                                                  self.heightvar,
                                                  self.cloudmask)
         # 5. Perfom data fusion with low cloud mask
-        self.mask = self.lowcloudmask
+        self.mask = np.copy(self.lowcloudmask)
         # Station false alarm cases  --> Remove DEM based
         self.mask[~self.falsedemmask] = True
         # Station Miss cases --> Add DEM based mask
@@ -1353,7 +1357,7 @@ class StationFusionFilter(BaseArrayFilter):
         lowcloudfalse = np.logical_and(nofogstations, lowcluster != 0)
         lowcloudtrueneg = np.logical_and(nofogstations, lowcluster == 0)
         if plot:
-            stationsum = np.sum(fogstations) + np.sum(nofogstations)
+            stationsum = np.nansum(fogstations) + np.nansum(nofogstations)
             allelev = self.elev[np.logical_or(fogstations, nofogstations)]
             fogelev = self.elev[fogstations]
             nofogelev = self.elev[nofogstations]
@@ -1373,30 +1377,30 @@ class StationFusionFilter(BaseArrayFilter):
                      .format(stationsum, np.nanmin(allelev),
                              np.nanmean(allelev),
                              np.nanmax(allelev),
-                             np.sum(fogstations),
+                             np.nansum(fogstations),
                              np.nanmin(fogelev),
                              np.nanmean(fogelev),
                              np.nanmax(fogelev),
-                             np.sum(nofogstations),
+                             np.nansum(nofogstations),
                              np.nanmin(nofogelev),
                              np.nanmean(nofogelev),
                              np.nanmax(nofogelev),
                              nlowclst, np.min(self.elev[lowcluster != 0]),
-                             np.mean(self.elev[lowcluster != 0]),
-                             np.max(self.elev[lowcluster != 0]),
-                             np.sum(lowcloudhit),
+                             np.nanmean(self.elev[lowcluster != 0]),
+                             np.nanmax(self.elev[lowcluster != 0]),
+                             np.nansum(lowcloudhit),
                              np.nanmin(self.elev[lowcloudhit]),
                              np.nanmean(self.elev[lowcloudhit]),
                              np.nanmax(self.elev[lowcloudhit]),
-                             np.sum(lowcloudmiss),
+                             np.nansum(lowcloudmiss),
                              np.nanmin(self.elev[lowcloudmiss]),
                              np.nanmean(self.elev[lowcloudmiss]),
                              np.nanmax(self.elev[lowcloudmiss]),
-                             np.sum(lowcloudfalse),
+                             np.nansum(lowcloudfalse),
                              np.nanmin(self.elev[lowcloudfalse]),
                              np.nanmean(self.elev[lowcloudfalse]),
                              np.nanmax(self.elev[lowcloudfalse]),
-                             np.sum(lowcloudtrueneg),
+                             np.nansum(lowcloudtrueneg),
                              np.nanmin(self.elev[lowcloudtrueneg]),
                              np.nanmean(self.elev[lowcloudtrueneg]),
                              np.nanmax(self.elev[lowcloudtrueneg]))
