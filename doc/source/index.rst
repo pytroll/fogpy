@@ -12,6 +12,8 @@ Welcome to fogpy's documentation!
 This package provide algorithmns and methods for satellite based detection and
 nowcasting of fog and low stratus clouds (FLS). 
 
+Related FogPy Version: 1.1.2
+
 It utilizes several functionalities from the pytroll_ project for weather
 satellite data processing in Python. The remote sensing algorithmns are
 currently implemented for the geostationary Meteosat Second Generation (MSG)
