@@ -27,6 +27,7 @@ import fogpy
 import logging
 import os
 
+from fogpy.lowwatercloud import CloudLayer as CL
 from trollbufr.bufr import Bufr
 from trollbufr import load_file
 from datetime import datetime
@@ -79,6 +80,10 @@ def read_synop(file, params, min=None, max=None):
                         stationdict['present weather'] = v
                         # Values from 40 to 49 are refering to fog and ice fog
                         # Patchy fog or fog edges value 11 or 12
+                    elif k == 20004:  # Past weather
+                        stationdict['past weather'] = v
+                        # Values from 40 to 49 are refering to fog and ice fog
+                        # Patchy fog or fog edges value 11 or 12
                     elif k == 20013:  # Cloud base height
                         if v is not None:
                             if 'cbh' in stationdict.keys():
@@ -98,6 +103,14 @@ def read_synop(file, params, min=None, max=None):
                         stationdict['air temperature'] = v
                     elif k == 12103:  # Dew point temperature in K
                         stationdict['dew point'] = v
+                    elif k == 20010:  # Cloud cover in %
+                        stationdict['cloudcover'] = v
+                    elif k == 13003:  # Relative humidity in %
+                        stationdict['relative humidity'] = v
+                    elif k == 11001:  # Wind direction in degree
+                        stationdict['wind direction'] = v
+                    elif k == 11002:  # Wind speed in m s-1
+                        stationdict['wind speed'] = v
                     elif k == 1002:  # WMO station number
                         stationdict['wmo'] = v
                 # Apply thresholds
@@ -111,7 +124,9 @@ def read_synop(file, params, min=None, max=None):
                 if not isinstance(params, list):
                     params = [params]
                 for param in params:
-                    if min is not None and stationdict[param] < min:
+                    if param not in stationdict:
+                        res = None
+                    elif min is not None and stationdict[param] < min:
                         res = None
                     elif max is not None and stationdict[param] >= max:
                         res = None
@@ -184,6 +199,10 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                         stationdict['present weather'] = v
                         # Values from 40 to 49 are refering to fog and ice fog
                         # Patchy fog or fog edges value 11 or 12
+                    elif k == 20004:  # Past weather
+                        stationdict['past weather'] = v
+                        # Values from 40 to 49 are refering to fog and ice fog
+                        # Patchy fog or fog edges value 11 or 12
                     elif k == 20013:  # Cloud base height
                         if v is not None:
                             if 'cbh' in stationdict.keys():
@@ -199,11 +218,18 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                         stationdict['type'] = v
                     elif k == 20060:  # Prevailing visibility
                         stationdict['visibility'] = v
-                    elif k == 12023:  # Mean air temperature in K
-                        stationdict['air temperature'] = v
-                    elif k == 12024:  # Dew point temperature in K
-                        stationdict['dew point'] = v
-
+                    elif k == 12023:  # Mean air temperature in °C
+                        stationdict['air temperature'] = CL.check_temp(v, 'kelvin')
+                    elif k == 12024:  # Dew point temperature in °C
+                        stationdict['dew point'] = CL.check_temp(v, 'kelvin')
+                    elif k == 20010:  # Cloud cover in %
+                        stationdict['cloudcover'] = v
+                    elif k == 13003:  # Relative humidity in %
+                        stationdict['relative humidity'] = v
+                    elif k == 11001:  # Wind direction in degree
+                        stationdict['wind direction'] = v
+                    elif k == 11002:  # Wind speed in m s-1
+                        stationdict['wind speed'] = v
                     elif k == 1002:  # WMO station number
                         stationdict['wmo'] = v
                     elif k == 1024:  # WMO station number
@@ -219,7 +245,9 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                 if not isinstance(params, list):
                     params = [params]
                 for param in params:
-                    if min is not None and stationdict[param] < min:
+                    if param not in stationdict:
+                        res = None
+                    elif min is not None and stationdict[param] < min:
                         res = None
                     elif max is not None and stationdict[param] >= max:
                         res = None
@@ -303,6 +331,12 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                         stationdict['present weather'] = v
                         # Values from 40 to 49 are refering to fog and ice fog
                         # Patchy fog or fog edges value 11 or 12
+                        # 28 refers to fog or ice fog from manned station
+                        # Reference: FM 94, table: 4677
+                    elif k == 20004:  # Past weather
+                        stationdict['past weather'] = v
+                        # Values from 40 to 49 are refering to fog and ice fog
+                        # Patchy fog or fog edges value 11 or 12
                     elif k == 20013:  # Cloud base height
                         if v is not None:
                             if 'cbh' in stationdict.keys():
@@ -325,7 +359,14 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                         stationdict['air temperature'] = v
                     elif k == 12103:  # Dew point temperature in K
                         stationdict['dew point'] = v
-
+                    elif k == 20010:  # Cloud cover in %
+                        stationdict['cloudcover'] = v
+                    elif k == 13003:  # Relative humidity in %
+                        stationdict['relative humidity'] = v
+                    elif k == 11001:  # Wind direction in degree
+                        stationdict['wind direction'] = v
+                    elif k == 11002:  # Wind speed in m s-1
+                        stationdict['wind speed'] = v
                     elif k == 1002:  # WMO station number
                         stationdict['wmo'] = v
                     elif k == 1024:  # WMO station number
@@ -343,7 +384,9 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                 if not isinstance(params, list):
                     params = [params]
                 for param in params:
-                    if min is not None and stationdict[param] < min:
+                    if param not in stationdict:
+                        res = None
+                    elif min is not None and stationdict[param] < min:
                         res = None
                     elif max is not None and stationdict[param] >= max:
                         res = None
@@ -386,9 +429,9 @@ def main():
     synopfile = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
     metarfile = os.path.join(base[0], '..', 'etc', 'result_20131112_metar.bufr')
     swisfile = os.path.join(base[0], '..', 'etc', 'result_20131112_swis.bufr')
-    print(read_synop(synopfile, 'visibility'))
+    print(read_synop(synopfile, ['visibility']))
     print(read_metar(metarfile, 'visibility', latlim=(45, 60), lonlim=(3, 18)))
-    print(read_swis(swisfile, 'visibility'))
+    print(read_swis(swisfile, ['visibility']))
 
 if __name__ == '__main__':
     main()
