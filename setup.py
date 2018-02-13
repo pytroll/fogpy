@@ -35,7 +35,7 @@ setup(
     name='fogpy',
     version=version.__version__,
     url='https://github.com/m4sth0/fogpy',
-    download_url='https://github.com/m4sth0/fogpy/archive/v1.1.2.tar.gz',
+    download_url='https://github.com/m4sth0/fogpy/archive/v1.1.3.tar.gz',
     license='GNU general public license version 3',
     author='Thomas Leppelt',
     author_email='thomas.leppelt@gmail.com',
@@ -64,6 +64,7 @@ setup(
                       'pyorbital >= v0.2.3',
                       'trollimage >= v0.4.0',
                       'mipp >= v0.9.2',
-                      'pyresample >= 1.1.3'],
+                      'pyresample >= 1.1.3',
+                      'trollbufr'],
     tests_require=[],
 )
