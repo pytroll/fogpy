@@ -40,7 +40,7 @@ setup(
     author='Thomas Leppelt',
     author_email='thomas.leppelt@gmail.com',
     description='Satellite based fog and low stratus detection and nowcasting',
-    packages=['fogpy'],
+    packages=['fogpy', 'fogpy.utils'],
     include_package_data=True,
     data_files=[(os.path.join('etc'),
                  [os.path.join('etc', 'fog_testdata.npy')])],
