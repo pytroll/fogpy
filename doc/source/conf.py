@@ -46,7 +46,7 @@ MOCK_MODULES = ['matplotlib', 'matplotlib.pyplot', 'matplotlib.cm',
                 'scipy.stats', 'pyresample', 'pyorbital', 'numpy', 'numpy.core',
                 'numpy.lib', 'numpy.lib.stride_tricks',
                 'pyresample.utils', 'pyresample.geometry',
-                'h5py', 'trollbufr']
+                'h5py', 'trollbufr', 'trollbufr.bufr']
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
