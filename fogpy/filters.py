@@ -186,18 +186,20 @@ class BaseArrayFilter(object):
                             self.new_masked, self.remain_num))
 
     def plot_filter(self, save=False, dir="/tmp", resize=0, attr=None,
-                    type='png', area=None):
+                    type='png', area=None, name=None):
         """Plotting the filter result.
 
         .. Note:: Masks should be correctly setup to be plotted:
                   **True** (1) mask values are not shown, **False** (0) mask
                   values are displayed.
         """
+        if name is None:
+            name = self.name
         # Get output directory and image name
-        savedir = os.path.join(dir, self.name + '_' +
+        savedir = os.path.join(dir, name + '_' +
                                datetime.strftime(self.time,
                                                  '%Y%m%d%H%M') + '.' + type)
-        maskdir = os.path.join(dir, self.name + '_mask_' +
+        maskdir = os.path.join(dir, name + '_mask_' +
                                datetime.strftime(self.time,
                                                  '%Y%m%d%H%M') + '.' + type)
         # Using Trollimage if available, else matplotlib is used to plot
