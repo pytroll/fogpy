@@ -22,6 +22,7 @@
 """ This module test the low cloud water class """
 
 import unittest
+import numpy as np
 from fogpy.lowwatercloud import LowWaterCloud
 from fogpy.lowwatercloud import CloudLayer
 
@@ -30,6 +31,8 @@ class Test_LowWaterCloud(unittest.TestCase):
 
     def setUp(self):
         self.lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)
+        self.nanlwc = LowWaterCloud(np.nan, 255., 400., 0, 10e-6)
+        self.nodatalwc = LowWaterCloud(2000., 255., -9999, 0, 10e-6)
 
     def tearDown(self):
         pass
@@ -231,6 +234,16 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.lwc.thickness = 100
         ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertIn(round(ret_basin, 0), [421, 479, 478, 477])
+
+    def test_optimize_cbh_basin_nan(self):
+        self.nanlwc.thickness = 100
+        ret_basin = self.nanlwc.optimize_cbh(100., method='basin')
+        self.assertTrue(np.isnan(ret_basin))
+
+    def test_optimize_cbh_basin_nodata(self):
+        self.nodatalwc.thickness = 100
+        ret_basin = self.nodatalwc.optimize_cbh(100., method='basin')
+        self.assertTrue(np.isnan(ret_basin))
 
     def test_get_visibility(self):
         lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)

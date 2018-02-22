@@ -156,10 +156,30 @@ class CloudLayer(object):
 
 class LowWaterCloud(object):
     """A class to simulate the water content of a low cloud and calculate its
-    meteorological properties."""
+    meteorological properties.
+
+    Args:
+        | cth (:obj:`float`): Cloud top height in m.
+        | ctt (:obj:`float`): Cloud top temperature in K.
+        | cwp (:obj:`float`): Cloud water path in kg / m^2.
+        | cbh (:obj:`float`): Cloud base height in m.
+        | reff (:obj:`float`): Droplet effective radius in m.
+        | cbt (:obj:`float`): Cloud base temperature in K.
+        | upthres (:obj:`float`): Top layer thickness with dry air
+                                  entrainment in m.
+        | lowthres (:obj:`float`): Bottem layer thickness with ground
+                                   coupling in m.
+        | thickness (:obj:`float`): Layer thickness in m.
+        | debug (:obj:`bool`): Boolean to activate additional debug output.
+        | nodata (:obj:`float`): Provide a specific Nodata value.
+                                 Default is: -9999.
+
+    Returns:
+        Calibrated cloud base height in m.
+    """
     def __init__(self, cth=None, ctt=None, cwp=None, cbh=0, reff=None,
                  cbt=None, upthres=50., lowthres=75., thickness=10.,
-                 debug=False):
+                 debug=False, nodata=-9999):
         self.upthres = upthres  # Top layer thickness with dry air entrainment
         self.lowthres = lowthres  # Bottom layer thickness with coupling
         self.cth = cth  # Cloud top height
@@ -174,6 +194,8 @@ class LowWaterCloud(object):
         self.cb_vmr = None  # Water vapour mixing ratio
         self.thickness = thickness  # Layer thickness in m
         self.debug = debug  # Boolean to activate additional output
+        self.nodata = nodata  # Specific Nodata value
+
         # Get maximal liquid water content underneath cloud top
         self.maxlwc = None
 
@@ -477,6 +499,18 @@ class LowWaterCloud(object):
         liquid water path with given satellite retrieval.
         Minimization with basinhopping or brute force algorithm
         from python scipy package."""
+        # Test input data
+        if np.isnan(self.cwp) or np.isnan(self.cth):
+            logger.warning("Input data for cwp: <{}> or cth: <{}> is not"
+                           " a number".format(self.cwp, self.cth))
+            result = np.nan
+            return(result)
+        elif self.cwp == self.nodata or self.cth == self.nodata:
+            logger.warning("Input cwp: <{}> or cth: <{}> in NoData format"
+                           .format(self.cwp, self.cth))
+            result = np.nan
+            return(result)
+        # Choose method
         if method == 'basin':
             minimizer_kwargs = {"method": "BFGS", "bounds": (0, self.cth -
                                                              self.upthres)}
@@ -503,7 +537,7 @@ class LowWaterCloud(object):
         # Set class variable for cloud base height
         self.cbh = result
 
-        return result
+        return(result)
 
     def minimize_cbh(self, x):
         """Minimization function for liquid water path."""
