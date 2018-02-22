@@ -911,6 +911,9 @@ class LowCloudFilter(BaseArrayFilter):
             logger.info("Run low cloud models for single cells")
             applyres = []
             task_count = self.clusters.count()
+            if self.plot:
+                # Plot cloud top height distribution for clusters
+                self.plot_cluster_stat()
             # Get pool result list
             self.result_list = []
             self.index_list = []
@@ -952,13 +955,16 @@ class LowCloudFilter(BaseArrayFilter):
 
         else:  # Run low cloud models parallized aggregated for cloud clusters
             # Compute mean values for cloud clusters
-            lwp_cluster = self.get_cluster_mean(self.clusters, self.lwp * 1000,
+            lwp_cluster = self.get_cluster_stat(self.clusters, self.lwp * 1000,
                                                 exclude=[0])
-            cth_cluster = self.get_cluster_mean(self.clusters, self.cth,
+            cth_cluster = self.get_cluster_stat(self.clusters, self.cth,
                                                 exclude=[0])
-            ctt_cluster = self.get_cluster_mean(self.clusters, self.ir108)
-            reff_cluster = self.get_cluster_mean(self.clusters, self.reff, [],
+            ctt_cluster = self.get_cluster_stat(self.clusters, self.ir108)
+            reff_cluster = self.get_cluster_stat(self.clusters, self.reff, [],
                                                  False)
+            if self.plot:
+                # Plot cloud top height distribution for clusters
+                self.plot_cluster_stat()
             # Loop over processes
             logger.info("Run low cloud models for cloud clusters")
             applyres = []
@@ -1030,10 +1036,14 @@ class LowCloudFilter(BaseArrayFilter):
 
         return cbh, fbh
 
-    def get_cluster_mean(self, clusters, values, exclude=[0], noneg=True):
+    def get_cluster_stat(self, clusters, values, exclude=[0],
+                         noneg=True, stat='mean', data=False):
         """Calculate the mean of an array of values for given cluster
         structures.
         """
+        # Optional statistic parameters
+        stat_dict = {'mean': np.nanmean, 'std': np.nanstd, 'min': np.nanmin,
+                     'max': np.nanmax, 'median': np.nanmedian}
         result = defaultdict(list)
         if np.ma.isMaskedArray(clusters):
             clusters = clusters.filled(0)
@@ -1051,9 +1061,29 @@ class LowCloudFilter(BaseArrayFilter):
                 # Add value to result dict
                 result[key].append(val)
         # Calculate average cluster values by dictionary key
-        result = {k: np.nanmean(v) for k, v in result.iteritems()}
+        if not data:
+            result = {k: stat_dict[stat](v) for k, v in result.iteritems()}
 
         return result
+
+    def plot_cluster_stat(self, param=None, label='Cloud Top Height in m'):
+        """Plot cloud top height distribution for cloud clusters"""
+        if param is None:
+            param = self.cth
+        clusterdata = self.get_cluster_stat(self.clusters, param,
+                                            exclude=[], noneg=False, data=True)
+        plt.boxplot(clusterdata.values())
+        if self.save:
+            savedir = os.path.join(self.dir, self.name + '_cluster_stat_' +
+                                   datetime.strftime(self.time, '%Y%m%d%H%M') +
+                                   '.png')
+            plt.savefig(savedir)
+            logger.info("Low cloud cluster distributions are plotted to: {}"
+                        .format(savedir))
+        else:
+            plt.show()
+
+        return(clusterdata)
 
 
 class CloudMotionFilter(BaseArrayFilter):

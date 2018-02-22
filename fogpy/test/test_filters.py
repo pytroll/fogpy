@@ -670,6 +670,15 @@ class Test_LowCloudFilter(unittest.TestCase):
         self.assertEqual(np.sum(testfilter.fog_mask), nfog)
         self.assertEqual(np.sum(testfilter.mask), nfog)
 
+    def test_lowcloud_filter_cluster_plot(self):
+        self.input['save'] = True
+        # Create cloud filter
+        testfilter = LowCloudFilter(self.input['ir108'], **self.input)
+#         ret, mask = testfilter.apply()
+        data = testfilter.plot_cluster_stat()
+        # Evaluate results
+        self.assertEqual(len(data.values()[0]), 16)
+
 
 class Test_CloudMotionFilter(unittest.TestCase):
 
