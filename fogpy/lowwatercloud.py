@@ -30,6 +30,7 @@ The implemented approch is based on a publication:
 """
 import math
 import logging
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import basinhopping
@@ -512,20 +513,24 @@ class LowWaterCloud(object):
             return(result)
         # Choose method
         if method == 'basin':
+            start_time = int(round(time.time() * 1000))
             minimizer_kwargs = {"method": "BFGS", "bounds": (0, self.cth -
                                                              self.upthres)}
             ret = basinhopping(self.minimize_cbh,
                                start,
                                T=5.0,
                                minimizer_kwargs=minimizer_kwargs,
-                               niter=10,
-                               niter_success=5)
+                               niter=30,
+                               niter_success=5,
+                               stepsize=200)
+            time_diff = int(round(time.time() * 1000)) - start_time
             result = float(ret.x[0])
             logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
                         'ctt: {:.2f}, observed lwp {:.2f}'
-                        ' --> result lwp: {:.2f}, calibrated cbh: {:.2f}'
+                        ' --> result lwp: {:.2f}, calibrated cbh: {:.2f},'
+                        ' elapsed time: {:.2f} ms'
                         .format(start, float(self.cth), float(self.ctt),
-                                float(self.cwp), self.lwp, result))
+                                float(self.cwp), self.lwp, result, time_diff))
         elif method == 'brute':
             ranges = slice(0, self.cth - self.upthres, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)
