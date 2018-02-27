@@ -1072,7 +1072,11 @@ class LowCloudFilter(BaseArrayFilter):
             param = self.cth
         clusterdata = self.get_cluster_stat(self.clusters, param,
                                             exclude=[], noneg=False, data=True)
-        plt.boxplot(clusterdata.values())
+        data = [i for i in clusterdata.values() if len(i) >= 3]
+        plt.figure(figsize=(14, 8))
+        plt.tick_params(labelsize=8)
+        plt.xticks(rotation=90)
+        plt.boxplot(data)
         if self.save:
             savedir = os.path.join(self.dir, self.name + '_cluster_stat_' +
                                    datetime.strftime(self.time, '%Y%m%d%H%M') +
