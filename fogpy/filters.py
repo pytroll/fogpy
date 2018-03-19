@@ -1477,3 +1477,40 @@ class StationFusionFilter(BaseArrayFilter):
         cloudimg, cloudmask = cloudfilter.apply()
 
         return(cloudmask)
+
+
+class NumericalModelFilter(BaseArrayFilter):
+    """NWP filtering for satellite images."""
+    # Required inputs
+    attrlist = ['t_model', 'td_model']
+
+    def filter_function(self):
+        """Numerical model filter routine
+
+        The 2 meter temperature and dew point data from a numerical weather
+        model can be used to exclude regions with dew point differences
+        that prevent fog development.
+        This filter utilize the modelled temperature data to filter cells with:
+
+            - Dew point differences higher than 3 K
+
+        Args:
+            | t_model (:obj:`ndarray`): Array for the 2 meter temperature.
+            | td_model (:obj:`ndarray`): Array for the dew point temperature.
+
+        Returns:
+            Filter image and filter mask.
+        """
+        logger.info("Applying Numerical Model Filter")
+        # Calculate dew point differences
+        self.tdiff = self.t_model - self.td_model
+
+        # Create snow mask for image array
+        tdiff_thres = (self.tdiff >= 3)
+
+        # Create snow mask for image array
+        self.mask = tdiff_thres
+
+        self.result = np.ma.array(self.arr, mask=self.mask)
+
+        return True
