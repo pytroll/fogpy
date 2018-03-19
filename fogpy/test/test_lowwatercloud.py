@@ -31,6 +31,7 @@ class Test_LowWaterCloud(unittest.TestCase):
 
     def setUp(self):
         self.lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)
+        self.thinlwc = LowWaterCloud(2000., 255., 1., 0, 10e-6)
         self.nanlwc = LowWaterCloud(np.nan, 255., 400., 0, 10e-6)
         self.nodatalwc = LowWaterCloud(2000., 255., -9999, 0, 10e-6)
 
@@ -234,6 +235,42 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.lwc.thickness = 100
         ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertIn(round(ret_basin, 0), [421, 479, 478, 477])
+
+    def test_optimize_cbh_start(self):
+        self.lwc.thickness = 100.
+        listresult = []
+        listresult.append(self.lwc.optimize_cbh(1000., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(900., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(800., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(700., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(600., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(500., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(400., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(300., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(200., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(100., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(0., method='basin'))
+        listresult.append(self.lwc.optimize_cbh(-100., method='basin'))
+        test = [round(i, 0) == 421 for i in listresult]
+        self.assertGreaterEqual(sum(test), 8)
+
+    def test_optimize_cbh_start_thin(self):
+        self.thinlwc.thickness = 10.
+        listresult = []
+        listresult.append(self.thinlwc.optimize_cbh(1000., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(900., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(800., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(700., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(600., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(500., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(400., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(300., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(200., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(100., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(0., method='basin'))
+        listresult.append(self.thinlwc.optimize_cbh(-100., method='basin'))
+        test = [round(i, 0) == 421 for i in listresult]
+        self.assertGreaterEqual(sum(test), 8)
 
     def test_optimize_cbh_basin_nan(self):
         self.nanlwc.thickness = 100

@@ -220,7 +220,12 @@ class LowWaterCloud(object):
     @cbh.setter
     def cbh(self, cbh):
         # Check conflicts for threshold and cloud base
-        if self.cth - self.upthres <= cbh:
+        if cbh >= self.cth:
+            self.__cbh = self.cth - 1
+            self.upthres = self.cth - 1
+            logger.info("Cloud base <{}> is higher than cloud top <{}>. "
+                        "Autmatically reduced to <{}>".format(cbh, self.cth, self.cth - 1))
+        elif self.cth - self.upthres <= cbh:
             self.upthres = self.cth - cbh - 1
             logger.info("Reducing upper threshold <{}> to correct conflict"
                         .format(self.upthres))
@@ -500,6 +505,7 @@ class LowWaterCloud(object):
         liquid water path with given satellite retrieval.
         Minimization with basinhopping or brute force algorithm
         from python scipy package."""
+        cbhbounds = HeightBounds(self.cth - self.upthres, -1000)
         # Test input data
         if np.isnan(self.cwp) or np.isnan(self.cth):
             logger.warning("Input data for cwp: <{}> or cth: <{}> is not"
@@ -522,15 +528,18 @@ class LowWaterCloud(object):
                                minimizer_kwargs=minimizer_kwargs,
                                niter=30,
                                niter_success=5,
-                               stepsize=200)
+                               stepsize=200,
+                               accept_test=cbhbounds)
             time_diff = int(round(time.time() * 1000)) - start_time
             result = float(ret.x[0])
             logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
                         'ctt: {:.2f}, observed lwp {:.2f}'
                         ' --> result lwp: {:.2f}, calibrated cbh: {:.2f},'
-                        ' elapsed time: {:.2f} ms'
+                        ' elapsed time: {:.2f} ms for {} layers with {} '
+                        'm thickness'
                         .format(start, float(self.cth), float(self.ctt),
-                                float(self.cwp), self.lwp, result, time_diff))
+                                float(self.cwp), self.lwp, result, time_diff,
+                                len(self.layers), self.thickness))
         elif method == 'brute':
             ranges = slice(0, self.cth - self.upthres, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)
@@ -617,7 +626,7 @@ class LowWaterCloud(object):
         heights = [getattr(l, 'z') for l in self.layers]
         paralist = [getattr(l, para) for l in self.layers]
         plt.figure()
-        plt.plot(paralist, heights)
+        plt.plot(paralist, heights, '-o')
         plt.ylim((0, max(heights) + 50))
         plt.axvline(0, color='grey', ls='--')
         plt.axhline(self.cth, color='grey', ls='--')
@@ -631,3 +640,15 @@ class LowWaterCloud(object):
             plt.savefig(save)
         else:
             plt.show()
+
+
+class HeightBounds(object):
+    def __init__(self, xmax=2000, xmin=-1000):
+        self.xmax = xmax
+        self.xmin = xmin
+
+    def __call__(self, **kwargs):
+        x = kwargs["x_new"]
+        tmax = bool(x <= self.xmax)
+        tmin = bool(x >= self.xmin)
+        return tmax and tmin
