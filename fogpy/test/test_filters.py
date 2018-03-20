@@ -38,6 +38,7 @@ from fogpy.filters import SpatialHomogeneityFilter
 from fogpy.filters import LowCloudFilter
 from fogpy.filters import CloudMotionFilter
 from fogpy.filters import StationFusionFilter
+from fogpy.filters import NumericalModelFilter
 from fogpy.algorithms import DayFogLowStratusAlgorithm
 from pyresample import geometry
 
@@ -781,6 +782,30 @@ class Test_StationFusionFilter(unittest.TestCase):
         self.assertEqual(np.sum(~nomask200), 6)
         self.assertEqual(np.sum(~mask), 3)
         self.assertEqual(np.sum(~mask200), 4)
+
+
+class Test_NumericalModelFilter(unittest.TestCase):
+
+    def setUp(self):
+        # Load test data
+        self.ir108 = 1.0 * np.random.randn(10, 10) + 260
+        # Init test datasets
+        self.t_test = 1.0 * np.random.randn(10, 10) + 273
+        self.td_test = 1.0 * np.random.randn(10, 10) + 270
+
+    def tearDown(self):
+        pass
+
+    def test_numerical_model_tdiff(self):
+        # Create fusion filter
+        testfilter = NumericalModelFilter(self.ir108,
+                                          t_model=self.t_test,
+                                          td_model=self.td_test)
+        ret, mask = testfilter.apply()
+        # Evaluate results
+        tdiff = self.t_test - self.td_test
+        ntdiff = np.sum(tdiff >= 2.2)
+        self.assertEqual(np.sum(testfilter.mask), ntdiff)
 
 
 def suite():

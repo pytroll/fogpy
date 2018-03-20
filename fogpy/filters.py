@@ -1484,6 +1484,12 @@ class NumericalModelFilter(BaseArrayFilter):
     # Required inputs
     attrlist = ['t_model', 'td_model']
 
+    def __init__(self, *args, **kwargs):
+        super(NumericalModelFilter, self).__init__(*args, **kwargs)
+        # Set additional class attribute
+        if not hasattr(self, 'tdthres'):
+            self.tdthres = 2.2
+
     def filter_function(self):
         """Numerical model filter routine
 
@@ -1492,7 +1498,8 @@ class NumericalModelFilter(BaseArrayFilter):
         that prevent fog development.
         This filter utilize the modelled temperature data to filter cells with:
 
-            - Dew point differences higher than 3 K
+            - Dew point differences higher than 2.2 K
+              Source: http://glossary.ametsoc.org/wiki/Fog
 
         Args:
             | t_model (:obj:`ndarray`): Array for the 2 meter temperature.
@@ -1506,7 +1513,7 @@ class NumericalModelFilter(BaseArrayFilter):
         self.tdiff = self.t_model - self.td_model
 
         # Create snow mask for image array
-        tdiff_thres = (self.tdiff >= 3)
+        tdiff_thres = (self.tdiff >= self.tdthres)
 
         # Create snow mask for image array
         self.mask = tdiff_thres
