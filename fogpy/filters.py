@@ -297,9 +297,9 @@ class BaseArrayFilter(object):
         if attr is not None:
             if isinstance(attr, list):
                 for a in attr:
-                    self._plot_image(a, self.save, self.dir, self.resize)
+                    self._plot_image(a, save, dir, resize)
             elif isinstance(attr, str):
-                self._plot_image(attr, self.save, self.dir, self.resize)
+                self._plot_image(attr, save, dir, resize)
 
     def _plot_image(self, name, save=False, dir="/tmp", resize=0):
         """Plotting function for additional filter attributes.
@@ -1210,7 +1210,7 @@ class StationFusionFilter(BaseArrayFilter):
             self.fogtrhes = 1000  # in meters
         if not hasattr(self, 'limit'):
             self.limit = False
-        # Remove nodata vlaues from elevation
+        # Remove nodata values from elevation
         self.elev[self.elev == 9999.0] = np.nan
         # Plot additional filter results
         self.plotattr = ['lowcloudmask', 'cloudmask', 'fogmask', 'nofogmask',
@@ -1284,7 +1284,8 @@ class StationFusionFilter(BaseArrayFilter):
 
         # Compare stations with low cloud mask
         firstvalid = self.validate_fogmask(fogstations, nofogstations,
-                                           lowcluster, nlowclst, False)
+                                           lowcluster, nlowclst, False,
+                                           elev=self.elev)
         lchit, lcmiss, lcfalse, lctrue = firstvalid
 
         # 4. Interpolate station fog mask based on DEM
@@ -1299,7 +1300,7 @@ class StationFusionFilter(BaseArrayFilter):
         # Station false alarm cases  --> Remove DEM based
         self.mask[~self.falsedemmask] = True
         # Station Miss cases --> Add DEM based mask
-        self.mask = np.logical_and(self.lowcloudmask,
+        self.mask = np.logical_and(self.mask.squeeze(),
                                    self.missdemmask)
 
         # 6. Create fog cloud mask for image array
@@ -1325,7 +1326,8 @@ class StationFusionFilter(BaseArrayFilter):
         lowcluster, nlowclst = ndimage.label(~self.mask)
         self.validate_fogmask(fogstations, nofogstations,
                               lowcluster.squeeze(),
-                              nlowclst, True, firstvalid)
+                              nlowclst, True, firstvalid,
+                              elev=self.elev)
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 
@@ -1368,8 +1370,9 @@ class StationFusionFilter(BaseArrayFilter):
 
         return(demmask)
 
+    @classmethod
     def validate_fogmask(self, fogstations, nofogstations, lowcluster,
-                         nlowclst, plot=True, compare=[]):
+                         nlowclst, plot=True, compare=[], elev=None):
         """Using station data to validate a low cloud/ fog mask.
 
         Args:
@@ -1383,19 +1386,23 @@ class StationFusionFilter(BaseArrayFilter):
             | compare (:obj:`list`): Optional ordered validation result list:
                                      hits, misses, false-alarm, true-negative
                                      as boolean numpy ndarrays.
+            | elev (:obj:`ndarray`): Array of elevation information
 
         Returns:
             List of validation results
         """
+        if elev is None:
+            elev = self.elev
         lowcloudhit = np.logical_and(fogstations, lowcluster != 0)
         lowcloudmiss = np.logical_and(fogstations, lowcluster == 0)
         lowcloudfalse = np.logical_and(nofogstations, lowcluster != 0)
         lowcloudtrueneg = np.logical_and(nofogstations, lowcluster == 0)
+
         if plot:
             stationsum = np.nansum(fogstations) + np.nansum(nofogstations)
-            allelev = self.elev[np.logical_or(fogstations, nofogstations)]
-            fogelev = self.elev[fogstations]
-            nofogelev = self.elev[nofogstations]
+            allelev = elev[np.logical_or(fogstations, nofogstations)]
+            fogelev = elev[fogstations]
+            nofogelev = elev[nofogstations]
             logmsg = "\n         ------ Station validation ------\n" \
                      "    Station statistics   | Elevation in m\n" \
                      "                       n | min    mean    max\n" \
@@ -1409,36 +1416,36 @@ class StationFusionFilter(BaseArrayFilter):
                      "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
                      "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
                      "    --------------------------------------------" \
-                     .format(stationsum, np.nanmin(allelev),
-                             np.nanmean(allelev),
-                             np.nanmax(allelev),
-                             np.nansum(fogstations),
-                             np.nanmin(fogelev),
-                             np.nanmean(fogelev),
-                             np.nanmax(fogelev),
-                             np.nansum(nofogstations),
-                             np.nanmin(nofogelev),
-                             np.nanmean(nofogelev),
-                             np.nanmax(nofogelev),
-                             nlowclst, np.min(self.elev[lowcluster != 0]),
-                             np.nanmean(self.elev[lowcluster != 0]),
-                             np.nanmax(self.elev[lowcluster != 0]),
-                             np.nansum(lowcloudhit),
-                             np.nanmin(self.elev[lowcloudhit]),
-                             np.nanmean(self.elev[lowcloudhit]),
-                             np.nanmax(self.elev[lowcloudhit]),
-                             np.nansum(lowcloudmiss),
-                             np.nanmin(self.elev[lowcloudmiss]),
-                             np.nanmean(self.elev[lowcloudmiss]),
-                             np.nanmax(self.elev[lowcloudmiss]),
-                             np.nansum(lowcloudfalse),
-                             np.nanmin(self.elev[lowcloudfalse]),
-                             np.nanmean(self.elev[lowcloudfalse]),
-                             np.nanmax(self.elev[lowcloudfalse]),
-                             np.nansum(lowcloudtrueneg),
-                             np.nanmin(self.elev[lowcloudtrueneg]),
-                             np.nanmean(self.elev[lowcloudtrueneg]),
-                             np.nanmax(self.elev[lowcloudtrueneg]))
+                     .format(stationsum, np.nanmin(self.check_zerolist(allelev)),
+                             np.nanmean(self.check_zerolist(allelev)),
+                             np.nanmax(self.check_zerolist(allelev)),
+                             np.nansum(self.check_zerolist(fogstations)),
+                             np.nanmin(self.check_zerolist(fogelev)),
+                             np.nanmean(self.check_zerolist(fogelev)),
+                             np.nanmax(self.check_zerolist(fogelev)),
+                             np.nansum(self.check_zerolist(nofogstations)),
+                             np.nanmin(self.check_zerolist(nofogelev)),
+                             np.nanmean(self.check_zerolist(nofogelev)),
+                             np.nanmax(self.check_zerolist(nofogelev)),
+                             nlowclst, np.min(self.check_zerolist(elev[lowcluster != 0])),
+                             np.nanmean(self.check_zerolist(elev[lowcluster != 0])),
+                             np.nanmax(self.check_zerolist(elev[lowcluster != 0])),
+                             np.nansum(self.check_zerolist(lowcloudhit)),
+                             np.nanmin(self.check_zerolist(elev[lowcloudhit])),
+                             np.nanmean(self.check_zerolist(elev[lowcloudhit])),
+                             np.nanmax(self.check_zerolist(elev[lowcloudhit])),
+                             np.nansum(self.check_zerolist(lowcloudmiss)),
+                             np.nanmin(self.check_zerolist(elev[lowcloudmiss])),
+                             np.nanmean(self.check_zerolist(elev[lowcloudmiss])),
+                             np.nanmax(self.check_zerolist(elev[lowcloudmiss])),
+                             np.nansum(self.check_zerolist(lowcloudfalse)),
+                             np.nanmin(self.check_zerolist(elev[lowcloudfalse])),
+                             np.nanmean(self.check_zerolist(elev[lowcloudfalse])),
+                             np.nanmax(self.check_zerolist(elev[lowcloudfalse])),
+                             np.nansum(self.check_zerolist(lowcloudtrueneg)),
+                             np.nanmin(self.check_zerolist(elev[lowcloudtrueneg])),
+                             np.nanmean(self.check_zerolist(elev[lowcloudtrueneg])),
+                             np.nanmax(self.check_zerolist(elev[lowcloudtrueneg])))
 
             if compare:
                 compmsg = "\n         ------ Comparision validation ------\n" \
@@ -1447,22 +1454,22 @@ class StationFusionFilter(BaseArrayFilter):
                           "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
                           "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
                           "    --------------------------------------------" \
-                          .format(np.nansum(compare[0]),
-                                  np.nanmin(self.elev[compare[0]]),
-                                  np.nanmean(self.elev[compare[0]]),
-                                  np.nanmax(self.elev[compare[0]]),
-                                  np.nansum(compare[1]),
-                                  np.nanmin(self.elev[compare[1]]),
-                                  np.nanmean(self.elev[compare[1]]),
-                                  np.nanmax(self.elev[compare[1]]),
-                                  np.nansum(compare[2]),
-                                  np.nanmin(self.elev[compare[2]]),
-                                  np.nanmean(self.elev[compare[2]]),
-                                  np.nanmax(self.elev[compare[2]]),
-                                  np.nansum(compare[3]),
-                                  np.nanmin(self.elev[compare[3]]),
-                                  np.nanmean(self.elev[compare[3]]),
-                                  np.nanmax(self.elev[compare[3]]),)
+                          .format(np.nansum(self.check_zerolist(compare[0])),
+                                  np.nanmin(self.check_zerolist(elev[compare[0]])),
+                                  np.nanmean(self.check_zerolist(elev[compare[0]])),
+                                  np.nanmax(self.check_zerolist(elev[compare[0]])),
+                                  np.nansum(self.check_zerolist(compare[1])),
+                                  np.nanmin(self.check_zerolist(elev[compare[1]])),
+                                  np.nanmean(self.check_zerolist(elev[compare[1]])),
+                                  np.nanmax(self.check_zerolist(elev[compare[1]])),
+                                  np.nansum(self.check_zerolist(compare[2])),
+                                  np.nanmin(self.check_zerolist(elev[compare[2]])),
+                                  np.nanmean(self.check_zerolist(elev[compare[2]])),
+                                  np.nanmax(self.check_zerolist(elev[compare[2]])),
+                                  np.nansum(self.check_zerolist(compare[3])),
+                                  np.nanmin(self.check_zerolist(elev[compare[3]])),
+                                  np.nanmean(self.check_zerolist(elev[compare[3]])),
+                                  np.nanmax(self.check_zerolist(elev[compare[3]])))
                 logger.info(logmsg + compmsg)
             else:
                 logger.info(logmsg)
@@ -1477,6 +1484,13 @@ class StationFusionFilter(BaseArrayFilter):
         cloudimg, cloudmask = cloudfilter.apply()
 
         return(cloudmask)
+
+    @classmethod
+    def check_zerolist(self, inlist):
+        if len(inlist) == 0:
+            return([np.nan])
+        else:
+            return(inlist)
 
 
 class NumericalModelFilter(BaseArrayFilter):

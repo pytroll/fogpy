@@ -41,6 +41,7 @@ from fogpy.filters import StationFusionFilter
 from fogpy.filters import NumericalModelFilter
 from fogpy.algorithms import DayFogLowStratusAlgorithm
 from pyresample import geometry
+from scipy import ndimage
 
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -714,6 +715,9 @@ class Test_StationFusionFilter(unittest.TestCase):
         self.test_stations = np.array([[False, False, False],
                                        [False, True, False],
                                        [False, False, False]], dtype=bool)
+        self.test_nostations = np.array([[False, False, True],
+                                         [False, False, False],
+                                         [False, False, False]], dtype=bool)
         self.test_elev = np.array([[800., 900., 1000.],
                                    [700., 500., 400.],
                                    [450., 500., 450.]])
@@ -782,6 +786,19 @@ class Test_StationFusionFilter(unittest.TestCase):
         self.assertEqual(np.sum(~nomask200), 6)
         self.assertEqual(np.sum(~mask), 3)
         self.assertEqual(np.sum(~mask200), 4)
+
+    def test_fusion_validation(self):
+        # Create fusion filter
+        lowcluster, nlowclst = ndimage.label(self.test_cloudmask)
+        valid = StationFusionFilter.validate_fogmask(self.test_stations,
+                                                     self.test_nostations,
+                                                     lowcluster, nlowclst,
+                                                     True, elev=self.test_elev)
+        # Evaluate results
+        self.assertEqual(np.sum(valid[0]), 0)
+        self.assertEqual(np.sum(valid[1]), 1)
+        self.assertEqual(np.sum(valid[2]), 1)
+        self.assertEqual(np.sum(valid[3]), 0)
 
 
 class Test_NumericalModelFilter(unittest.TestCase):
