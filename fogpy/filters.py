@@ -1292,7 +1292,7 @@ class StationFusionFilter(BaseArrayFilter):
 
         # Compare stations with low cloud mask
         firstvalid = self.validate_fogmask(fogstations, nofogstations,
-                                           lowcluster, nlowclst, True,
+                                           lowcluster, nlowclst, False,
                                            elev=self.elev)
         lchit, lcmiss, lcfalse, lctrue = firstvalid
         # Negate validation components for optional attribute plotting
@@ -1302,18 +1302,20 @@ class StationFusionFilter(BaseArrayFilter):
         self.lctrue = ~lctrue
 
         # 4. Interpolate station fog mask based on DEM
-        self.missdemmask = self.interpolate_dem(lcmiss, self.elev,
-                                                self.heightvar,
-                                                self.cloudmask)
-        self.falsedemmask = self.interpolate_dem(lcfalse, self.elev,
-                                                 self.heightvar,
-                                                 self.cloudmask)
+        self.missdemmask, missvalid = self.interpolate_dem(lcmiss,
+                                                           self.elev,
+                                                           self.heightvar,
+                                                           self.cloudmask)
+        self.falsedemmask, falsevalid = self.interpolate_dem(lcfalse,
+                                                             self.elev,
+                                                             self.heightvar,
+                                                             self.cloudmask)
         # 5. Perfom data fusion with low cloud mask
         self.mask = np.copy(self.lowcloudmask)
         # Station false alarm cases  --> Remove DEM based
-        self.mask[~self.falsedemmask] = True
+        self.mask[~self.falsedemmask & (falsevalid >= missvalid)] = True
         # Station Miss cases --> Add DEM based mask
-        self.mask[~self.missdemmask] = False
+        self.mask[~self.missdemmask & (missvalid > falsevalid)] = False
 
         # 6. Create fog cloud mask for image array
         if self.limit:
@@ -1337,7 +1339,7 @@ class StationFusionFilter(BaseArrayFilter):
 
         lowcluster, nlowclst = ndimage.label(~self.mask)
         secondvalid = self.validate_fogmask(fogstations, nofogstations,
-                                            lowcluster,
+                                            lowcluster.squeeze(),
                                             nlowclst, True, firstvalid,
                                             elev=self.elev)
         # Return filtered output with mask
@@ -1363,6 +1365,8 @@ class StationFusionFilter(BaseArrayFilter):
         fogrow, fogcol = np.where(stations)
         # Init fog station DEM mask
         demmask = np.ones(elev.shape[:2], dtype=bool)
+        # Setup validation mask to track number of station per masked pixel
+        validmask = np.zeros(elev.shape[:2], dtype=int)
         # Loop over foggy stations and extract heightbased fog mask
         for i in np.arange(len(fogrow)):
             # Only values within the given variance around the station
@@ -1373,14 +1377,17 @@ class StationFusionFilter(BaseArrayFilter):
             clstnum = elevcluster[fogrow[i], fogcol[i]]
             selectclst = elevcluster == clstnum
             demmask[selectclst.squeeze()] = False
+            # Cumulate validation mask
+            validmask[selectclst.squeeze()] += 1
         logger.info("Interpolated DEM based fog mask for {} stations"
                     .format(len(fogrow)))
 
         # Filter by cloud mask
         if mask is not None:
-            demmask = ~np.logical_and(~demmask, ~mask.squeeze())
+            demmask[~mask.squeeze()] = True
+            validmask[demmask] = 0
 
-        return(demmask)
+        return(demmask, validmask)
 
     @classmethod
     def validate_fogmask(self, fogstations, nofogstations, lowcluster,

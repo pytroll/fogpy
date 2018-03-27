@@ -715,6 +715,10 @@ class Test_StationFusionFilter(unittest.TestCase):
         self.test_stations = np.array([[False, False, False],
                                        [False, True, False],
                                        [False, False, False]], dtype=bool)
+        self.test_stations_valid = np.array([[False, False, False],
+                                             [False, False, True],
+                                             [True, True, False]],
+                                            dtype=bool)
         self.test_nostations = np.array([[False, False, True],
                                          [False, False, False],
                                          [False, False, False]], dtype=bool)
@@ -772,20 +776,81 @@ class Test_StationFusionFilter(unittest.TestCase):
                                          bufrfile=testbufr,
                                          time=self.time,
                                          area=area_def)
-        nomask = testfilter.interpolate_dem(self.test_stations, self.test_elev,
-                                            50)
-        nomask200 = testfilter.interpolate_dem(self.test_stations,
-                                               self.test_elev, 200)
-        mask = testfilter.interpolate_dem(self.test_stations, self.test_elev,
-                                          50, self.test_cloudmask)
-        mask200 = testfilter.interpolate_dem(self.test_stations,
-                                             self.test_elev, 200,
-                                             self.test_cloudmask)
+        nomask, validno = testfilter.interpolate_dem(self.test_stations,
+                                                     self.test_elev, 50)
+        nomask200, validno200 = testfilter.interpolate_dem(self.test_stations,
+                                                           self.test_elev, 200)
+        mask, valid = testfilter.interpolate_dem(self.test_stations,
+                                                 self.test_elev,
+                                                 50, self.test_cloudmask)
+        mask200, valid200 = testfilter.interpolate_dem(self.test_stations,
+                                                       self.test_elev, 200,
+                                                       self.test_cloudmask)
         # Evaluate results
         self.assertEqual(np.sum(~nomask), 4)
         self.assertEqual(np.sum(~nomask200), 6)
-        self.assertEqual(np.sum(~mask), 3)
-        self.assertEqual(np.sum(~mask200), 4)
+        self.assertEqual(np.sum(~mask), 1)
+        self.assertEqual(np.sum(~mask200), 2)
+
+    def test_dem_interpolation_valid(self):
+        # Create fusion filter
+        testfilter = StationFusionFilter(self.ir108,
+                                         ir108=self.ir108,
+                                         ir039=self.ir039,
+                                         lowcloudmask=testfogmask,
+                                         elev=self.elev,
+                                         bufrfile=testbufr,
+                                         time=self.time,
+                                         area=area_def)
+        # No cloud mask
+        nomask, novalid = testfilter.interpolate_dem(self.test_stations,
+                                                     self.test_elev, 50)
+        noother, novalido = testfilter.interpolate_dem(self.test_stations_valid,
+                                                       self.test_elev, 50)
+        # With cloud mask
+        mask, valid = testfilter.interpolate_dem(self.test_stations,
+                                                 self.test_elev, 50,
+                                                 self.test_cloudmask)
+        other, valido = testfilter.interpolate_dem(self.test_stations_valid,
+                                                   self.test_elev, 50,
+                                                   self.test_cloudmask)
+        # Evaluate results
+        self.assertEqual(np.sum(~nomask), 4)
+        self.assertEqual(np.sum(novalid), 4)
+        self.assertEqual(np.sum(~noother), 5)
+        self.assertEqual(np.sum(novalido), 11)
+        self.assertEqual(np.sum(~mask), 1)
+        self.assertEqual(np.sum(valid), 1)
+        self.assertEqual(np.sum(~other), 2)
+        self.assertEqual(np.sum(valido), 5)
+
+    def test_fusion_filter_dem_merge(self):
+        # Create fusion filter
+        testfilter = StationFusionFilter(self.ir108,
+                                         ir108=self.ir108,
+                                         ir039=self.ir039,
+                                         lowcloudmask=testfogmask,
+                                         elev=self.elev,
+                                         bufrfile=testbufr,
+                                         time=self.time,
+                                         area=area_def)
+        # No cloud mask
+        nomask, novalid = testfilter.interpolate_dem(self.test_stations,
+                                                     self.test_elev, 50)
+        noother, novalido = testfilter.interpolate_dem(self.test_stations_valid,
+                                                       self.test_elev, 50)
+        # With cloud mask
+        mask, valid = testfilter.interpolate_dem(self.test_stations,
+                                                 self.test_elev, 50,
+                                                 self.test_cloudmask)
+        other, valido = testfilter.interpolate_dem(self.test_stations_valid,
+                                                   self.test_elev, 50,
+                                                   self.test_cloudmask)
+        nomaskmerge = nomask & (novalid >= novalido)
+        othermerge = ~noother & (novalido >= novalid)
+        # Evaluate results
+        self.assertEqual(np.sum(nomaskmerge), 4)
+        self.assertEqual(np.sum(othermerge), 5)
 
     def test_fusion_validation(self):
         # Create fusion filter
