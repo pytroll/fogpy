@@ -297,11 +297,12 @@ class BaseArrayFilter(object):
         if attr is not None:
             if isinstance(attr, list):
                 for a in attr:
-                    self._plot_image(a, save, dir, resize)
+                    self._plot_image(a, save, dir, resize, type, area)
             elif isinstance(attr, str):
-                self._plot_image(attr, save, dir, resize)
+                self._plot_image(attr, save, dir, resize, type, area)
 
-    def _plot_image(self, name, save=False, dir="/tmp", resize=0):
+    def _plot_image(self, name, save=False, dir="/tmp", resize=0, type='png',
+                    area=None):
         """Plotting function for additional filter attributes.
 
         .. Note:: Masks should be correctly setup to be plotted:
@@ -317,7 +318,7 @@ class BaseArrayFilter(object):
         # Get save directory
         attrdir = os.path.join(dir, self.name + '_' + name + '_' +
                                datetime.strftime(self.time,
-                                                 '%Y%m%d%H%M') + '.png')
+                                                 '%Y%m%d%H%M') + '.' + type)
         logger.info("Plotting filter attribute {} to {}".format(name, attrdir))
         # Generate image
         attr = getattr(self, name)
@@ -343,7 +344,14 @@ class BaseArrayFilter(object):
         except:
             logger.warning("No merging for attribute plot possible")
         if save:
-            attr_img.save(attrdir)
+            if type == 'tif':
+                from mpop.imageo.geo_image import GeoImage
+                result_img = GeoImage(attr_img.channels, area,
+                                      self.time, fill_value=None,
+                                      mode="RGB")
+                result_img.save(attrdir)
+            else:
+                attr_img.save(attrdir)
         else:
             attr_img.show()
 
@@ -1284,9 +1292,14 @@ class StationFusionFilter(BaseArrayFilter):
 
         # Compare stations with low cloud mask
         firstvalid = self.validate_fogmask(fogstations, nofogstations,
-                                           lowcluster, nlowclst, False,
+                                           lowcluster, nlowclst, True,
                                            elev=self.elev)
         lchit, lcmiss, lcfalse, lctrue = firstvalid
+        # Negate validation components for optional attribute plotting
+        self.lchit = ~lchit
+        self.lcmiss = ~lcmiss
+        self.lcfalse = ~lcfalse
+        self.lctrue = ~lctrue
 
         # 4. Interpolate station fog mask based on DEM
         self.missdemmask = self.interpolate_dem(lcmiss, self.elev,
@@ -1300,8 +1313,7 @@ class StationFusionFilter(BaseArrayFilter):
         # Station false alarm cases  --> Remove DEM based
         self.mask[~self.falsedemmask] = True
         # Station Miss cases --> Add DEM based mask
-        self.mask = np.logical_and(self.mask.squeeze(),
-                                   self.missdemmask)
+        self.mask[~self.missdemmask] = False
 
         # 6. Create fog cloud mask for image array
         if self.limit:
@@ -1324,11 +1336,11 @@ class StationFusionFilter(BaseArrayFilter):
         self.nofogmask = ~nofogstations
 
         lowcluster, nlowclst = ndimage.label(~self.mask)
-        self.validate_fogmask(fogstations, nofogstations,
-                              lowcluster.squeeze(),
-                              nlowclst, True, firstvalid,
-                              elev=self.elev)
-
+        secondvalid = self.validate_fogmask(fogstations, nofogstations,
+                                            lowcluster,
+                                            nlowclst, True, firstvalid,
+                                            elev=self.elev)
+        # Return filtered output with mask
         self.result = np.ma.array(self.arr, mask=self.mask)
 
         return True
