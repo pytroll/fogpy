@@ -25,7 +25,7 @@
 import fogpy
 import numpy as np
 import os
-from import_synop import read_synop
+from .import_synop import read_synop
 from datetime import datetime
 from trollimage.image import Image
 from trollimage.colormap import Colormap
