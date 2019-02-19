@@ -22,7 +22,7 @@
 """This module implements an basic algorithm filter class
 and several class instances for satellite fog detection applications"""
 
-import copy_reg
+import copyreg
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,7 +52,7 @@ def _pickle_method(m):
     else:
         return getattr, (m.im_self, m.im_func.func_name)
 
-copy_reg.pickle(types.MethodType, _pickle_method)
+copyreg.pickle(types.MethodType, _pickle_method)
 
 
 class NotApplicableError(Exception):
