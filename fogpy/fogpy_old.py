@@ -34,7 +34,7 @@ from scipy.ndimage import measurements
 from scipy import ndimage
 from numpy.lib.stride_tricks import as_strided
 from scipy.signal import find_peaks_cwt
-from fogpy.lowwatercloud import LowWaterCloud
+from .lowwatercloud import LowWaterCloud
 from mpop.tools import estimate_cth
 
 logger = logging.getLogger(__name__)

@@ -25,8 +25,8 @@ detection and forecasting algorithm as a PyTROLL custom composite object.
 
 import logging
 
-from algorithms import DayFogLowStratusAlgorithm
-from algorithms import NightFogLowStratusAlgorithm
+from .algorithms import DayFogLowStratusAlgorithm
+from .algorithms import NightFogLowStratusAlgorithm
 from mpop.imageo.geo_image import GeoImage
 from trollimage.colormap import Colormap
 
