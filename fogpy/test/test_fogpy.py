@@ -100,8 +100,8 @@ prj = pyproj.Proj(proj='geos', lon_0=0.0, a=6378144.0, b=6356759.0,
 x_ll, y_ll = prj(3, 47)
 x_ur, y_ur = prj(19, 55)
 ger_extent = (x_ll, y_ll, x_ur, y_ur)
-germ_areadef = utils.load_area(os.path.join(os.getenv("PPP_CONFIG_DIR",
-                                                      "areas.yaml")),
+germ_areadef = utils.load_area(os.path.join(os.getenv("PPP_CONFIG_DIR"),
+                                                      "areas.yaml"),
                                'germ')
 germ_extent = germ_areadef.area_extent_ll
 x_ll, y_ll = prj(*germ_extent[0:2])
