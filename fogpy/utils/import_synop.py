@@ -51,7 +51,7 @@ def read_synop(file, params, min=None, max=None):
     Returns list of station dictionaries for given thresholds
     """
     result = {}
-    bfr = Bufr("libdwd", os.getenv["BUFR_TABLES"])
+    bfr = Bufr("libdwd", os.getenv("BUFR_TABLES"))
     for blob, size, header in load_file.next_bufr(file):
         bfr.decode(blob)
         try:
@@ -302,7 +302,7 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
     Returns list of station dictionaries for given thresholds
     """
     result = {}
-    bfr = Bufr("libdwd", os.getenv("BUFR_TABLES")
+    bfr = Bufr("libdwd", os.getenv("BUFR_TABLES"))
     for blob, size, header in load_file.next_bufr(file):
         bfr.decode(blob)
         try:
