@@ -10,61 +10,45 @@ fog products.
 Import satellite data first
 ===========================
 
-We start with the PyTroll package *mpop*. This package provide all functionalities 
+We start with the PyTroll package *satpy*. This package provide all functionalities 
 to import and calibrate a MSG scene from HRIT files. Therefore you should make sure 
 that mpop is properly configured and all environment variables like *PPP_CONFIG_DIR* 
 are set and the HRIT files are in the given search path. For more guidance look up 
-in the `mpop`_ documentation
+in the `satpy`_ documentation
 
-.. _mpop: http://mpop.readthedocs.io/en/latest/install.html#getting-the-files-and-installing-them/
+.. _satpy: http://satpy.readthedocs.io/en/latest/install.html#getting-the-files-and-installing-them/
 
 .. note::
-	Make sure *mpop* is correctly configured!
+	Make sure *satpy* is correctly configured!
 
 Ok, let's get it on::
 
-    >>> from datetime import datetime
-    >>> from mpop.satellites import GeostationaryFactory
-    >>> time = datetime(2013, 12, 12, 10, 0)
-    >>> msg_scene = GeostationaryFactory.create_scene(satname="meteosat",
-    >>>                                               satnumber='10',
-    >>>                                               instrument="seviri",
-    >>>                                               time_slot=time)
-    >>> msg_scene.load()
+    >>> from satpy import Scene
+    >>> from glob import glob
+    >>> filenames = glob("/path/to/seviri/H-000*20131212000*")
+    >>> msg_scene = Scene(reader="seviri_l1b_hrit", filenames=filenames)
+    >>> msg_scene.load([10.8])
+    >>> msg_scene.load(["fog"])
 
-We imported a MSG scene from  12. December 2017 and loaded all twelve channels into the scene object.
+We imported a MSG scene from  12. December 2013 and loaded all twelve channels and the fog composite
+into the scene object.
 
 Now we want to look at the IR 10.8 channel::
 
-	>>> msg_scene.image[10.8].show()
+	>>> msg_scene.show([10.8])
 
 .. image:: ./fogpy_docu_example_1.png
 
 Everything seems correctly imported. We see a full disk image. So lets see if we can resample it to a central European region::
 
-	>>> eu_scene = msg_scene.project("eurol")
-	Computing projection from meteosatseviri[-5567248.07417344 -5570248.47733926  5570248.47733926  5567248.07417344](3712, 3712) to eurol...
-	Projecting channel IR_120 (12.000000μm)...
-	Projecting channel IR_016 (1.640000μm)...
-	Projecting channel IR_087 (8.700000μm)...
-	Projecting channel WV_062 (6.250000μm)...
-	Projecting channel VIS008 (0.810000μm)...
-	Projecting channel WV_073 (7.350000μm)...
-	Projecting channel VIS006 (0.635000μm)...
-	Projecting channel IR_039 (3.920000μm)...
-	Projecting channel IR_097 (9.660000μm)...
-	Projecting channel IR_108 (10.800000μm)...
-	Projecting channel IR_134 (13.400000μm)...
-	Computing projection from meteosatseviri[-5568247.98732816 -5569248.12167703  5569248.12167703  5568247.98732816](11136, 11136) to eurol...
-	Projecting channel HRV (0.700000μm)...
-	>>> eu_scene.image[10.8].show()
+	>>> eu_scene = msg_scene.resample("eurol")
+	>>> eu_scene.show(10.8)
 
 .. image:: ./fogpy_docu_example_2.png
 
 A lot of clouds are present over central Europe. Let's test a fog RGB composite to find some low clouds:: 
 
-	>>> fogimg = eu_scene.image.fog()
-	>>> fogimg.show()
+	>>> eu_scene.show("fog")
 
 .. image:: ./fogpy_docu_example_3.png
 
@@ -81,23 +65,17 @@ Starting with the elevation information. Here we use a middle European section
 of the 1x1 km digital elevation model provided by the European Environmental Agency (`EEA`_).
 
 .. _EEA: https://www.eea.europa.eu/data-and-maps/data/copernicus-land-monitoring-service-eu-dem
-.. _mipp: https://github.com/pytroll/mipp
+.. _satpy: https://github.com/pytroll/satpy
 
 .. image:: ./fogpy_docu_example_5.png
 	:scale: 74 %
 
 Let's import this DEM data and projection information with the geotiff import 
-tool of the `mipp`_ package and create a area definition object for it::
+tool of the `satpy`_ package and create a area definition object for it::
 
-	>>> from mipp import read_geotiff as gtiff
-	>>> tiff = "/Path/To/Geotiff/dem_eu_1km.tif"
-	>>> params, dem = gtiff.read_geotiff(tiff)
-	>>> tiffarea = gtiff.tiff2areadef(params['projection'], params['geotransform'],
-                              		  dem.shape)
-	GEO transform: (3483900.0, 999.8606811145511, 0.0, 3754425.0, 0.0, -1000.2693282636249)
-	Band(1) type: Float32, size 1615 x 1578
-	fetched array: <type 'numpy.ndarray'> (1578, 1615) float32 [-200 -> 1099.54 -> 9999]   
-
+    >>> tiff = Scene(reader="generic_image", filenames=["/Path/To/Geotiff/dem_eu_1km.tif"])
+    >>> tiff.load(["image"])
+    >>> tiffarea = tiff["image"].area
 
 Now we have the elevation data as numpy array and the projection information as dictionary. 
 The DEM projection differs from the MSG scene one::
@@ -110,7 +88,7 @@ The DEM projection differs from the MSG scene one::
 	Number of columns: 1615
 	Number of rows: 1578
 	Area extent: (3483900.0, 2176000.0, 5098675.0, 3754425.0)
-	>>> eu_scene.area
+	>>> eu_scene["fog"].area
 	Area ID: eurol
 	Description: Euro 3.0km area - Europe
 	Projection ID: ps60wgs84
@@ -125,26 +103,11 @@ Here we resample the satellite data to the elevation information by using `pyres
 
 	>>> from pyresample import image
 	>>> from pyresample import utils
-	>>> dem_scene = msg_scene.project(tiffarea)
-	Computing projection from meteosatseviri[-5567248.07417344 -5570248.47733926  5570248.47733926  5567248.07417344](3712, 3712) to laea_7238...
-	Projecting channel VIS006 (0.635000μm)...
-	Projecting channel VIS008 (0.810000μm)...
-	Projecting channel IR_108 (10.800000μm)...
-	Projecting channel IR_134 (13.400000μm)...
-	Projecting channel IR_039 (3.920000μm)...
-	Projecting channel WV_062 (6.250000μm)...
-	Projecting channel WV_073 (7.350000μm)...
-	Projecting channel IR_016 (1.640000μm)...
-	Projecting channel IR_087 (8.700000μm)...
-	Projecting channel IR_097 (9.660000μm)...
-	Projecting channel IR_120 (12.000000μm)...
-	Computing projection from meteosatseviri[-5568247.98732816 -5569248.12167703  5569248.12167703  5568247.98732816](11136, 11136) to laea_7238...
-	Projecting channel HRV (0.700000μm)...
+	>>> dem_scene = msg_scene.resample(tiffarea)
 
 The satellite data for the middle European section looks like this (here the fog RGB composite has been displayed)::
 
-	>>> fogdem = dem_scene.image.fog()
-	>>> fogdem.show()
+	>>> dem_scene.show("fog")
 
 .. image:: ./fogpy_docu_example_4.png
 
@@ -155,24 +118,28 @@ file provided by the Climate Monitoring Satellite Application Facility (`CMSAF`_
 .. _pyresample: https://github.com/pytroll/pyresample
 .. _trollimage: http://trollimage.readthedocs.io/en/latest/
 
-Therefore we extract the paramters and meta information from the NetCDF file that are required for geolocation and resampling::
+Therefore we extract the parameters and meta information from the NetCDF file that are required for geolocation and resampling::
  
 
 
-	>>> cpp_file = '/media/nas/x21308/fog_db/result_{}_cpp.nc'.format(time.strftime("%Y%m%d%H%M"))
-	>>> cpp = h5py.File(cpp_file, 'r')
-	>>> proj4 = cpp.attrs["CMSAF_proj4_params"]
-	>>> extent = cpp.attrs["CMSAF_area_extent"]
-	>>> cot = list(cpp["cot"])[0] * 0.01
-	>>> reff = list(cpp["reff"])[0] * 1.e-08
-	>>> cwp = list(cpp["cwp"][:])[0] * 0.0002
-	>>> area_id = 'CPP_cmsaf'
-	>>> area_name = 'Gridded cloud physical properties from CMSAF'
-	>>> proj_id = 'CPP_cmsaf'
-	>>> x_size = cot.shape[0]
-	>>> y_size = cot.shape[1]
-	>>> cpp_area = utils.get_area_def(area_id, area_name, proj_id, proj4,
-        		                      x_size, y_size, extent)
+    >>> from datetime import datetime
+    >>> time = datetime(2013, 12, 12, 10, 0)
+    >>> cpp_file = '/media/nas/x21308/fog_db/cmsafdata/result_{}_cpp.nc'.format(time.strftime("%Y%m%d%H%M"))
+    >>> import h5py
+    >>> cpp = h5py.File(cpp_file, 'r')
+    >>> proj4 = cpp.attrs["CMSAF_proj4_params"].decode("ascii")
+    >>> extent = cpp.attrs["CMSAF_area_extent"]
+    >>> cot = list(cpp["cot"])[0] * 0.01
+    >>> reff = list(cpp["reff"])[0] * 1.e-08
+    >>> cwp = list(cpp["cwp"][:])[0] * 0.0002
+    >>> area_id = 'CPP_cmsaf'
+    >>> area_name = 'Gridded cloud physical properties from CMSAF'
+    >>> proj_id = 'CPP_cmsaf'
+    >>> x_size = cot.shape[0]
+    >>> y_size = cot.shape[1]
+    >>> from pyresample import get_area_def
+    >>> cpp_area = get_area_def(area_id, area_name, proj_id, proj4,
+            	                      x_size, y_size, extent)
 
 Afterwards the cloud optical depth (cod), effective droplet radius (reff) and the liquid water path (lwp) 
 are extracted and resampled to the DEM projection again with the `pyresample`_ package::
