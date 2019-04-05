@@ -35,7 +35,7 @@ into the scene object.
 
 Now we want to look at the IR 10.8 channel::
 
-	>>> msg_scene.show([10.8])
+	>>> msg_scene.show(10.8)
 
 .. image:: ./fogpy_docu_example_1.png
 
