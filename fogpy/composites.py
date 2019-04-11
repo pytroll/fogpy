@@ -181,3 +181,97 @@ fls_night.prerequisites = set([3.92, 10.8])
 
 # List of composites for SEVIRI instrument
 seviri = [fls_day, fls_night]
+
+
+
+#####
+
+import satpy.composites
+
+class FogCompositor(satpy.composites.GenericCompositor):
+    """A compositor for fog
+
+    FIXME DOC
+    """
+
+    def __init__(self, name,
+            prerequisites=None,
+            optional_prerequisites=None,
+            **kwargs):
+        super().__init__(name,
+                prerequisites=prerequisites,
+                optional_prerequisites=optional_prerequisites,
+                **kwargs)
+
+    def __call__(self, datasets, optional_datasets=None, **info):
+        super().__call__(datasets,
+                optional_datasets=optional_datasets,
+                **info)
+
+class FogCompositorDay(FogCompositor):
+    def __call__(self, projectables, *args, **kwargs):
+        projectables = self.check_areas(projectables)
+
+        # Get central lon/lat coordinates for the image
+        area = projectables[0].area
+        lon, lat = area.get_lonlats()
+
+        flsinput = {'vis006': projectables[0].data,
+                    'vis008': projectables[1].data,
+                    'ir108': projectables[5].data,
+                    'nir016': projectables[2].data,
+                    'ir039': projectables[3].data,
+                    'ir120': projectables[6].data,
+                    'ir087': projectables[4].data,
+                    'lat': lat,
+                    'lon': lon,
+                    'time': self.time_slot,
+                    'elev': elevation,
+                    'cot': cot,
+                    'reff': reff,
+                    'lwp': lwp,
+                    'cth': cth,
+                    'plot': plot,
+                    'save': plot,
+                    'dir': plotdir,
+                    'single': single,
+                    'resize': '1'}
+
+    # Compute fog mask
+    flsalgo = DayFogLowStratusAlgorithm(**flsinput)
+    fls, mask = flsalgo.run()
+
+    # Create geoimage object from algorithm result
+    flsimg = GeoImage(fls, area, self.time_slot,
+                      fill_value=0, mode="L")
+    flsimg.enhance(stretch="crude")
+
+    maskimg = GeoImage(~mask, area, self.time_slot,
+                       fill_value=0, mode="L")
+    maskimg.enhance(stretch="crude")
+
+    if validate:
+        # Get cloud mask image
+        vmaskimg = GeoImage(flsalgo.vcloudmask, area, self.time_slot,
+                            fill_value=0, mode="L")
+        vmaskimg.enhance(stretch="crude")
+
+        # Get cloud base height image
+        cbhimg = GeoImage(flsalgo.cbh, area, self.time_slot,
+                          fill_value=9999, mode="L")
+
+        # Get fog base height image
+        fbhimg = GeoImage(flsalgo.fbh, area, self.time_slot,
+                          fill_value=9999, mode="L")
+
+        # Get low cloud top height image
+        lcthimg = GeoImage(flsalgo.lcth, area, self.time_slot,
+                           fill_value=9999, mode="L")
+
+        return [flsimg, maskimg, vmaskimg, cbhimg, fbhimg, lcthimg]
+    else:
+        return flsimg, maskimg
+
+
+class FogCompositorNight(FogCompositor):
+    pass
