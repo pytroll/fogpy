@@ -31,6 +31,8 @@ from algorithms import NightFogLowStratusAlgorithm
 from trollimage.xrimage import XRImage
 from trollimage.colormap import Colormap
 
+from satpy import Scene
+
 logger = logging.getLogger(__name__)
 
 # Define custom fog colormap
@@ -210,7 +212,10 @@ class FogCompositor(satpy.composites.GenericCompositor):
                 **info)
 
 class FogCompositorDay(FogCompositor):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, path_dem, *args, **kwargs):
+        self.elevation = Scene(
+                reader="generic_image",
+                filenames=[path_dem])
         super().__init__(*args, **kwargs)
 
     def __call__(self, projectables, *args, **kwargs):
