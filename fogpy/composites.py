@@ -230,7 +230,7 @@ class FogCompositorDay(FogCompositor):
                     'ir087': projectables[4].data,
                     'lat': lat,
                     'lon': lon,
-                    'time': projectables[0].start_time
+                    'time': projectables[0].start_time,
                     'elev': elev,
                     'cot': self.projectables[7].data,
                     'reff': self.projectables[9].data,
