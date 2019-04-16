@@ -27,7 +27,7 @@ import logging
 
 from .algorithms import DayFogLowStratusAlgorithm
 from .algorithms import NightFogLowStratusAlgorithm
-from mpop.imageo.geo_image import GeoImage
+from trollimage.xrimage import XRImage
 from trollimage.colormap import Colormap
 
 logger = logging.getLogger(__name__)
