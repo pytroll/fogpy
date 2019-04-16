@@ -210,6 +210,9 @@ class FogCompositor(satpy.composites.GenericCompositor):
                 **info)
 
 class FogCompositorDay(FogCompositor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def __call__(self, projectables, *args, **kwargs):
         projectables = self.check_areas(projectables)
 
@@ -217,6 +220,7 @@ class FogCompositorDay(FogCompositor):
         area = projectables[0].area
         lon, lat = area.get_lonlats()
 
+        elev = self.elevation.resample(area)
         flsinput = {'vis006': projectables[0].data,
                     'vis008': projectables[1].data,
                     'ir108': projectables[5].data,
@@ -226,18 +230,19 @@ class FogCompositorDay(FogCompositor):
                     'ir087': projectables[4].data,
                     'lat': lat,
                     'lon': lon,
-                    'time': self.time_slot,
-                    'elev': elevation,
+                    'time': projectables[0].start_time
+                    'elev': elev,
                     'cot': self.projectables[7].data,
                     'reff': self.projectables[9].data,
-                    'lwp': lwp,
+                    'lwp': self.projectables[8].data,
                     "cwp": self.projectables[8].data,
-                    'cth': cth,
-                    'plot': plot,
-                    'save': plot,
-                    'dir': plotdir,
-                    'single': single,
-                    'resize': '1'}
+                    #'cth': cth,
+                    #'plot': plot,
+                    #'save': plot,
+                    #'dir': plotdir,
+                    #'single': single,
+                    #'resize': '1',
+                    }
 
         # Compute fog mask
         flsalgo = DayFogLowStratusAlgorithm(**flsinput)
