@@ -238,40 +238,40 @@ class FogCompositorDay(FogCompositor):
                     'single': single,
                     'resize': '1'}
 
-    # Compute fog mask
-    flsalgo = DayFogLowStratusAlgorithm(**flsinput)
-    fls, mask = flsalgo.run()
+        # Compute fog mask
+        flsalgo = DayFogLowStratusAlgorithm(**flsinput)
+        fls, mask = flsalgo.run()
 
-    # Create geoimage object from algorithm result
-    flsimg = GeoImage(fls, area, self.time_slot,
-                      fill_value=0, mode="L")
-    flsimg.enhance(stretch="crude")
+        # Create geoimage object from algorithm result
+        flsimg = GeoImage(fls, area, self.time_slot,
+                          fill_value=0, mode="L")
+        flsimg.enhance(stretch="crude")
 
-    maskimg = GeoImage(~mask, area, self.time_slot,
-                       fill_value=0, mode="L")
-    maskimg.enhance(stretch="crude")
+        maskimg = GeoImage(~mask, area, self.time_slot,
+                           fill_value=0, mode="L")
+        maskimg.enhance(stretch="crude")
 
-    if validate:
-        # Get cloud mask image
-        vmaskimg = GeoImage(flsalgo.vcloudmask, area, self.time_slot,
-                            fill_value=0, mode="L")
-        vmaskimg.enhance(stretch="crude")
+        if validate:
+            # Get cloud mask image
+            vmaskimg = GeoImage(flsalgo.vcloudmask, area, self.time_slot,
+                                fill_value=0, mode="L")
+            vmaskimg.enhance(stretch="crude")
 
-        # Get cloud base height image
-        cbhimg = GeoImage(flsalgo.cbh, area, self.time_slot,
-                          fill_value=9999, mode="L")
+            # Get cloud base height image
+            cbhimg = GeoImage(flsalgo.cbh, area, self.time_slot,
+                              fill_value=9999, mode="L")
 
-        # Get fog base height image
-        fbhimg = GeoImage(flsalgo.fbh, area, self.time_slot,
-                          fill_value=9999, mode="L")
+            # Get fog base height image
+            fbhimg = GeoImage(flsalgo.fbh, area, self.time_slot,
+                              fill_value=9999, mode="L")
 
-        # Get low cloud top height image
-        lcthimg = GeoImage(flsalgo.lcth, area, self.time_slot,
-                           fill_value=9999, mode="L")
+            # Get low cloud top height image
+            lcthimg = GeoImage(flsalgo.lcth, area, self.time_slot,
+                               fill_value=9999, mode="L")
 
-        return [flsimg, maskimg, vmaskimg, cbhimg, fbhimg, lcthimg]
-    else:
-        return flsimg, maskimg
+            return [flsimg, maskimg, vmaskimg, cbhimg, fbhimg, lcthimg]
+        else:
+            return flsimg, maskimg
 
 
 class FogCompositorNight(FogCompositor):
