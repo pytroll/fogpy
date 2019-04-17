@@ -243,7 +243,7 @@ class FogCompositorDay(FogCompositor):
                     'lon': lon,
                     'time': projectables[0].start_time,
                     'elev': numpy.ma.masked_invalid(
-                        elev["image"].values, copy=False),
+                        elev["image"].sel(bands="L").values, copy=False),
                     'cot': maskproj[7],
                     'reff': maskproj[9],
                     'lwp': maskproj[8],
