@@ -1070,7 +1070,7 @@ class LowCloudFilter(BaseArrayFilter):
                 result[key].append(val)
         # Calculate average cluster values by dictionary key
         if not data:
-            result = {k: stat_dict[stat](v) for k, v in result.iteritems()}
+            result = {k: stat_dict[stat](v) for k, v in result.items()}
 
         return result
 
