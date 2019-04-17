@@ -216,6 +216,7 @@ class FogCompositorDay(FogCompositor):
         self.elevation = Scene(
                 reader="generic_image",
                 filenames=[path_dem])
+        self.elevation.load(["image"])
         super().__init__(*args, **kwargs)
 
     def __call__(self, projectables, *args, **kwargs):
@@ -241,7 +242,8 @@ class FogCompositorDay(FogCompositor):
                     'lat': lat,
                     'lon': lon,
                     'time': projectables[0].start_time,
-                    'elev': elev,
+                    'elev': numpy.ma.masked_invalid(
+                        elev["image"].values, copy=False),
                     'cot': maskproj[7],
                     'reff': maskproj[9],
                     'lwp': maskproj[8],
