@@ -24,6 +24,7 @@ detection and forecasting algorithm as a PyTROLL custom composite object.
 """
 
 import logging
+import numpy
 
 from algorithms import DayFogLowStratusAlgorithm
 from algorithms import NightFogLowStratusAlgorithm
@@ -225,22 +226,27 @@ class FogCompositorDay(FogCompositor):
         area = projectables[0].area
         lon, lat = area.get_lonlats()
 
+        # fogpy is still working with masked arrays and does not yet support
+        # xarray / dask (see #6).  For now, convert to masked arrays.
+        maskproj = [
+                numpy.ma.masked_invalid(p.valied, copy=False)
+                for p in projectables]
         elev = self.elevation.resample(area)
-        flsinput = {'vis006': projectables[0].values,
-                    'vis008': projectables[1].values,
-                    'ir108': projectables[5].values,
-                    'nir016': projectables[2].values,
-                    'ir039': projectables[3].values,
-                    'ir120': projectables[6].values,
-                    'ir087': projectables[4].values,
+        flsinput = {'vis006': maskproj[0],
+                    'vis008': maskproj[1],
+                    'ir108': maskproj[5],
+                    'nir016': maskproj[2],
+                    'ir039': maskproj[3],
+                    'ir120': maskproj[6],
+                    'ir087': maskproj[4],
                     'lat': lat,
                     'lon': lon,
                     'time': projectables[0].start_time,
                     'elev': elev,
-                    'cot': projectables[7].values,
-                    'reff': projectables[9].values,
-                    'lwp': projectables[8].values,
-                    "cwp": projectables[8].values,
+                    'cot': maskproj[7],
+                    'reff': maskproj[9],
+                    'lwp': maskproj[8],
+                    "cwp": maskproj[8],
                     #'cth': cth,
                     #'plot': plot,
                     #'save': plot,
