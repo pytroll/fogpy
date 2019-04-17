@@ -201,13 +201,13 @@ class FogCompositor(satpy.composites.GenericCompositor):
             prerequisites=None,
             optional_prerequisites=None,
             **kwargs):
-        super().__init__(name,
+        return super().__init__(name,
                 prerequisites=prerequisites,
                 optional_prerequisites=optional_prerequisites,
                 **kwargs)
 
     def __call__(self, datasets, optional_datasets=None, **info):
-        super().__call__(datasets,
+        return super().__call__(datasets,
                 optional_datasets=optional_datasets,
                 **info)
 
@@ -217,7 +217,7 @@ class FogCompositorDay(FogCompositor):
                 reader="generic_image",
                 filenames=[path_dem])
         self.elevation.load(["image"])
-        super().__init__(*args, **kwargs)
+        return super().__init__(*args, **kwargs)
 
     def __call__(self, projectables, *args, **kwargs):
         projectables = self.check_areas(projectables)
@@ -255,10 +255,22 @@ class FogCompositorDay(FogCompositor):
                     #'single': single,
                     #'resize': '1',
                     }
-
         # Compute fog mask
         flsalgo = DayFogLowStratusAlgorithm(**flsinput)
         fls, mask = flsalgo.run()
+
+        xrfls = xarray.DataArray(
+                fls,
+                dims=projectables[0].dims,
+                coords=projectables[0].coords,
+                attrs={k: projectables[0].attrs[k]
+                    for k in ("satellite_longitude", "satellite_latitude",
+                    "satellite_altitude", "sensor" "platform_name",
+                    "projection", "georef_offset_corrected", "navigation",
+                    "start_time", "end_time", "area", "resolution")})
+
+        return super().__call__((xrfls,), *args, **kwargs)
+
 
         # Create geoimage object from algorithm result
         flsimg = GeoImage(fls, area, self.time_slot,
