@@ -25,6 +25,7 @@ detection and forecasting algorithm as a PyTROLL custom composite object.
 
 import logging
 import numpy
+import xarray
 
 from algorithms import DayFogLowStratusAlgorithm
 from algorithms import NightFogLowStratusAlgorithm
