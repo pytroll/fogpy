@@ -23,17 +23,42 @@
 
 from setuptools import setup, find_packages
 import os
-import imp
+import subprocess
+#import imp
 
 BASE_PATH = os.path.sep.join(os.path.dirname(
     os.path.realpath(__file__)).split(os.path.sep))
 
-version = imp.load_source('fogpy.version', 'fogpy/version.py')
+#version = imp.load_source('fogpy.version', 'fogpy/version.py')
 # here = os.path.abspath(os.path.dirname(__file__))
+
+# get commits since last tagged version
+cp = subprocess.run(
+    ["git", "describe", "--tags"],
+    stdout=subprocess.PIPE,
+    check=True)
+so = cp.stdout.strip().decode("utf-8")
+
+# get branch name
+cp = subprocess.run(
+    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+    stdout=subprocess.PIPE,
+    check=True)
+br = cp.stdout.strip().decode("utf-8")
+
+# optionally add commit/branch to version string
+if "-" in so: # we're not at a tagged version
+    version = so[1:].replace("-", "+dev", 1).replace("-", ".")
+    if br != "master":
+        version += "." + br
+else:
+    version = so[1:]
+
+
 
 setup(
     name='fogpy',
-    version=version.__version__,
+    version=version,
     url='https://github.com/m4sth0/fogpy',
     download_url='https://github.com/m4sth0/fogpy/archive/v1.1.3.tar.gz',
     license='GNU general public license version 3',
