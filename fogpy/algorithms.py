@@ -64,7 +64,7 @@ class BaseSatelliteAlgorithm(object):
         self.result = None
         self.attributes = []
         if kwargs is not None:
-            for key, value in kwargs.iteritems():
+            for key, value in kwargs.items():
                 self.attributes.append(key)
                 if isinstance(value, np.ma.MaskedArray):
                     self.add_mask(value.mask)

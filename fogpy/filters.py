@@ -75,7 +75,7 @@ class BaseArrayFilter(object):
             raise ImportError('The filter <{}> needs a valid 2d numpy array '
                               'as input'.format(self.__class__.__name__))
         if kwargs is not None:
-            for key, value in kwargs.iteritems():
+            for key, value in kwargs.items():
                 self.__setattr__(key, value)
             self.result = None
             self.mask = None
@@ -722,13 +722,13 @@ class SpatialCloudTopHeightFilter_old(BaseArrayFilter):
         logger.info("Applying Spatial Clustering Cloud Top Height Filter")
         # Apply maximum threshold for cluster height to identify low fog clouds
         cluster_mask = self.clusters.mask
-        for key, item in self.cluster_z.iteritems():
+        for key, item in self.cluster_z.items():
             if any([c > 2000 for c in item]):
                 cluster_mask[self.clusters == key] = True
 
         # Create additional fog cluster map
         self.cluster_cth = np.ma.masked_where(cluster_mask, self.clusters)
-        for key, item in self.cluster_z.iteritems():
+        for key, item in self.cluster_z.items():
             if all([c <= 2000 for c in item]):
                 self.cluster_cth[self.cluster_cth == key] = np.mean(item)
 
