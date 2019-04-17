@@ -228,7 +228,7 @@ class FogCompositorDay(FogCompositor):
         # fogpy is still working with masked arrays and does not yet support
         # xarray / dask (see #6).  For now, convert to masked arrays.
         maskproj = [
-                numpy.ma.masked_invalid(p.valied, copy=False)
+                numpy.ma.masked_invalid(p.values, copy=False)
                 for p in projectables]
         elev = self.elevation.resample(area)
         flsinput = {'vis006': maskproj[0],
