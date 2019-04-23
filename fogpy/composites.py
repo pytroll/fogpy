@@ -370,9 +370,6 @@ class FogCompositorDay(FogCompositor):
 class FogCompositorNight(FogCompositor):
 
     def __call__(self, projectables, *args, **kwargs):
-        logger.debug("Creating fog composite for {} instrument scene {}"
-            .format(self.fullname, self.time_slot))
-
         (area, lat, lon) = self._get_area_lat_lon(projectables)
 
         sza = pyorbital.astronomy.sun_zenith_angle(
