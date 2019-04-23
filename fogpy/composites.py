@@ -370,8 +370,8 @@ class FogCompositorDay(FogCompositor):
 class FogCompositorNight(FogCompositor):
 
     def __call__(self, projectables):
-	logger.debug("Creating fog composite for {} instrument scene {}"
-		     .format(self.fullname, self.time_slot))
+        logger.debug("Creating fog composite for {} instrument scene {}"
+            .format(self.fullname, self.time_slot))
 
         (area, lat, lon) = self._get_area_lat_lon(projectables)
 
@@ -380,12 +380,12 @@ class FogCompositorNight(FogCompositor):
 
         maskproj = self._convert_projectables(projectables)
 
-	flsinput = {'ir108': maskproj[1],
-		    'ir039': maskproj[0],
-		    'sza': sza,
-		    'lat': lat,
-		    'lon': lon,
-		    'time': projectables[0].start_time
+        flsinput = {'ir108': maskproj[1],
+                    'ir039': maskproj[0],
+                    'sza': sza,
+                    'lat': lat,
+                    'lon': lon,
+                    'time': projectables[0].start_time
 		    #'plot': True,
 		    #'save': True,
 		    #'dir': '/tmp',
@@ -393,8 +393,8 @@ class FogCompositorNight(FogCompositor):
                     }
 
 	# Compute fog mask
-	flsalgo = NightFogLowStratusAlgorithm(**flsinput)
-	fls, mask = flsalgo.run()
+        flsalgo = NightFogLowStratusAlgorithm(**flsinput)
+        fls, mask = flsalgo.run()
 
         (xrfls, xrmsk) = self._convert_to_xr(projectables, fls, mask)
 
