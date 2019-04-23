@@ -266,7 +266,7 @@ class FogCompositorDay(FogCompositor):
                 coords=projectables[0].coords,
                 attrs={k: projectables[0].attrs[k]
                     for k in ("satellite_longitude", "satellite_latitude",
-                    "satellite_altitude", "sensor" "platform_name",
+                    "satellite_altitude", "sensor", "platform_name",
                     "projection", "georef_offset_corrected", "navigation",
                     "start_time", "end_time", "area", "resolution")})
 
