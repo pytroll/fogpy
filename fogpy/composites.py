@@ -260,17 +260,21 @@ class FogCompositorDay(FogCompositor):
         flsalgo = DayFogLowStratusAlgorithm(**flsinput)
         fls, mask = flsalgo.run()
 
-        xrfls = xarray.DataArray(
-                fls,
-                dims=projectables[0].dims,
-                coords=projectables[0].coords,
-                attrs={k: projectables[0].attrs[k]
-                    for k in ("satellite_longitude", "satellite_latitude",
-                    "satellite_altitude", "sensor", "platform_name",
-                    "projection", "georef_offset_corrected", "navigation",
-                    "start_time", "end_time", "area", "resolution")})
+        # convert to xarray images
+        dims = projectables[0].dims
+        coords = projectables[0].coords
+            attrs={k: projectables[0].attrs[k]
+                for k in ("satellite_longitude", "satellite_latitude",
+                "satellite_altitude", "sensor", "platform_name",
+                "projection", "georef_offset_corrected", "navigation",
+                "start_time", "end_time", "area", "resolution")}
 
-        return super().__call__((xrfls,), *args, **kwargs)
+        xrfls = xarray.DataArray(
+                fls, dims=dims, coords=coords, attrs=attrs)
+        xrmsk = xarray.DataArray(
+                mask, dims=dims, coords=coords, attrs=attrs)
+
+        return super().__call__((xrfls, xrmsk), *args, **kwargs)
 
 
         # Create geoimage object from algorithm result
