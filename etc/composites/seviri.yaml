@@ -5,8 +5,8 @@ composites:
   fls_night:
     compositor: !!python/name:fogpy.composites.FogCompositorNight
     prerequisites:
-    - IR_039
-    - IR_087
+      - IR_039
+      - IR_108
     standard_name: fls_night
 
   fls_day:
