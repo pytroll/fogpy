@@ -276,9 +276,9 @@ class FogCompositor(satpy.composites.GenericCompositor):
                 "start_time", "end_time", "area", "resolution")}
 
         xrfls = xarray.DataArray(
-                fls, dims=dims, coords=coords, attrs=attrs)
+                fls.data, dims=dims, coords=coords, attrs=attrs)
         xrmsk = xarray.DataArray(
-                mask, dims=dims, coords=coords, attrs=attrs)
+                mask.data, dims=dims, coords=coords, attrs=attrs)
 
         return (xrfls, xrmsk)
 
