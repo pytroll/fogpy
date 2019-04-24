@@ -1239,7 +1239,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         """
         mask = np.logical_and(self.sza > (value - range),
                               self.sza <= (value + range))
-        btdist = np.histogram(self.bt_diff[mask])
+        btdist = np.histogram(self.bt_diff[mask].compressed())
         return(btdist)
 
     def plot_bt_hist(self, hist, saveto=None):
@@ -1502,7 +1502,7 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         """
         mask = np.logical_and(self.sza >= value,
                               self.sza < (value + range))
-        btdist = np.histogram(self.bt_diff[mask])
+        btdist = np.histogram(self.bt_diff[mask].compressed())
         return(btdist)
 
     def plot_bt_hist(self, hist, saveto=None):
