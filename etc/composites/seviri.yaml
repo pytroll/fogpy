@@ -22,4 +22,5 @@ composites:
       - cmic_cot
       - cmic_lwp
       - cmic_reff
+    standard_name: fls_day
     path_dem: /media/nas/x21308/DEM/dem_eu_1km.tif
