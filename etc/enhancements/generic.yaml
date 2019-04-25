@@ -6,6 +6,11 @@ enhancements:
       method: !!python/name:satpy.enhancements.stretch
       kwargs:
         stretch: crude
+    - name: colorize
+      method: !!python/name:satpy.enhancements.colorize
+      kwargs:
+        palettes:
+          - {colors: [(0, 0, 0), (250, 200, 40)]}
   fls_night_default:
     standard_name: fls_night
     operations:
@@ -13,3 +18,8 @@ enhancements:
       method: !!python/name:satpy.enhancements.stretch
       kwargs:
         stretch: crude
+    - name: colorize
+      method: !!python/name:satpy.enhancements.colorize
+      kwargs:
+        palettes:
+          - {colors: [(0, 0, 0), (250, 200, 40)]}
