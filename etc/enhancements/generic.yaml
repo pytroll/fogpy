@@ -1,0 +1,15 @@
+enhancements:
+  fls_day_default:
+    standard_name: fls_day
+    operations:
+    - name: stretch
+      method: !!python/name:satpy.enhancements.stretch
+      kwargs:
+        stretch: crude
+  fls_night_default:
+    standard_name: fls_night
+    operations:
+    - name: stretch
+      method: !!python/name:satpy.enhancements.stretch
+      kwargs:
+        stretch: crude
