@@ -141,46 +141,34 @@ The dataset has two bands:
 - Band ``L`` is an image of a selected channel (Default is the 10.8 IR channel) where only the detected ground fog cells are displayed
 - Band ``A`` is an image for the fog mask
 
-Fogpy comes with a Satpy enhancement file in
-``etc/enhancements/generic.yaml``, which defines an enhanced visualisation
-for the Fogpy ``fls_day`` composite.
-
-.. FIXME: documentation updated up to here
-
 .. image:: ./fogpy_docu_example_10.png
 
 The result image shows the area with potential ground fog calculated
 by the algorithm, fine.  But the remaining areas are missing... maybe
 a different visualization could be helpful.  We can improve the image
 output by colorize the fog mask and blending it over an overview composite
-using trollimage::
+using trollimage:
 
-	>>> from trollimage.image import Image
-	>>> from trollimage.colormap import Colormap
-	>>> fogcol = Colormap((0., (0.0, 0.0, 0.8)),
-   	>>> 	              (1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
-	    # Overlay fls image
-	>>> fogmaskimg = Image(fogmask.channels[0], mode="L")
-	>>> fogmaskimg.colorize(fogcol)
-	>>> fogmaskimg.convert("RGBA")
-	>>> alpha = np.zeros(fogmask.channels[0].shape)
-	>>> alpha[fogmask.channels[0] == 1] = 0.5
-	>>> fogmaskimg.putalpha(alpha)
-	    # Background overview composite
-	>>> dem_overview = dem_scene.image.overview()
-	>>> dem_fogimg = Image(dem_overview.channels, mode='RGB')
-	>>> dem_fogimg.convert("RGBA")
-	    # Over blend fog mask
-	>>> dem_fogimg.blend(fogmaskimg)
-	>>> dem_fogimg.show()    	              
-	>>> fls_img.show()
+Fogpy comes with a Satpy enhancement file in
+``etc/enhancements/generic.yaml``, which defines an enhanced visualisation
+for the Fogpy ``fls_day`` composite, which we will use::
+
+    >>> xrim_fls = satpy.writers.get_enhanced_image(ls["fls_day"])
+    >>> xrim_ov = satpy.writers.get_enhanced_image(ls["overview"]).convert("RGBA")
+    >>> # replace alpha on xrim_fls b5 0.5
+    >>> da_fls_A = xrim_fls.data.sel(bands=["A"])
+    >>> da_fls_RGB = xrim_fls.data.sel(bands=["R", "G", "B"])
+    >>> xrim_new = XRImage(xr.concat([da_fls_RGB, da_fls_A.where(da_fls_A==0, 0.5)], dim="bands")
+    >>> xrim_blend = xrim_ov.blend(xrim_new)
+    >>> xrim_blend.show()
+
+.. note::
+	Image not yet updated
 
 .. image:: ./fogpy_docu_example_11.png
 
-As additional default, all successively applied filter outputs are saved as images with yellow colored fitler mask result values in the */tmp* directory.
-
 Here are some example algorithm results for the given MSG scene. 
-As describt above, the different masks are blendes over the overview RGB composite in yellow, except the right image where the fog RGB is in the background:
+As described above, the different masks are blendes over the overview RGB composite in yellow, except the right image where the fog RGB is in the background:
 
 +----------------------------------------+----------------------------------------+----------------------------------------+
 | .. image:: ./fogpy_docu_example_13.png | .. image:: ./fogpy_docu_example_12.png | .. image:: ./fogpy_docu_example_14.png |
