@@ -69,7 +69,7 @@ for the imported scene.  For this we need:
     the European Environmental Agency (`EEA`_).
     Although this can be read by Satpy using
     the ``generic_image`` reader, the Fogpy composite reads this as a static
-    image.  The path to this image is defined in the Fogpy
+    image.  The path to this image needs to be  defined in the Fogpy
     ``etc/composites/seviri.yaml`` file.
 
 We create a scene in which we load
@@ -149,21 +149,25 @@ a different visualization could be helpful.  We can improve the image
 output by colorize the fog mask and blending it over an overview composite
 using trollimage:
 
-Fogpy comes with a Satpy enhancement file in
-``etc/enhancements/generic.yaml``, which defines an enhanced visualisation
-for the Fogpy ``fls_day`` composite, which we will use::
+.. Wait for this composite to work correctly
+.. 
+.. Fogpy comes with a Satpy enhancement file in
+.. ``etc/enhancements/generic.yaml``, which defines an enhanced visualisation
+.. for the Fogpy ``fls_day`` composite, which we will use::
 
-    >>> xrim_fls = satpy.writers.get_enhanced_image(ls["fls_day"])
-    >>> xrim_ov = satpy.writers.get_enhanced_image(ls["overview"]).convert("RGBA")
-    >>> # replace alpha on xrim_fls b5 0.5
-    >>> da_fls_A = xrim_fls.data.sel(bands=["A"])
-    >>> da_fls_RGB = xrim_fls.data.sel(bands=["R", "G", "B"])
-    >>> xrim_new = XRImage(xr.concat([da_fls_RGB, da_fls_A.where(da_fls_A==0, 0.5)], dim="bands")
-    >>> xrim_blend = xrim_ov.blend(xrim_new)
-    >>> xrim_blend.show()
+::
+
+    >>> ov = satpy.writers.get_enhanced_image(ls["overview"]).convert("RGBA")
+    >>> A = ls["fls_day"].sel(bands="A")
+    >>> Ap = (1-A).where(1-A==0, 0.5)
+    >>> im = XRImage(Ap)
+    >>> im.stretch()
+    >>> im.colorize(fogcol)
+    >>> RGBA = xr.concat([im.data, Ap], dim="bands")
+    >>> blend = ov.blend(XRImage(RGBA))
 
 .. note::
-	Image not yet updated
+	Images not yet updated!
 
 .. image:: ./fogpy_docu_example_11.png
 
@@ -188,23 +192,22 @@ But mostly fog occuring during nighttime. So let's continue with another composi
 for nighttime fog detection **fls_night**:.
 
 .. note::
-	Again make sure that the fogpy composites are made available in the mpop.cfg!
+	Again make sure that the fogpy composites are made available in satpy!
+
+.. fixme::
+    This part of documentation needs updating!
 
 First we need the nighttime MSG scene::
 
-    >>> from datetime import datetime
-    >>> from mpop.satellites import GeostationaryFactory
-    >>> ntime = datetime(2013, 12, 12, 4, 0)
-    >>> msg_nscene = GeostationaryFactory.create_scene(satname="meteosat",
-    >>>                                               satnumber='10',
-    >>>                                               instrument="seviri",
-    >>>                                               time_slot=ntime)
-    >>> msg_nscene.load()
+    >>> fn_nwcsaf = glob("/media/nas/x21308/scratch/NWCSAF/*100000Z.nc") # FIXME: UPDATE!
+    >>> fn_sev = glob("/media/nas/x21308/scratch/SEVIRI/*201904151000*") # FIXME: UPDATE!
+    >>> sc = Scene(filenames={"seviri_l1b_hrit": fn_sev, "nwcsaf-geo": fn_nwcsaf})
+    >>> sc.load(["IR_108, "IR_039", "night_fog"])
 
 Reproject it to the central European section from above and have a look at the infrared channel::
  
-    >>> dem_nscene = msg_nscene.project(tiffarea)
-    >>> dem_nscene.image[10.8].show()
+    >>> ls = sc.resample("eurol")
+    >>> ls.show(10.8)
 
 .. image:: ./fogpy_docu_nexample_1.png
 
@@ -213,8 +216,7 @@ clouds, that are present at 10 am, already can be seen early in the the morning 
 
 So let's look at the nighttime fog RGB product::
 
-    >>> nfogimg = dem_nscene.image.night_fog()
-    >>> nfogimg.show()
+    >>> ls.show("night_fog")
 
 .. image:: ./fogpy_docu_nexample_2.png
 
@@ -224,17 +226,13 @@ distribution as the low clouds in the daytime scene.
 We can conclude that these low clouds should have formed during the night.
  
 So let's create the fogpy nighttime composite.
-Therefore we only need the sun zenith angle as additional input. We can compute the angles with the PyTroll package `pyorbital`_::
-
-    >>> from pyorbital import astronomy
-    >>> lon, lat = tiffarea.get_lonlats()
-    >>> nsza = astronomy.sun_zenith_angle(ntime, lon, lat)
-
+Fogpy will use the PyTroll package `pyorbital`_ for solar zenith angle
+calculations, so make sure this one is installed.
 The nightime composite for the resampled MSG scene
-is generated in the same way like the daytime composite with `mpop`_::
+is generated in the same way like the daytime composite with `satpy`_::
 
-    >>> nfls_img, nfogmask = dem_scene.image.fls_night(nsza)
-    >>> nfls_img.show()
+    >>> ls.load(["fls_night"])
+    >>> ls.show("fls_night")
 
 .. image:: ./fogpy_docu_nexample_3.png
 
