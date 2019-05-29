@@ -138,7 +138,18 @@ class BaseSatelliteAlgorithm(object):
 
     def plot_result(self, array=None, save=False, dir="/tmp", resize=1,
                     name='array', type='png', area=None, floating_point=False):
-        """Plotting the algorithm result."""
+        """Plotting the algorithm result.
+        
+        Method disabled pending https://github.com/gerritholl/fogpy/issues/6"""
+
+        # The problem is that instead of Image we should use XRImage, but
+        # we're getting a masked array from downstream rather than an
+        # xarray.DataArray
+
+        raise NotImplementedError(
+                "plot_result is disabled pending conversion to "
+                "xarray/dask, see "
+                "https://github.com/gerritholl/fogpy/issues/6")
         # Using Trollimage if available, else matplotlib is used to plot
         try:
             from trollimage.image import Image
@@ -1035,10 +1046,10 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         | mspec (:obj:`list`): List of multispectral channels as numpy
                                   arrays.
         | pan (:obj:`ndarray`): Panchromatic channel as numpy array.
-        | area (:obj:`areadefinition`) Area definition object (PyTroll-mpop
+        | area (:obj:`areadefinition`) Area definition object (pyresample class)
                                        class) for the multispectral channels.
         | panarea (:obj:`areadefinition`): Area definition object
-                                           (PyTroll-mpop class) for the
+                                           (pyresample class) for the
                                            panchromatic channel.
 
     Returns:
