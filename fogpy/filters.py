@@ -192,10 +192,16 @@ class BaseArrayFilter(object):
                     type='png', area=None, name=None):
         """Plotting the filter result.
 
+        Disabled until fogpy supports dask, see
+        https://github.com/gerritholl/fogpy/issues/6
+
         .. Note:: Masks should be correctly setup to be plotted:
                   **True** (1) mask values are not shown, **False** (0) mask
                   values are displayed.
         """
+        raise NotImplementedError(
+                "plot_filter is disabled until fogpy supports dask, "
+                "see https://github.com/gerritholl/fogpy/issues/6")
         if name is None:
             name = self.name
         # Get output directory and image name
@@ -312,6 +318,9 @@ class BaseArrayFilter(object):
                   **True** (1) mask values are not shown, **False** (0) mask
                   values are displayed.
         """
+        raise NotImplementedError(
+                "plotting is disabled until fogpy supports dask, "
+                "see https://github.com/gerritholl/fogpy/issues/6")
         from trollimage.image import Image
         from trollimage.colormap import Colormap
         # Define custom fog colormap

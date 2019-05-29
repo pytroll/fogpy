@@ -32,7 +32,7 @@ from satpy.scene import Scene
 from satpy.dataset import Dataset
 from trollimage.image import Image
 from trollimage.colormap import Colormap
-from mpop.utils import debug_on
+from satpy.utils import debug_on
 
 debug_on()
 # Define geos projection boundaries for Germany.

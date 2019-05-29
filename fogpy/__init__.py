@@ -3,6 +3,7 @@
 # Copyright (c) 2017
 # Author(s):
 #   Thomas Leppelt <thomas.leppelt@dwd.de>
+#   Gerrit Holl    <gerrit.holl@dwd.de>
 
 # This file is part of the fogpy package.
 
