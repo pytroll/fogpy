@@ -918,9 +918,6 @@ class LowCloudFilter(BaseArrayFilter):
         """
         logger.info("Applying Low Cloud Filter")
         # Creating process pool
-        pool = mp.Pool(self.nprocs)
-        mlogger = mp.log_to_stderr()
-        mlogger.setLevel(logging.DEBUG)
         # Declare result arrays without copy
         self.cbh = np.empty(self.clusters.shape, dtype=np.float)
         self.fbh = np.empty(self.clusters.shape, dtype=np.float)
@@ -944,24 +941,7 @@ class LowCloudFilter(BaseArrayFilter):
                     count_cells += 1
                     workinput = [self.lwp[r, c], self.cth[r, c],
                                  self.ir108[r, c], self.reff[r, c]]
-                    applyres.append(pool.apply_async(self.get_fog_base_height,
-                                                     args=workinput,
-                                                     callback=self.log_result))
-            # Log tasks
-            while True:
-                incomplete_count = sum(1 for x in applyres if not x.ready())
-
-                if incomplete_count == 0:
-                    logger.info("All Done. Completed {} tasks"
-                                .format(task_count))
-                    break
-                remain = float(task_count - incomplete_count) / task_count * 100
-                logger.info("{} Tasks Remaining --- {:.2f} % Complete"
-                            .format(incomplete_count, remain))
-                time.sleep(1)
-            # Wait for all processes to finish
-            pool.close()
-            pool.join()
+                    self.log_result(self.get_fog_base_height(*workinput))
             logger.info("Finished low cloud models for {} cells"
                         .format(count_cells))
             # Create ground fog and low stratus cloud masks and cbh
@@ -994,24 +974,7 @@ class LowCloudFilter(BaseArrayFilter):
             for key in lwp_cluster.keys():
                 workinput = [lwp_cluster[key], cth_cluster[key],
                              ctt_cluster[key], reff_cluster[key]]
-                applyres.append(pool.apply_async(self.get_fog_base_height,
-                                                 args=workinput,
-                                                 callback=self.log_result))
-            # Log tasks
-            while True:
-                incomplete_count = sum(1 for x in applyres if not x.ready())
-
-                if incomplete_count == 0:
-                    logger.info("All Done. Completed {} tasks"
-                                .format(task_count))
-                    break
-                remain = float(task_count - incomplete_count) / task_count * 100
-                logger.info("{} Tasks Remaining --- {:.2f} % Complete"
-                            .format(incomplete_count, remain))
-                time.sleep(1)
-            # Wait for all processes to finish
-            pool.close()
-            pool.join()
+                self.log_result(self.get_fog_base_height(*workinput))
             # Create ground fog and low stratus cloud masks and cbh
             keys = lwp_cluster.keys()
             for k, res in zip(keys, self.result_list):
