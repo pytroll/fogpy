@@ -36,15 +36,15 @@ from scipy.ndimage import measurements
 from scipy.stats import linregress
 from scipy import interpolate
 from scipy import spatial
-from filters import CloudFilter
-from filters import SnowFilter
-from filters import IceCloudFilter
-from filters import CirrusCloudFilter
-from filters import WaterCloudFilter
-from filters import SpatialCloudTopHeightFilter
-from filters import SpatialHomogeneityFilter
-from filters import CloudPhysicsFilter
-from filters import LowCloudFilter
+from .filters import CloudFilter
+from .filters import SnowFilter
+from .filters import IceCloudFilter
+from .filters import CirrusCloudFilter
+from .filters import WaterCloudFilter
+from .filters import SpatialCloudTopHeightFilter
+from .filters import SpatialHomogeneityFilter
+from .filters import CloudPhysicsFilter
+from .filters import LowCloudFilter
 from pyresample import image, geometry
 from pyresample.utils import generate_nearest_neighbour_linesample_arrays
 

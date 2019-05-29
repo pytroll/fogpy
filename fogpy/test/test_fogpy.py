@@ -33,11 +33,11 @@ from mipp import read_geotiff as gtiff
 from pyresample import image
 from trollimage.image import Image
 from trollimage.colormap import Colormap
-from utils import get_time_period
+from fogpy.utils import get_time_period
 from PIL import Image as PILimage
 from pyresample import utils
 from mpop.imageo.geo_image import GeoImage
-from utils.import_synop import read_synop
+from fogpy.utils.import_synop import read_synop
 
 debug_on()
 
