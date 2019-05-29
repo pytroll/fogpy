@@ -26,6 +26,7 @@ bufr file"""
 import fogpy
 import logging
 import os
+import os.path
 
 from fogpy.lowwatercloud import CloudLayer as CL
 from trollbufr.bufr import Bufr
@@ -50,7 +51,7 @@ def read_synop(file, params, min=None, max=None):
     Returns list of station dictionaries for given thresholds
     """
     result = {}
-    bfr = Bufr("libdwd", "/data/tleppelt/git/trollbufr/")
+    bfr = Bufr("libdwd", os.getenv("BUFR_TABLES"))
     for blob, size, header in load_file.next_bufr(file):
         bfr.decode(blob)
         try:
@@ -169,7 +170,7 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
     Returns list of station dictionaries for given thresholds
     """
     result = {}
-    bfr = Bufr("libdwd", "/data/tleppelt/git/trollbufr/")
+    bfr = Bufr("libdwd", os.getenv("BUFR_TABLES"))
     for blob, size, header in load_file.next_bufr(file):
         bfr.decode(blob)
         try:
@@ -301,7 +302,7 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
     Returns list of station dictionaries for given thresholds
     """
     result = {}
-    bfr = Bufr("libdwd", "/data/tleppelt/git/trollbufr/")
+    bfr = Bufr("libdwd", os.getenv("BUFR_TABLES"))
     for blob, size, header in load_file.next_bufr(file):
         bfr.decode(blob)
         try:
