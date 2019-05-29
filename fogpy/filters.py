@@ -1005,11 +1005,11 @@ class LowCloudFilter(BaseArrayFilter):
             pool.join()
             # Create ground fog and low stratus cloud masks and cbh
             keys = lwp_cluster.keys()
-            for i, res in enumerate(self.result_list):
-                self.cbh[self.clusters == keys[i]] = res[0]
-                self.fbh[self.clusters == keys[i]] = res[1]
+            for k, res in zip(keys, self.result_list):
+                self.cbh[self.clusters == k] = res[0]
+                self.fbh[self.clusters == k] = res[1]
                 # Mask non ground fog clouds
-                self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
+                self.fog_mask[(self.clusters == k) & (self.fbh -
                                                             self.elev >
                                                             0)] = True
         # Create cloud physics mask for image array
