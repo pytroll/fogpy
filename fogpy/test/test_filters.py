@@ -538,7 +538,7 @@ class Test_LowCloudFilter(unittest.TestCase):
                       'reff': self.reff,
                       'lwp': self.lwp,
                       'cth': self.cth,
-                      'plot': True,
+                      'plot': False,
                       'save': True,
                       'dir': '/tmp/FLS',
                       'resize': '5'}
@@ -759,7 +759,7 @@ class Test_StationFusionFilter(unittest.TestCase):
                                          bufrfile=testbufr,
                                          time=self.time,
                                          area=area_def,
-                                         plot=True,
+                                         plot=False,
                                          save=True,
                                          resize=5)
         ret, mask = testfilter.apply()
