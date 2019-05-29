@@ -59,6 +59,9 @@ class NotApplicableError(Exception):
     """Exception to be raised when a filter is not applicable."""
     pass
 
+class DummyException(Exception):
+    """Small helper, never raised
+    """
 
 class BaseArrayFilter(object):
     """This super filter class provide all functionalities to apply a filter
@@ -207,7 +210,7 @@ class BaseArrayFilter(object):
             from trollimage.image import Image
             from trollimage.colormap import Colormap
             from mpop.imageo.geo_image import GeoImage
-        except:
+        except ImportError:
             cmap = get_cmap('gray')
             cmap.set_bad('goldenrod', 1.)
             imgplot = plt.imshow(self.result.squeeze())
@@ -223,7 +226,7 @@ class BaseArrayFilter(object):
         if area is None and type == 'tif':
             try:
                 area = self.area
-            except:
+            except DummyException:
                 Warning("Area object not found. Plotting filter result as"
                         " image")
                 type = 'png'
@@ -255,7 +258,7 @@ class BaseArrayFilter(object):
         try:
             # Merging
             filter_img.merge(bg_img)
-        except:
+        except DummyException:
             logger.warning("No merging for filter plot possible")
         if save:
             if type == 'tif':
@@ -341,7 +344,7 @@ class BaseArrayFilter(object):
         try:
             # Merging
             attr_img.merge(bg_img)
-        except:
+        except DummyException:
             logger.warning("No merging for attribute plot possible")
         if save:
             if type == 'tif':
@@ -1002,11 +1005,11 @@ class LowCloudFilter(BaseArrayFilter):
             pool.join()
             # Create ground fog and low stratus cloud masks and cbh
             keys = lwp_cluster.keys()
-            for i, res in enumerate(self.result_list):
-                self.cbh[self.clusters == keys[i]] = res[0]
-                self.fbh[self.clusters == keys[i]] = res[1]
+            for k, res in zip(keys, self.result_list):
+                self.cbh[self.clusters == k] = res[0]
+                self.fbh[self.clusters == k] = res[1]
                 # Mask non ground fog clouds
-                self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
+                self.fog_mask[(self.clusters == k) & (self.fbh -
                                                             self.elev >
                                                             0)] = True
         # Create cloud physics mask for image array
@@ -1037,7 +1040,7 @@ class LowCloudFilter(BaseArrayFilter):
             cbh = lowcloud.get_cloud_base_height(-100, 'basin')
             # Get visibility and fog cloud base height
             fbh = lowcloud.get_fog_base_height(self.substitude)
-        except Exception as e:
+        except DummyException as e:
             logger.error(e, exc_info=True)
             cbh = np.nan
             fbh = np.nan
@@ -1104,7 +1107,7 @@ class CloudMotionFilter(BaseArrayFilter):
     attrlist = ['preir108', 'ir108']
     try:
         import cv2
-    except:
+    except ImportError:
         Warning("openCV Python package cv2 not found. Please install"
                 "opencv and/or the cv-python interface")
 

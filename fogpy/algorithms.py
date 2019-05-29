@@ -55,6 +55,9 @@ class NotProcessibleError(Exception):
     """Exception to be raised when a filter is not applicable."""
     pass
 
+class DummyException(Exception):
+    """Never raised
+    """
 
 class BaseSatelliteAlgorithm(object):
     """This super filter class provide all functionalities to run an algorithm
@@ -146,14 +149,14 @@ class BaseSatelliteAlgorithm(object):
             from trollimage.colormap import ylorrd
             from trollimage.colormap import Colormap
             from mpop.imageo.geo_image import GeoImage
-        except:
+        except ImportError:
             logger.info("{} results can't be plotted to: {}". format(self.name,
                                                                      dir))
             return 0
         if area is None:
             try:
                 area = self.area
-            except:
+            except DummyException:
                 Warning("Area object not found. Plotting filter result as"
                         " image")
                 type = 'png'
@@ -219,7 +222,7 @@ class BaseSatelliteAlgorithm(object):
         if arr.ndim != 2:
             try:
                 result = arr.squeeze()  # Try to reduce dimension
-            except:
+            except DummyException:
                 raise ValueError("need 2-D input")
         else:
             result = arr
@@ -237,7 +240,7 @@ class BaseSatelliteAlgorithm(object):
         try:
             from trollimage.image import Image
             from trollimage.colormap import rainbow
-        except:
+        except ImportError:
             logger.info("{} results can't be plotted to: {}". format(name,
                                                                      self.dir))
             return 0
@@ -521,7 +524,7 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         if result.ndim != 2 and reduce:
             try:
                 result = result.squeeze()  # Try to reduce dimension
-            except:
+            except DummyException:
                 raise ValueError("need 2-D input")
         logger.debug("Number of spatial coherent fog cloud clusters: %s"
                      % np.nanmax(np.unique(result)))
@@ -925,7 +928,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if arr.ndim != 2:
             try:
                 arr = arr.squeeze()  # Try to reduce dimension
-            except:
+            except DummyException:
                 raise ValueError("need 2-D input")
         if not (window_size > 0):
             raise ValueError("need a positive window size")
@@ -945,7 +948,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if arr.ndim != 2:
             try:
                 arr = arr.squeeze()  # Try to reduce dimension
-            except:
+            except DummyException:
                 raise ValueError("need 2-D input")
         w = self.sliding_window(arr, 2*d+1)
 
@@ -998,7 +1001,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if result.ndim != 2:
             try:
                 result = result.squeeze()  # Try to reduce dimension
-            except:
+            except DummyException:
                 raise ValueError("need 2-D input")
         logger.debug("Number of spatial coherent fog cloud clusters: %s"
                      % np.nanmax(np.unique(result)))
@@ -1186,7 +1189,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
             # Write coefficient of determination to evaluation array
             try:
                 eval_array[index] = rsqrt
-            except:
+            except DummyException:
                 Warning("Local linear regression not possible at: {}, {}"
                         .format(row, col))
             # Log tasks
