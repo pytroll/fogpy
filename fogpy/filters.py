@@ -72,7 +72,7 @@ class BaseArrayFilter(object):
             self.arr = arr
             self.inmask = np.full(arr.shape, False, dtype=bool)
         else:
-            raise ImportError('The filter <{}> needs a valid 2d numpy array '
+            raise TypeError('The filter <{}> needs a valid 2d numpy array '
                               'as input'.format(self.__class__.__name__))
         if kwargs is not None:
             for key, value in kwargs.iteritems():

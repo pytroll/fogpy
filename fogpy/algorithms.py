@@ -125,7 +125,7 @@ class BaseSatelliteAlgorithm(object):
         """Compute the new array mask as union of all input array masks
         and computed masks."""
         if not np.ma.is_mask(mask):
-            raise ImportError("Mask type is invalid")
+            raise TypeError("Mask type is invalid")
         if self.mask is not None:
             self.mask = self.mask | mask
         else:
