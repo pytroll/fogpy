@@ -77,7 +77,7 @@ def draw_synop(img, area_def, lons, lats, ptsize):
 
     try:
         (x, y) = area_def.get_xy_from_lonlat(lons, lats)
-    except ValueError, exc:
+    except ValueError as exc:
         print("Point not added (%s)", str(exc))
     else:
         # add_dot

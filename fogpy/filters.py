@@ -22,7 +22,7 @@
 """This module implements an basic algorithm filter class
 and several class instances for satellite fog detection applications"""
 
-import copy_reg
+import copyreg
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,7 +52,7 @@ def _pickle_method(m):
     else:
         return getattr, (m.im_self, m.im_func.func_name)
 
-copy_reg.pickle(types.MethodType, _pickle_method)
+copyreg.pickle(types.MethodType, _pickle_method)
 
 
 class NotApplicableError(Exception):
@@ -75,7 +75,7 @@ class BaseArrayFilter(object):
             raise TypeError('The filter <{}> needs a valid 2d numpy array '
                               'as input'.format(self.__class__.__name__))
         if kwargs is not None:
-            for key, value in kwargs.iteritems():
+            for key, value in kwargs.items():
                 self.__setattr__(key, value)
             self.result = None
             self.mask = None
@@ -722,13 +722,13 @@ class SpatialCloudTopHeightFilter_old(BaseArrayFilter):
         logger.info("Applying Spatial Clustering Cloud Top Height Filter")
         # Apply maximum threshold for cluster height to identify low fog clouds
         cluster_mask = self.clusters.mask
-        for key, item in self.cluster_z.iteritems():
+        for key, item in self.cluster_z.items():
             if any([c > 2000 for c in item]):
                 cluster_mask[self.clusters == key] = True
 
         # Create additional fog cluster map
         self.cluster_cth = np.ma.masked_where(cluster_mask, self.clusters)
-        for key, item in self.cluster_z.iteritems():
+        for key, item in self.cluster_z.items():
             if all([c <= 2000 for c in item]):
                 self.cluster_cth[self.cluster_cth == key] = np.mean(item)
 
@@ -1070,7 +1070,7 @@ class LowCloudFilter(BaseArrayFilter):
                 result[key].append(val)
         # Calculate average cluster values by dictionary key
         if not data:
-            result = {k: stat_dict[stat](v) for k, v in result.iteritems()}
+            result = {k: stat_dict[stat](v) for k, v in result.items()}
 
         return result
 
