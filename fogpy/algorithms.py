@@ -1152,7 +1152,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         logger.info("Using local regression approach by Hill")
         # Setup KDtree for nearest neighbor search
         indices = np.indices(chn.shape)
-        tree = spatial.KDTree(zip(indices[0].ravel(), indices[1].ravel()))
+        tree = spatial.KDTree(list(zip(indices[0].ravel(), indices[1].ravel())))
         # Track progress
         todo = chn.size
         ready = 1
