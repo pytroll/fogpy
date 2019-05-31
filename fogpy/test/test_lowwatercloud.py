@@ -135,7 +135,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         cl2 = CloudLayer(1970, 1980, lwc)
         cl3 = CloudLayer(1950, 2050, lwc)
         self.assertAlmostEqual(cl.z, 50., 2)
-        self.assertAlmostEqual(cl.temp, , 2-5.47)
+        self.assertAlmostEqual(cl.temp, -5.47, 2)
         self.assertAlmostEqual(cl.press, 1007.26, 2)
         self.assertAlmostEqual(cl.psv, 4.07, 2)
         self.assertAlmostEqual(cl1.lwc, 0.607, 3)
