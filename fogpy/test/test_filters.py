@@ -186,11 +186,11 @@ class Test_CloudFilter(unittest.TestCase):
 
         # Evaluate results
         self.assertEqual(testfilter.ccl.squeeze().shape, (141, 298))
-        np.testing.assert_almost_equal(testfilter.ccl[95, 276], 0.544)
+        np.testing.assert_almost_equal(testfilter.ccl[95, 276], 0.544, 3)
         np.testing.assert_almost_equal(testfilter.ccl[29, 216], 1)
-        np.testing.assert_almost_equal(testfilter.ccl[78, 45], 0.303)
+        np.testing.assert_almost_equal(testfilter.ccl[78, 45], 0.303, 3)
         np.testing.assert_almost_equal(testfilter.ccl[61, 261], 0)
-        np.testing.assert_almost_equal(np.nanmax(testfilter.cm_diff), 3.43)
+        np.testing.assert_almost_equal(np.nanmax(testfilter.cm_diff), 3.43, 2)
         self.assertTrue(all(testfilter.ccl[testfilter.cm_diff <
                                            testfilter.thres] > 0.5))
         self.assertTrue(all(testfilter.ccl[testfilter.cm_diff >
@@ -679,7 +679,7 @@ class Test_LowCloudFilter(unittest.TestCase):
 #         ret, mask = testfilter.apply()
         data = testfilter.plot_cluster_stat()
         # Evaluate results
-        self.assertEqual(len(data.values()[0]), 16)
+        self.assertEqual(next(iter(data.values())), 16)
 
 
 class Test_CloudMotionFilter(unittest.TestCase):

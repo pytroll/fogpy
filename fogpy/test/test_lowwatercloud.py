@@ -44,11 +44,11 @@ class Test_LowWaterCloud(unittest.TestCase):
         psv_0 = self.lwc.get_sat_vapour_pressure(0)
         psv_20 = self.lwc.get_sat_vapour_pressure(20)
         psv_50 = self.lwc.get_sat_vapour_pressure(50)
-        self.assertAlmostEqual(round(psv_m50, 3), 0.064)
-        self.assertAlmostEqual(round(psv_m20, 3), 1.256)
-        self.assertAlmostEqual(round(psv_0, 3), 6.112)
-        self.assertAlmostEqual(round(psv_20, 3), 23.383)
-        self.assertAlmostEqual(round(psv_50, 3), 123.494)
+        self.assertAlmostEqual(psv_m50, 0.064, 3)
+        self.assertAlmostEqual(psv_m20, 1.256, 3)
+        self.assertAlmostEqual(psv_0, 6.112, 3)
+        self.assertAlmostEqual(psv_20, 23.383, 3)
+        self.assertAlmostEqual(psv_50, 123.494, 3)
 
     def test_get_sat_vapour_pressure_magnus(self):
         psv_m50 = self.lwc.get_sat_vapour_pressure(-50, 'magnus')
@@ -56,30 +56,30 @@ class Test_LowWaterCloud(unittest.TestCase):
         psv_0 = self.lwc.get_sat_vapour_pressure(0, 'magnus')
         psv_20 = self.lwc.get_sat_vapour_pressure(20, 'magnus')
         psv_50 = self.lwc.get_sat_vapour_pressure(50, 'magnus')
-        self.assertAlmostEqual(round(psv_m50, 3), 0.064)
-        self.assertAlmostEqual(round(psv_m20, 3), 1.254)
-        self.assertAlmostEqual(round(psv_0, 3), 6.108)
-        self.assertAlmostEqual(round(psv_20, 3), 23.420)
-        self.assertAlmostEqual(round(psv_50, 3), 123.335)
+        self.assertAlmostEqual(psv_m50, 0.064, 3)
+        self.assertAlmostEqual(psv_m20, 1.254, 3)
+        self.assertAlmostEqual(psv_0, 6.108, 3)
+        self.assertAlmostEqual(psv_20, 23.420, 3)
+        self.assertAlmostEqual(psv_50, 123.335, 3)
 
     def test_get_air_pressure(self):
         pa_1 = self.lwc.get_air_pressure(610)
         pa_2 = self.lwc.get_air_pressure(0)
-        self.assertAlmostEqual(round(pa_1, 2), 942.08)
-        self.assertAlmostEqual(round(pa_2, 2), 1013.25)
+        self.assertAlmostEqual(pa_1, 942.08, 2)
+        self.assertAlmostEqual(pa_2, 1013.25, 2)
 
     def test_get_moist_adiabatic_lapse_temp(self):
         temp_0 = self.lwc.get_moist_adiabatic_lapse_temp(500, 1500, 0)
-        self.assertAlmostEqual(round(temp_0, 1), 6.5)
+        self.assertAlmostEqual(temp_0, 6.5, 1)
 
     def test_get_vapour_mixing_ratio(self):
         vmr = self.lwc.get_vapour_mixing_ratio(1007.26, 8.44)
-        self.assertAlmostEqual(round(vmr, 2), 5.26)
+        self.assertAlmostEqual(vmr, 5.26, 2)
 
     def test_get_cloud_based_vapour_mixing_ratio(self):
         self.lwc.cbh = 0
         cb_vmr = self.lwc.get_cloud_based_vapour_mixing_ratio()
-        self.assertAlmostEqual(round(cb_vmr, 2), 2.57)
+        self.assertAlmostEqual(cb_vmr, 2.57, 2)
 
     def test_get_liquid_mixing_ratio(self):
         self.lwc.cbh = 0
@@ -98,7 +98,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwc = LowWaterCloud(2000., 255., 400., 0)
         lwc = self.lwc.get_liquid_water_content(1950, 2000, 1.091, 1.392, 0.0,
                                                 1.518, 50)
-        self.assertAlmostEqual(round(lwc, 3), 1.519)
+        self.assertAlmostEqual(lwc, 1.519, 3)
 
     def test_get_liquid_water_path(self):
         self.lwc.init_cloud_layers(421., 100)
@@ -107,8 +107,8 @@ class Test_LowWaterCloud(unittest.TestCase):
         cl = CloudLayer(1900, 2000, lwc)
         lwc.get_liquid_water_path()
         self.assertAlmostEqual(len(lwc.layers), 1)
-        self.assertAlmostEqual(round(lwc.lwp, 3), 60.719)
-        self.assertAlmostEqual(round(self.lwc.lwp, 1), 400.)
+        self.assertAlmostEqual(lwc.lwp, 60.719, 3)
+        self.assertAlmostEqual(self.lwc.lwp, 400., 1)
 
     def test_get_liquid_water_path2(self):
         self.lwc.init_cloud_layers(0, 50)
@@ -116,7 +116,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwc.init_cloud_layers(0, 10)
         lwc.get_liquid_water_path()
         self.lwc.get_liquid_water_path()
-        self.assertAlmostEqual(round(lwc.lwp, 1), round(self.lwc.lwp, 1))
+        self.assertAlmostEqual(lwc.lwp, self.lwc.lwp, 1)
 
     def test_init_cloud_layers(self):
         self.lwc.init_cloud_layers(0, 100)
@@ -125,7 +125,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(len(self.lwc.layers), 22)
         self.assertAlmostEqual(self.lwc.layers[0].z, 0)
         self.assertAlmostEqual(self.lwc.layers[1].z, 50)
-        self.assertAlmostEqual(round(self.lwc.layers[20].press, 0), 800)
+        self.assertAlmostEqual(self.lwc.layers[20].press, 800, 0)
         self.assertAlmostEqual(self.lwc.layers[21].z, 2000)
 
     def test_cloud_layer(self):
@@ -134,13 +134,13 @@ class Test_LowWaterCloud(unittest.TestCase):
         cl1 = CloudLayer(1945, 1955, lwc)
         cl2 = CloudLayer(1970, 1980, lwc)
         cl3 = CloudLayer(1950, 2050, lwc)
-        self.assertAlmostEqual(round(cl.z, 2), 50.)
-        self.assertAlmostEqual(round(cl.temp, 2), -5.47)
-        self.assertAlmostEqual(round(cl.press, 2), 1007.26)
-        self.assertAlmostEqual(round(cl.psv, 2), 4.07)
-        self.assertAlmostEqual(round(cl1.lwc, 3), 0.607)
-        self.assertAlmostEqual(round(cl2.lwc, 3), 0.304)
-        self.assertAlmostEqual(round(cl3.lwc, 3), 0.)
+        self.assertAlmostEqual(cl.z, 50., 2)
+        self.assertAlmostEqual(cl.temp, , 2-5.47)
+        self.assertAlmostEqual(cl.press, 1007.26, 2)
+        self.assertAlmostEqual(cl.psv, 4.07, 2)
+        self.assertAlmostEqual(cl1.lwc, 0.607, 3)
+        self.assertAlmostEqual(cl2.lwc, 0.304, 3)
+        self.assertAlmostEqual(cl3.lwc, 0., 3)
 
     def test_cloud_layer_small(self):
         lwc = LowWaterCloud(1000., 235., 400., 950)
@@ -149,24 +149,24 @@ class Test_LowWaterCloud(unittest.TestCase):
         cl2 = CloudLayer(970, 980, lwc, False)
         cl3 = CloudLayer(980, 990, lwc, False)
         cl4 = CloudLayer(990, 1000, lwc, False)
-        self.assertAlmostEqual(round(cl.lwc, 5), 8e-5)
-        self.assertAlmostEqual(round(cl1.lwc, 5), 6e-05)
-        self.assertAlmostEqual(round(cl2.lwc, 5), 4e-05)
-        self.assertAlmostEqual(round(cl3.lwc, 5), 3e-05)
-        self.assertAlmostEqual(round(cl4.lwc, 5), 1e-05)
+        self.assertAlmostEqual(cl.lwc, 8, 5e-5)
+        self.assertAlmostEqual(cl1.lwc, 6, 5e-05)
+        self.assertAlmostEqual(cl2.lwc, 4, 5e-05)
+        self.assertAlmostEqual(cl3.lwc, 3, 5e-05)
+        self.assertAlmostEqual(cl4.lwc, 1, 5e-05)
         self.assertAlmostEqual(lwc.upthres, 49)
-        self.assertAlmostEqual(round(lwc.maxlwc, 6), 8.2e-5)
+        self.assertAlmostEqual(lwc.maxlwc, 8.2, 6e-5)
 
     def test_cloud_layer_small2(self):
         lwc = LowWaterCloud(1000., 235., 400., 950)
         cl1 = CloudLayer(970, 980, lwc, False)
         cl2 = CloudLayer(980, 990, lwc, False)
         cl3 = CloudLayer(990, 1000, lwc, False)
-        self.assertAlmostEqual(round(cl1.lwc, 5), 4e-5)
-        self.assertAlmostEqual(round(cl2.lwc, 5), 3e-05)
-        self.assertAlmostEqual(round(cl3.lwc, 5), 1e-05)
+        self.assertAlmostEqual(cl1.lwc, 4, 5e-5)
+        self.assertAlmostEqual(cl2.lwc, 3, 5e-05)
+        self.assertAlmostEqual(cl3.lwc, 1, 5e-05)
         self.assertAlmostEqual(lwc.upthres, 49)
-        self.assertAlmostEqual(round(lwc.maxlwc, 6), 8.2e-5)
+        self.assertAlmostEqual(lwc.maxlwc, 8.2, 6e-5)
 
     def test_get_moist_air_density(self):
         self.lwc.cbh = 0
@@ -187,14 +187,14 @@ class Test_LowWaterCloud(unittest.TestCase):
         humid_ideal_hrho_neg20 = self.lwc.get_moist_air_density(101325,  996.3,
                                                                 253.15)
 
-        self.assertAlmostEqual(round(empiric_hrho_0, 3), 1.276)
-        self.assertAlmostEqual(round(empiric_hrho_20, 4), 1.205)
-        self.assertAlmostEqual(round(ideal_hrho_15, 4), 1.2250)
-        self.assertAlmostEqual(round(ideal_hrho_20, 4), 1.2041)
-        self.assertAlmostEqual(round(humid_ideal_hrho_20, 3), 1.194)
-        self.assertAlmostEqual(round(empiric_humid_hrho_20, 4), 1.1945)
-        self.assertAlmostEqual(round(humid_ideal_hrho_neg20, 4), 1.3892)
-        self.assertAlmostEqual(round(empiric_humid_hrho_neg20, 4), 1.3902)
+        self.assertAlmostEqual(empiric_hrho_0, 1.276, 3)
+        self.assertAlmostEqual(empiric_hrho_20, 1.205, 4)
+        self.assertAlmostEqual(ideal_hrho_15, 1.2250, 4)
+        self.assertAlmostEqual(ideal_hrho_20, 1.2041, 4)
+        self.assertAlmostEqual(humid_ideal_hrho_20, 1.194, 3)
+        self.assertAlmostEqual(empiric_humid_hrho_20, 1.1945, 4)
+        self.assertAlmostEqual(humid_ideal_hrho_neg20, 1.3892, 4)
+        self.assertAlmostEqual(empiric_humid_hrho_neg20, 1.3902, 4)
 
     def test_get_incloud_mixing_ratio(self):
         self.lwc.cbh = 100
@@ -207,7 +207,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(beta_0, 0.3)
         self.assertAlmostEqual(beta_1, 0)
         self.assertAlmostEqual(beta_2, 0.12)
-        self.assertAlmostEqual(round(beta_3, 2), 0.3)
+        self.assertAlmostEqual(beta_3, 0.3, 2)
         self.assertAlmostEqual(beta_4, 0.3)
 
     def test_get_incloud_mixing_ratio_limit(self):
@@ -222,14 +222,14 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(beta_0, 0.3)
         self.assertAlmostEqual(beta_1, 0.3)
         self.assertAlmostEqual(beta_2, 0.3)
-        self.assertAlmostEqual(round(beta_3, 2), 0.3)
+        self.assertAlmostEqual(beta_3, 0.3, 2)
         self.assertAlmostEqual(beta_4, 0.3)
         self.assertAlmostEqual(beta_5, 0.3)
 
     def test_optimize_cbh_brute(self):
         self.lwc.thickness = 100
         ret_brute = self.lwc.optimize_cbh(100., method='brute')
-        self.assertAlmostEqual(round(ret_brute, 1), 421.)
+        self.assertAlmostEqual(ret_brute, 421., 1)
 
     def test_optimize_cbh_basin(self):
         self.lwc.thickness = 100
@@ -286,17 +286,17 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)
         vis = self.lwc.get_visibility(1)
         vis2 = self.lwc.get_visibility(1/1000.)
-        self.assertAlmostEqual(round(vis, 3), 3.912)
-        self.assertAlmostEqual(round(vis2, 0), 3912)
+        self.assertAlmostEqual(vis, 3.912, 3)
+        self.assertAlmostEqual(vis2, 3912, 0)
 
     def test_get_liquid_density(self):
         lwc = LowWaterCloud(2000., 285., 400., 0)
         rho1 = self.lwc.get_liquid_density(20, 100e5)
         rho2 = self.lwc.get_liquid_density(4, 1e5)
         rho3 = self.lwc.get_liquid_density(0, 1e5)
-        self.assertAlmostEqual(round(rho1, 3), 1002.66)
-        self.assertAlmostEqual(round(rho2, 3), 999.448)
-        self.assertAlmostEqual(round(rho3, 3), 999.80)
+        self.assertAlmostEqual(rho1, 1002.66, 3)
+        self.assertAlmostEqual(rho2, 999.448, 3)
+        self.assertAlmostEqual(rho3, 999.80, 3)
 
     def test_get_effective_radius(self):
         lwc = LowWaterCloud(1000., 255., 400., reff=10e-6, cbh=0)
@@ -320,7 +320,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwc = LowWaterCloud(2000., 275., 400., 100, 10e-6)
         lwc.init_cloud_layers(100, 50)
         fbh = lwc.get_fog_base_height()
-        self.assertAlmostEqual(round(fbh, 0), 125)
+        self.assertAlmostEqual(fbh, 125, 0)
 
     def test_get_fog_cloud_height2(self):
         lwc = LowWaterCloud(1000., 275., 100., 100., 10e-6)
@@ -328,9 +328,9 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwp = lwc.get_liquid_water_path()
         cbh = lwc.optimize_cbh(lwc.cbh)
         fbh = lwc.get_fog_base_height()
-        self.assertAlmostEqual(round(lwc.lwp, 3), 100)
-        self.assertAlmostEqual(round(lwc.maxlwc, 3), 0.494)
-        self.assertAlmostEqual(round(fbh, 0), 612)
+        self.assertAlmostEqual(lwc.lwp, 100, 3)
+        self.assertAlmostEqual(lwc.maxlwc, 0.494, 3)
+        self.assertAlmostEqual(fbh, 612, 0)
 
 
 def suite():
