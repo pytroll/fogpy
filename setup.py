@@ -90,7 +90,7 @@ setup(
                       'trollimage >= 1.8.0',
                       "satpy >= 0.15",
                       'pyresample >= 1.11',
-                      "opencv >= 4.1",
+                      "opencv-python >= 4.1",
                       'trollbufr >= 0.10'],
     tests_require=[],
 )
