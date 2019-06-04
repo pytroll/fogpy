@@ -701,7 +701,7 @@ class Test_CloudMotionFilter(unittest.TestCase):
                                        preir108=self.preir108)
         ret, mask = testfilter.apply()
         # Evaluate results
-        self.assertEqual(ret, self.ir108)
+        np.testing.assert_array_equal(ret, self.ir108)
 
 
 class Test_StationFusionFilter(unittest.TestCase):
