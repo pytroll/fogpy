@@ -1204,7 +1204,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
 
     def progressbar(self, ready, todo, size):
         """ simple method for printing a progress bar to stdout"""
-        s = ('<' + (ready/(size/50)*'#') + (todo/(size/50)*'-') +
+        s = ('<' + (ready//(size//50)*'#') + (todo//(size//50)*'-') +
              '> ') + str(ready) + (' / {}'.format(size))
         print ('\r'+s),
         todo -= 1
