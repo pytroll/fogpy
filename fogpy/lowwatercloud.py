@@ -538,7 +538,7 @@ class LowWaterCloud(object):
                         ' elapsed time: {:.2f} ms for {} layers with {} '
                         'm thickness'
                         .format(start, float(self.cth), float(self.ctt),
-                                float(self.cwp), self.lwp, result, time_diff,
+                                float(self.cwp), float(self.lwp), result, time_diff,
                                 len(self.layers), self.thickness))
         elif method == 'brute':
             ranges = slice(0, self.cth - self.upthres, 1)

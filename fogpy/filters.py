@@ -1162,7 +1162,7 @@ class CloudMotionFilter(BaseArrayFilter):
         penult = penult / (max_val - min_val)
         penult = penult.astype(np.float32)
 
-        flow = optflow.calc(penult.data, ult.data, None)
+        flow = optflow.calc(penult, ult, None)
         flow_x = flow[:, :, 0]
         flow_y = flow[:, :, 1]
 
