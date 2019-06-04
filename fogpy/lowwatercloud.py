@@ -279,7 +279,7 @@ class LowWaterCloud(object):
         Returns:
             Fog base height
         """
-        fog_z = [l.z for l in self.layers if (l.visibility <= 1000) & (l.visibility is not None)]
+        fog_z = [l.z for l in self.layers if l.visibility is not None and l.visibility <= 1000]
         try:
             self.fbh = min(fog_z)  # Get lowest heights with visibility treshold
         except:
@@ -538,7 +538,7 @@ class LowWaterCloud(object):
                         ' elapsed time: {:.2f} ms for {} layers with {} '
                         'm thickness'
                         .format(start, float(self.cth), float(self.ctt),
-                                float(self.cwp), self.lwp, result, time_diff,
+                                float(self.cwp), float(self.lwp), result, time_diff,
                                 len(self.layers), self.thickness))
         elif method == 'brute':
             ranges = slice(0, self.cth - self.upthres, 1)

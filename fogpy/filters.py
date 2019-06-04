@@ -70,13 +70,12 @@ class BaseArrayFilter(object):
     def __init__(self, arr, **kwargs):
         if isinstance(arr, np.ma.MaskedArray):
             self.arr = arr
-            self.inmask = arr.mask
         elif isinstance(arr, np.ndarray):
-            self.arr = arr
-            self.inmask = np.full(arr.shape, False, dtype=bool)
+            self.arr = np.ma.masked_array(arr, np.zeros_like(arr))
         else:
             raise TypeError('The filter <{}> needs a valid 2d numpy array '
                               'as input'.format(self.__class__.__name__))
+        self.inmask = self.arr.mask
         if kwargs is not None:
             for key, value in kwargs.items():
                 self.__setattr__(key, value)
@@ -1005,11 +1004,11 @@ class LowCloudFilter(BaseArrayFilter):
             pool.join()
             # Create ground fog and low stratus cloud masks and cbh
             keys = lwp_cluster.keys()
-            for i, res in enumerate(self.result_list):
-                self.cbh[self.clusters == keys[i]] = res[0]
-                self.fbh[self.clusters == keys[i]] = res[1]
+            for k, res in zip(keys, self.result_list):
+                self.cbh[self.clusters == k] = res[0]
+                self.fbh[self.clusters == k] = res[1]
                 # Mask non ground fog clouds
-                self.fog_mask[(self.clusters == keys[i]) & (self.fbh -
+                self.fog_mask[(self.clusters == k) & (self.fbh -
                                                             self.elev >
                                                             0)] = True
         # Create cloud physics mask for image array
@@ -1105,13 +1104,9 @@ class CloudMotionFilter(BaseArrayFilter):
     """Filtering FLS cloud by motion trakcing for satellite images."""
     # Required inputs
     attrlist = ['preir108', 'ir108']
-    try:
-        import cv2
-    except ImportError:
-        Warning("openCV Python package cv2 not found. Please install"
-                "opencv and/or the cv-python interface")
+    import cv2
 
-    def filter_function(self):
+    def filter_function(self, plot=False):
         """Cloud motion filter routine
 
         Fog clouds are a stationary phenomena and therefore exhibit little
@@ -1135,7 +1130,7 @@ class CloudMotionFilter(BaseArrayFilter):
         # Calculate motion vectors
         logger.info("Calculate optical flow...")
 
-        optflow = self.cv2.createOptFlow_DualTVL1()
+        optflow = self.cv2.optflow.createOptFlow_DualTVL1()
         # DWD Radar parameterization by M. Werner
         optflow.setEpsilon(0.01)
         optflow.setLambda(0.05)
@@ -1166,16 +1161,21 @@ class CloudMotionFilter(BaseArrayFilter):
         penult = penult / (max_val - min_val)
         penult = penult.astype(np.float32)
 
-        flow = optflow.calc(penult.data, ult.data, None)
+        if isinstance(penult.data, np.ndarray): # masked
+            flow = optflow.calc(penult.data, ult.data, None)
+        else: # not masked
+            flow = optflow.calc(penult, ult, None)
+
         flow_x = flow[:, :, 0]
         flow_y = flow[:, :, 1]
 
-        # Plot motion field
-        img = self.draw_motion_vectors(flow)
-        img.show()
+        if plot:
+            # Plot motion field
+            img = self.draw_motion_vectors(flow)
+            img.show()
 
         # Create cloud physics mask for image array
-        self.mask = self.arr.mask
+        self.mask = getattr(self.arr, "mask", None)
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 

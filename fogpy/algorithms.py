@@ -1152,7 +1152,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         logger.info("Using local regression approach by Hill")
         # Setup KDtree for nearest neighbor search
         indices = np.indices(chn.shape)
-        tree = spatial.KDTree(zip(indices[0].ravel(), indices[1].ravel()))
+        tree = spatial.KDTree(list(zip(indices[0].ravel(), indices[1].ravel())))
         # Track progress
         todo = chn.size
         ready = 1
@@ -1204,7 +1204,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
 
     def progressbar(self, ready, todo, size):
         """ simple method for printing a progress bar to stdout"""
-        s = ('<' + (ready/(size/50)*'#') + (todo/(size/50)*'-') +
+        s = ('<' + (ready//(size//50)*'#') + (todo//(size//50)*'-') +
              '> ') + str(ready) + (' / {}'.format(size))
         print ('\r'+s),
         todo -= 1
