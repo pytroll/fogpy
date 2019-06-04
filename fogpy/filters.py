@@ -1105,11 +1105,7 @@ class CloudMotionFilter(BaseArrayFilter):
     """Filtering FLS cloud by motion trakcing for satellite images."""
     # Required inputs
     attrlist = ['preir108', 'ir108']
-    try:
-        import cv2
-    except ImportError:
-        Warning("openCV Python package cv2 not found. Please install"
-                "opencv and/or the cv-python interface")
+    import cv2
 
     def filter_function(self):
         """Cloud motion filter routine
@@ -1135,7 +1131,7 @@ class CloudMotionFilter(BaseArrayFilter):
         # Calculate motion vectors
         logger.info("Calculate optical flow...")
 
-        optflow = self.cv2.createOptFlow_DualTVL1()
+        optflow = self.cv2.optflow.createOptFlow_DualTVL1()
         # DWD Radar parameterization by M. Werner
         optflow.setEpsilon(0.01)
         optflow.setLambda(0.05)
