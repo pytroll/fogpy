@@ -70,13 +70,12 @@ class BaseArrayFilter(object):
     def __init__(self, arr, **kwargs):
         if isinstance(arr, np.ma.MaskedArray):
             self.arr = arr
-            self.inmask = arr.mask
         elif isinstance(arr, np.ndarray):
-            self.arr = arr
-            self.inmask = np.full(arr.shape, False, dtype=bool)
+            self.arr = np.ma.masked_array(arr, np.zeros_like(arr))
         else:
             raise TypeError('The filter <{}> needs a valid 2d numpy array '
                               'as input'.format(self.__class__.__name__))
+        self.inmask = arr.mask
         if kwargs is not None:
             for key, value in kwargs.items():
                 self.__setattr__(key, value)
