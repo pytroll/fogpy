@@ -148,13 +148,14 @@ class Test_CloudFilter(unittest.TestCase):
         np.testing.assert_almost_equal(testfilter.thres, -3.51935588185)
         self.assertEqual(np.sum(testfilter.mask), 20551)
 
+    @unittest.skip("Plotting tests temporarily disabled")
     def test_cloud_filter_plot(self):
         # Create cloud filter
         testfilter = CloudFilter(self.input['ir108'], **self.input)
         ret, mask = testfilter.apply()
-#        testfilter.plot_cloud_hist('/tmp/cloud_filter_hist_20131120830.png')
-#        testfilter.plot_filter(save=True)
-#        testfilter.plot_filter(save=True, area=area_def, type='tif')
+        testfilter.plot_cloud_hist('/tmp/cloud_filter_hist_20131120830.png')
+        testfilter.plot_filter(save=True)
+        testfilter.plot_filter(save=True, area=area_def, type='tif')
         # Evaluate results
         np.testing.assert_almost_equal(self.ir108[0, 0], 244.044000086)
         np.testing.assert_almost_equal(self.ir039[20, 100], 269.573815979)
@@ -672,11 +673,12 @@ class Test_LowCloudFilter(unittest.TestCase):
         self.assertEqual(np.sum(testfilter.fog_mask), nfog)
         self.assertEqual(np.sum(testfilter.mask), nfog)
 
+    @unittest.skip("Plotting tests temporarily disabled")
     def test_lowcloud_filter_cluster_plot(self):
         self.input['save'] = True
         # Create cloud filter
         testfilter = LowCloudFilter(self.input['ir108'], **self.input)
-#         ret, mask = testfilter.apply()
+        ret, mask = testfilter.apply()
         data = testfilter.plot_cluster_stat()
         # Evaluate results
         self.assertEqual(len(next(iter(data.values()))), 16)
