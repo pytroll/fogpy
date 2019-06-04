@@ -75,7 +75,7 @@ class BaseArrayFilter(object):
         else:
             raise TypeError('The filter <{}> needs a valid 2d numpy array '
                               'as input'.format(self.__class__.__name__))
-        self.inmask = arr.mask
+        self.inmask = self.arr.mask
         if kwargs is not None:
             for key, value in kwargs.items():
                 self.__setattr__(key, value)
