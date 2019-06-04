@@ -1162,7 +1162,13 @@ class CloudMotionFilter(BaseArrayFilter):
         penult = penult / (max_val - min_val)
         penult = penult.astype(np.float32)
 
-        flow = optflow.calc(penult, ult, None)
+        try:
+            penult.mask
+        except AttributeError:
+            flow = optflow.calc(penult.data, ult.data, None)
+        else:
+            flow = optflow.calc(penult, ult, None)
+
         flow_x = flow[:, :, 0]
         flow_y = flow[:, :, 1]
 
@@ -1172,7 +1178,7 @@ class CloudMotionFilter(BaseArrayFilter):
             img.show()
 
         # Create cloud physics mask for image array
-        self.mask = self.arr.mask
+        self.mask = getattr(self.arr, "mask", None)
 
         self.result = np.ma.array(self.arr, mask=self.mask)
 
