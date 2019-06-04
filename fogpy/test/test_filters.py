@@ -152,9 +152,9 @@ class Test_CloudFilter(unittest.TestCase):
         # Create cloud filter
         testfilter = CloudFilter(self.input['ir108'], **self.input)
         ret, mask = testfilter.apply()
-        testfilter.plot_cloud_hist('/tmp/cloud_filter_hist_20131120830.png')
-        testfilter.plot_filter(save=True)
-        testfilter.plot_filter(save=True, area=area_def, type='tif')
+#        testfilter.plot_cloud_hist('/tmp/cloud_filter_hist_20131120830.png')
+#        testfilter.plot_filter(save=True)
+#        testfilter.plot_filter(save=True, area=area_def, type='tif')
         # Evaluate results
         np.testing.assert_almost_equal(self.ir108[0, 0], 244.044000086)
         np.testing.assert_almost_equal(self.ir039[20, 100], 269.573815979)

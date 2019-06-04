@@ -1107,7 +1107,7 @@ class CloudMotionFilter(BaseArrayFilter):
     attrlist = ['preir108', 'ir108']
     import cv2
 
-    def filter_function(self):
+    def filter_function(self, plot=False):
         """Cloud motion filter routine
 
         Fog clouds are a stationary phenomena and therefore exhibit little
@@ -1166,9 +1166,10 @@ class CloudMotionFilter(BaseArrayFilter):
         flow_x = flow[:, :, 0]
         flow_y = flow[:, :, 1]
 
-        # Plot motion field
-        img = self.draw_motion_vectors(flow)
-        img.show()
+        if plot:
+            # Plot motion field
+            img = self.draw_motion_vectors(flow)
+            img.show()
 
         # Create cloud physics mask for image array
         self.mask = self.arr.mask
