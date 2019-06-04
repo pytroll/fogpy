@@ -1162,11 +1162,9 @@ class CloudMotionFilter(BaseArrayFilter):
         penult = penult / (max_val - min_val)
         penult = penult.astype(np.float32)
 
-        try:
-            penult.mask
-        except AttributeError:
+        if isinstance(penult.data, np.ndarray): # masked
             flow = optflow.calc(penult.data, ult.data, None)
-        else:
+        else: # not masked
             flow = optflow.calc(penult, ult, None)
 
         flow_x = flow[:, :, 0]
