@@ -197,9 +197,9 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         self.assertLessEqual(np.nanmax(cthdiff), 1000)
 
         # Plot result with added station data
-        result_img = flsalgo.plot_result(save=True, resize=1)
-        add_synop.add_to_image(result_img, area_def, self.input['time'],
-                               stationfile, bgimg=self.input['ir108'])
+#        result_img = flsalgo.plot_result(save=True, resize=1)
+#        add_synop.add_to_image(result_img, area_def, self.input['time'],
+#                               stationfile, bgimg=self.input['ir108'])
 
     def test_fls_algorithm_no_cth_use_clusters(self):
         self.input.pop('cth')
@@ -227,9 +227,9 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
         self.assertLessEqual(np.nanmax(cthdiff), 1000)
 
         # Plot result with added station data
-        result_img = flsalgo.plot_result(save=True, resize=1)
-        add_synop.add_to_image(result_img, area_def, self.input2['time'],
-                               stationfile2, bgimg=self.input2['ir108'])
+#        result_img = flsalgo.plot_result(save=True, resize=1)
+#        add_synop.add_to_image(result_img, area_def, self.input2['time'],
+#                               stationfile2, bgimg=self.input2['ir108'])
 
 
 class Test_LowCloudHeightAlgorithm(unittest.TestCase):
@@ -580,13 +580,13 @@ class Test_PanSharpeningAlgorithm(unittest.TestCase):
         # Run pansharpening algorithm
         panshalgo = PanSharpeningAlgorithm(**self.input)
         ret, mask = panshalgo.run()
-        panshalgo.plot_result(array=panshalgo.pan, save=panshalgo.save,
-                              name='pan', dir=panshalgo.dir, type='tif',
-                              area=panshalgo.panarea)
-        panshalgo.plot_result(array=panshalgo.pan_degrad, save=panshalgo.save,
-                              name='pan_degraded', dir=panshalgo.dir,
-                              type='tif',
-                              area=panshalgo.area)
+#        panshalgo.plot_result(array=panshalgo.pan, save=panshalgo.save,
+#                              name='pan', dir=panshalgo.dir, type='tif',
+#                              area=panshalgo.panarea)
+#        panshalgo.plot_result(array=panshalgo.pan_degrad, save=panshalgo.save,
+#                              name='pan_degraded', dir=panshalgo.dir,
+#                              type='tif',
+#                              area=panshalgo.area)
         self.assertEqual(panshalgo.mspec[0].shape, (141, 298, 1))
         self.assertEqual(panshalgo.pan.shape, (422, 893))
 
