@@ -26,6 +26,7 @@ import numpy as np
 import os
 import unittest
 
+import pyorbital.orbital
 from datetime import datetime
 from fogpy.algorithms import BaseSatelliteAlgorithm
 from fogpy.algorithms import DayFogLowStratusAlgorithm
