@@ -616,13 +616,24 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
         # http://celestrak.com/NORAD/elements/weather.txt
         line1 = "1 38552U 12035B   17212.14216600 -.00000019  00000-0  00000-0 0  9998"
         line2 = "2 38552   0.8450 357.8180 0002245 136.4998 225.6885  1.00275354 18379"
-        # Import TLE file
-        self.tle = tlefile.read('meteosat 10', line1=line1, line2=line2)
-        self.orbital = Orbital('meteosat 10', line1=self.tle.line1,
-                               line2=self.tle.line2)
+        # To convert this to lat, lon, elev:
+        # from skyfield.iokit import parse_tle
+        # f = io.BytesIO(b"1 38552U 12035B   17212.14216600 -.00000019  00000-0  00000-0 0  9998\n238552   0.8450 357.8180 0002245 136.4998 225.6885  1.00275354 18379")
+        # sat = next(skyfield.iokit.parse_tle(f))[1]
+        # pos = sat.at(sat.epoch)
+        # sp = pos.subpoint()
+        # print(sp.longitude.degrees, sp.latitude.degrees, sp.elevation.km)
+
         # Compute satellite zenith angle
-        azi, ele = self.orbital.get_observer_look(self.time, self.lon,
-                                                  self.lat, self.elev)
+        azi, ele = pyorbital.orbital.get_observer_look(
+                0.01972591,
+                0.01528465,
+                35791.7102,
+                self.time,
+                self.lon,
+                self.lat,
+                self.elev)
+
         self.sza = ele
 
         self.input = {'ir108': self.ir108,
