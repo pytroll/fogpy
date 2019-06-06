@@ -1242,8 +1242,11 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         """
         mask = np.logical_and(self.sza > (value - range),
                               self.sza <= (value + range))
-        btdist = np.histogram(self.bt_diff[mask])
-        return(btdist)
+        if isinstance(self.bt_diff, np.ma.masked_array):
+            v = self.bt_diff[mask].compressed()
+        else:
+            v = self.bt_diff[mask]
+        return np.histogram(v)
 
     def plot_bt_hist(self, hist, saveto=None):
         plt.bar(hist[1][:-1], hist[0])
@@ -1505,8 +1508,11 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         """
         mask = np.logical_and(self.sza >= value,
                               self.sza < (value + range))
-        btdist = np.histogram(self.bt_diff[mask])
-        return(btdist)
+        if isinstance(self.bt_diff, np.ma.masked_array):
+            v = self.bt_diff[mask].compressed()
+        else:
+            v = self.bt_diff[mask]
+        return np.histogram(v)
 
     def plot_bt_hist(self, hist, saveto=None):
         """Plot histogram of temperature distribution."""
