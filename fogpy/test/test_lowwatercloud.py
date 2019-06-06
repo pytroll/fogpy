@@ -333,7 +333,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwc.init_cloud_layers(100, 10)
         lwp = lwc.get_liquid_water_path()
         np.random.seed(42)
-        cbh = lwc.optimize_cbh(lwc.cbh)
+        cbh = lwc.optimize_cbh(lwc.cbh, method="basin")
         fbh = lwc.get_fog_base_height()
         self.assertAlmostEqual(lwc.lwp, 100, 3)
         self.assertAlmostEqual(lwc.maxlwc, 0.494, 3)
