@@ -386,6 +386,7 @@ class Test_WaterCloudFilter(unittest.TestCase):
 class Test_SpatialCloudTopHeightFilter(unittest.TestCase):
 
     def setUp(self):
+        np.random.seed(42)
         # Define artificial test data with random cth around 1000 mean value
         self.ir108 = 1.0 * np.random.randn(10, 10) + 260
         self.elev = np.zeros((10, 10))
@@ -413,6 +414,7 @@ class Test_SpatialCloudTopHeightFilter(unittest.TestCase):
 class Test_SpatialHomogeneityFilter(unittest.TestCase):
 
     def setUp(self):
+        np.random.seed(42)
         # Define artificial test data with low standard deviation
         flsalgo = DayFogLowStratusAlgorithm()
         self.low_sd_ir = 1.0 * np.random.randn(10, 10) + 260
@@ -506,6 +508,7 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
 class Test_LowCloudFilter(unittest.TestCase):
 
     def setUp(self):
+        np.random.seed(42)
         # Load test data
         inputs = np.dsplit(testdata, 14)
         self.ir108 = inputs[0]
@@ -871,6 +874,7 @@ class Test_StationFusionFilter(unittest.TestCase):
 class Test_NumericalModelFilter(unittest.TestCase):
 
     def setUp(self):
+        np.random.seed(42)
         # Load test data
         self.ir108 = 1.0 * np.random.randn(10, 10) + 260
         # Init test datasets

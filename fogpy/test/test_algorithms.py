@@ -236,6 +236,7 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
 class Test_LowCloudHeightAlgorithm(unittest.TestCase):
 
     def setUp(self):
+        np.random.seed(42)
         # Load test data
         inputs = np.dsplit(testdata, 14)
         self.ir108 = inputs[0]
