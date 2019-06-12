@@ -36,6 +36,9 @@ import numpy as np
 from scipy.optimize import basinhopping
 from scipy.optimize import brute
 
+class DummyException(Exception):
+    pass
+
 # Configure logger.
 logger = logging.getLogger('lowwatercloud')
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - '
