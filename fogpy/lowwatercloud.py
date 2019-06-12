@@ -280,9 +280,9 @@ class LowWaterCloud(object):
             Fog base height
         """
         fog_z = [l.z for l in self.layers if l.visibility is not None and l.visibility <= 1000]
-        try:
+        if len(fog_z) > 0:
             self.fbh = min(fog_z)  # Get lowest heights with visibility treshold
-        except:
+        else:
             if substitude:
                 logger.warning("No fog base height found: Substitude with "
                                "cloud base height: {}".format(self.cbh))
