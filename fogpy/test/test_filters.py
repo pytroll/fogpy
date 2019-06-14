@@ -491,7 +491,8 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
                 msum += nval
 
         self.assertNotEqual(np.nansum(testfilter.mask), 0)
-        self.assertEqual(np.nansum(testfilter.mask), msum)
+        self.assertEqual(np.nansum(testfilter.mask),
+                np.count_nonzero(self.high_sd_clusterma.mask)+ msum)
 
     def test_spatial_homogenity_filter_maxsize(self):
         # Create cloud filter
