@@ -544,6 +544,13 @@ class LowWaterCloud(object):
             ranges = slice(0, self.cth - self.upthres, 1)
             ret = brute(self.minimize_cbh, (ranges,), finish=None)
             result = ret
+        # the minimisation routine self.minimize_cbh calls
+        # self.init_cloud_layers, so in every call the cloud layers get reset;
+        # we don't know if the final call corresponded to the minimum (with
+        # basin hopping it might, with brute force it won't), which was
+        # triggering bug issue #29, therefore re-initialise layers with the
+        # last value
+        self.init_cloud_layers(ret, self.thickness, True)
         # Add optional debug output
         if debug:
             for l in self.layers:
