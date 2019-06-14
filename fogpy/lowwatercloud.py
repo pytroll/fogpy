@@ -551,6 +551,7 @@ class LowWaterCloud(object):
         # triggering bug issue #29, therefore re-initialise layers with the
         # last value
         self.init_cloud_layers(result, self.thickness, True)
+        self.get_liquid_water_path() # also has side-effect...
         # Add optional debug output
         if debug:
             for l in self.layers:
