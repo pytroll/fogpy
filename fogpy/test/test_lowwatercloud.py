@@ -333,6 +333,26 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertAlmostEqual(lwc.maxlwc, 0.494, 3)
         self.assertAlmostEqual(fbh, 612, 0)
 
+    def test_reset_layers_after_minimisation(self):
+        """Test that layers are properly reset after minimisation
+
+        Test for fix for #29
+        """
+        lwc = LowWaterCloud(1000., 275., 100., 100., 10e-6)
+
+        brb = lwc.optimize_cbh(lwc.cbh, method="brute")
+        brl = lwc.layers
+        brfb = lwc.get_fog_base_height()
+
+        bhb = lwc.optimize_cbh(lwc.cbh, method="basin")
+        bhl = lwc.layers
+        bhfb = lwc.get_fog_base_height()
+
+        np.testing.assert_almost_equal(
+                [l.visibility for l in bhl if l.visibility is not None],
+                [l.visibility for l in brl if l.visibility is not None],
+                -1)
+        self.assertAlmostEqual(brfb, bhfb, 0)
 
 def suite():
     """The test suite for test_lowwatercloud.
