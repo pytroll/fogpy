@@ -550,7 +550,7 @@ class LowWaterCloud(object):
         # basin hopping it might, with brute force it won't), which was
         # triggering bug issue #29, therefore re-initialise layers with the
         # last value
-        self.init_cloud_layers(ret, self.thickness, True)
+        self.init_cloud_layers(result, self.thickness, True)
         # Add optional debug output
         if debug:
             for l in self.layers:
