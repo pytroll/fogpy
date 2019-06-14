@@ -354,7 +354,7 @@ class Test_LowWaterCloud(unittest.TestCase):
                 [l.visibility for l in bhl if l.visibility is not None],
                 [l.visibility for l in brl if l.visibility is not None],
                 -1)
-        self.assertAlmostEqual(brfb, bhfb, 3)
+        self.assertAlmostEqual(brfb, bhfb, 0)
 
 def suite():
     """The test suite for test_lowwatercloud.
