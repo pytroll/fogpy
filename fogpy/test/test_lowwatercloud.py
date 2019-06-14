@@ -341,12 +341,10 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwc = LowWaterCloud(1000., 275., 100., 100., 10e-6)
 
         brb = lwc.optimize_cbh(lwc.cbh, method="brute")
-        lwc.init_cloud_layers(brb, lwc.thickness, True)
         brl = lwc.layers
         brfb = lwc.get_fog_base_height()
 
         bhb = lwc.optimize_cbh(lwc.cbh, method="basin")
-        lwc.init_cloud_layers(bhb, lwc.thickness, True)
         bhl = lwc.layers
         bhfb = lwc.get_fog_base_height()
 
