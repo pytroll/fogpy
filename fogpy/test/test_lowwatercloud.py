@@ -233,11 +233,13 @@ class Test_LowWaterCloud(unittest.TestCase):
 
     def test_optimize_cbh_basin(self):
         self.lwc.thickness = 100
+        np.random.seed(42)
         ret_basin = self.lwc.optimize_cbh(100., method='basin')
         self.assertIn(round(ret_basin, 0), [421, 479, 478, 477])
 
     def test_optimize_cbh_start(self):
         self.lwc.thickness = 100.
+        np.random.seed(42)
         listresult = []
         listresult.append(self.lwc.optimize_cbh(1000., method='basin'))
         listresult.append(self.lwc.optimize_cbh(900., method='basin'))
@@ -257,6 +259,7 @@ class Test_LowWaterCloud(unittest.TestCase):
     @unittest.expectedFailure
     def test_optimize_cbh_start_thin(self):
         self.thinlwc.thickness = 10.
+        np.random.seed(42)
         listresult = []
         listresult.append(self.thinlwc.optimize_cbh(1000., method='basin'))
         listresult.append(self.thinlwc.optimize_cbh(900., method='basin'))
@@ -275,11 +278,13 @@ class Test_LowWaterCloud(unittest.TestCase):
 
     def test_optimize_cbh_basin_nan(self):
         self.nanlwc.thickness = 100
+        np.random.seed(42)
         ret_basin = self.nanlwc.optimize_cbh(100., method='basin')
         self.assertTrue(np.isnan(ret_basin))
 
     def test_optimize_cbh_basin_nodata(self):
         self.nodatalwc.thickness = 100
+        np.random.seed(42)
         ret_basin = self.nodatalwc.optimize_cbh(100., method='basin')
         self.assertTrue(np.isnan(ret_basin))
 
@@ -327,6 +332,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         lwc = LowWaterCloud(1000., 275., 100., 100., 10e-6)
         lwc.init_cloud_layers(100, 10)
         lwp = lwc.get_liquid_water_path()
+        np.random.seed(42)
         cbh = lwc.optimize_cbh(lwc.cbh)
         fbh = lwc.get_fog_base_height()
         self.assertAlmostEqual(lwc.lwp, 100, 3)
@@ -344,6 +350,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         brl = lwc.layers
         brfb = lwc.get_fog_base_height()
 
+        np.random.seed(42)
         bhb = lwc.optimize_cbh(lwc.cbh, method="basin")
         bhl = lwc.layers
         bhfb = lwc.get_fog_base_height()
