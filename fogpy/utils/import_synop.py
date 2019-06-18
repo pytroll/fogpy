@@ -87,7 +87,8 @@ def read_synop(file, params, min=None, max=None):
                         # Patchy fog or fog edges value 11 or 12
                     elif k == 20013:  # Cloud base height
                         if v is not None:
-                            if 'cbh' in stationdict.keys():
+                            if ('cbh' in stationdict.keys() and
+                                stationdict["cbh"] is not None):
                                 if stationdict['cbh'] > v:
                                     stationdict['cbh'] = v
                             else:
@@ -206,7 +207,8 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                         # Patchy fog or fog edges value 11 or 12
                     elif k == 20013:  # Cloud base height
                         if v is not None:
-                            if 'cbh' in stationdict.keys():
+                            if ('cbh' in stationdict.keys() and
+                                stationdict["cbh"] is not None):
                                 if stationdict['cbh'] > v:
                                     stationdict['cbh'] = v
                             else:
@@ -340,7 +342,8 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                         # Patchy fog or fog edges value 11 or 12
                     elif k == 20013:  # Cloud base height
                         if v is not None:
-                            if 'cbh' in stationdict.keys():
+                            if ('cbh' in stationdict.keys() and
+                                stationdict["cbh"] is not None):
                                 if stationdict['cbh'] > v:
                                     stationdict['cbh'] = v
                             else:
