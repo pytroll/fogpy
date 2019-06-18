@@ -125,7 +125,7 @@ class CloudLayer(object):
     def check_temp(self, temp, unit='celsius', debug=False):
         """Check for plausible range of temperature value for given unit.
         Convert if required"""
-        if unit is 'celsius':
+        if unit == 'celsius':
             if temp > 60:
                 result = temp - 273.15
                 if debug:
@@ -133,7 +133,7 @@ class CloudLayer(object):
                                  ' to {} °C'.format(temp, result))
             else:
                 result = temp
-        elif unit is 'kelvin':
+        elif unit == 'kelvin':
             if temp <= 60 or temp < 0:
                 result = temp + 273.15
                 if debug:
@@ -146,13 +146,13 @@ class CloudLayer(object):
         return(result)
 
     def get_layer_info(self):
-            print('New cloud layer: z: {} m | t: {} °C | p: {} hPa | '
-                  'psv: {} hPa | vmr: {} g kg-1 | lmr: {} g kg-1 | '
-                  'beta: {} | rho: {} kg m-3 | lwc: {} g m-3'
-                  .format(self.z, self.temp, round(self.press, 3),
-                          round(self.psv, 3), round(self.vmr, 3),
-                          round(self.lmr, 3), round(self.beta, 3),
-                          round(self.rho, 3), round(self.lwc, 3)))
+        print('New cloud layer: z: {} m | t: {} °C | p: {} hPa | '
+              'psv: {} hPa | vmr: {} g kg-1 | lmr: {} g kg-1 | '
+              'beta: {} | rho: {} kg m-3 | lwc: {} g m-3'
+              .format(self.z, self.temp, round(self.press, 3),
+                      round(self.psv, 3), round(self.vmr, 3),
+                      round(self.lmr, 3), round(self.beta, 3),
+                      round(self.rho, 3), round(self.lwc, 3)))
 
 
 class LowWaterCloud(object):
@@ -200,7 +200,8 @@ class LowWaterCloud(object):
         # Get maximal liquid water content underneath cloud top
         self.maxlwc = None
 
-        # Raise warnings when thresholds are in conflict with top and base cloud height
+        # Raise warnings when thresholds are in conflict with top and
+        # base cloud height
         if self.cth - self.upthres <= self.cbh:
             logger.warning("Upper threshold starting level <{}> and cloud base"
                            " <{}>  are in conflict"
@@ -224,7 +225,8 @@ class LowWaterCloud(object):
             self.__cbh = self.cth - 1
             self.upthres = self.cth - 1
             logger.info("Cloud base <{}> is higher than cloud top <{}>. "
-                        "Autmatically reduced to <{}>".format(cbh, self.cth, self.cth - 1))
+                        "Autmatically reduced to <{}>".format(
+                            cbh, self.cth, self.cth - 1))
         elif self.cth - self.upthres <= cbh:
             self.upthres = self.cth - cbh - 1
             logger.info("Reducing upper threshold <{}> to correct conflict"
@@ -279,9 +281,11 @@ class LowWaterCloud(object):
         Returns:
             Fog base height
         """
-        fog_z = [l.z for l in self.layers if l.visibility is not None and l.visibility <= 1000]
+        fog_z = [l.z for l in self.layers
+                 if l.visibility is not None and l.visibility <= 1000]
         if len(fog_z) > 0:
-            self.fbh = min(fog_z)  # Get lowest heights with visibility treshold
+            # Get lowest heights with visibility treshold
+            self.fbh = min(fog_z)
         else:
             if substitude:
                 logger.warning("No fog base height found: Substitude with "
@@ -299,14 +303,15 @@ class LowWaterCloud(object):
         liquid water mixing ratio."""
         if z > cth - thres:
             if maxlwc is None:
-                maxlwc_layer = CloudLayer(self.cth - self.upthres
-                                          - self.thickness,
-                                          self.cth - self.upthres + self.thickness,
-                                          self, False)
+                maxlwc_layer = CloudLayer(
+                        self.cth - self.upthres - self.thickness,
+                        self.cth - self.upthres + self.thickness,
+                        self, False)
                 maxlwc = maxlwc_layer.lwc
                 self.maxlwc = maxlwc
                 if self.maxlwc <= 0 and debug:
-                    logger.debug("Maximum liquid water content is zero or negative")
+                    logger.debug(
+                            "Maximum liquid water content is zero or negative")
 
             lwc = (cth - z) / (thres) * maxlwc
             # Test if liquid water content is negativ
@@ -325,13 +330,9 @@ class LowWaterCloud(object):
     def get_moist_air_density(self, pa, pv, temp, empiric=False, debug=False):
         """Calculate air density for humid air with known pressure and water
         vapour pressure and temperature."""
-        molar_d = 0.028964  # kg mol-1
-        molar_w = 0.018016  # kg mol-1
         Rv = 461.495  # Specific gas constant for water vapour J kg-1 K-1
         Rd = 287.058  # Specific gas constant for dry air J kg-1 K-1
-        R = 8.31432  # Universal gas constant [N m mol-1 K-1]
         d_sea = 1.2929  # Density of dry air at sea level
-        torr_pa = 0.00750063755  # Factor to convert between Pa and Torr
         if temp <= 60:
             newtemp = temp + 273.15
             if debug:
@@ -339,8 +340,6 @@ class LowWaterCloud(object):
                              ' {} K'.format(temp, newtemp))
             temp = newtemp
         if empiric:
-            # hrho = d_sea * (273.15 / temp) * ((pa * torr_pa - 0.3783 * pv *
-            #                                    torr_pa) / 760.)
             hrho = d_sea * (273.15 / temp) * ((pa - 0.3783 * pv) / (1.013 *
                                               10**5))
         else:
@@ -365,7 +364,8 @@ class LowWaterCloud(object):
         return temp
 
     @classmethod
-    def get_sat_vapour_pressure(self, temp, mode='buck', convert=False, debug=False):
+    def get_sat_vapour_pressure(self, temp, mode='buck',
+                                convert=False, debug=False):
         """Calculate satured water vapour pressure for temperature [hPa]
         using different empirical approaches.
 
@@ -420,15 +420,7 @@ class LowWaterCloud(object):
     @classmethod
     def get_air_pressure(self, z, elevation=0):
         """Calculate ambient air pressure for height z [hPa]."""
-        p_sea = 101325.  # Static pressure (pressure at sea level) [Pa]
-        t_sea = 288.15  # Standard temperature (temperature at sea level) [K]
-        TL_rate = 0.0065  # Standard temperature lapse rate [K/m]
-        R = 8.31432  # Universal gas constant [N m mol-1 K-1]
-        G = 9.80665  # Gravitational acceleration constant [m s-2]
-        M = 0.0289644  # Molar mass of Earth’s air [kg/mol]
 
-        power = -5.255877
-        fraction = t_sea / (t_sea + (TL_rate * (z - elevation)))
         pa = 100 * ((44331.514 - z) / 11880.516) ** (1 / 0.1902632)
 
         return pa / 100
@@ -465,7 +457,8 @@ class LowWaterCloud(object):
         cb_vmr = self.get_vapour_mixing_ratio(press, psv)
         self.cb_vmr = cb_vmr
         if debug:
-            logger.debug("Cloud based vapour mixing ratio: <{}> at cloud base <{}>"
+            logger.debug("Cloud based vapour mixing ratio: "
+                         "<{}> at cloud base <{}>"
                          .format(cb_vmr, self.cbh))
 
         return cb_vmr
@@ -538,7 +531,8 @@ class LowWaterCloud(object):
                         ' elapsed time: {:.2f} ms for {} layers with {} '
                         'm thickness'
                         .format(start, float(self.cth), float(self.ctt),
-                                float(self.cwp), float(self.lwp), result, time_diff,
+                                float(self.cwp), float(self.lwp),
+                                result, time_diff,
                                 len(self.layers), self.thickness))
         elif method == 'brute':
             ranges = slice(0, self.cth - self.upthres, 1)
@@ -551,7 +545,7 @@ class LowWaterCloud(object):
         # triggering bug issue #29, therefore re-initialise layers with the
         # last value
         self.init_cloud_layers(result, self.thickness, True)
-        self.get_liquid_water_path() # also has side-effect...
+        self.get_liquid_water_path()  # also has side-effect...
         # Add optional debug output
         if debug:
             for l in self.layers:

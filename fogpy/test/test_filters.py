@@ -275,7 +275,9 @@ class Test_IceCloudFilter(unittest.TestCase):
         np.testing.assert_almost_equal(self.vis008[25, 100], 13.40515625)
         np.testing.assert_almost_equal(testfilter.ic_diff[50, 50], -0.91323156)
         np.testing.assert_almost_equal(testfilter.ic_diff[110, 70], 3.05561071)
-        np.testing.assert_almost_equal(testfilter.ic_diff[126, 144], 3.05652842)
+        np.testing.assert_almost_equal(
+                testfilter.ic_diff[126, 144],
+                3.05652842)
         self.assertEqual(np.sum(testfilter.mask), 36632)
 
 
@@ -377,7 +379,7 @@ class Test_WaterCloudFilter(unittest.TestCase):
         testmean = np.nanmean(cloud_free_ma[140, :])
         self.assertEqual(testfilter.lat_cloudfree[140], testmean)
         np.testing.assert_almost_equal(np.sum(~testfilter.cloudmask) +
-                               np.sum(testfilter.cloudmask), 42018)
+                                       np.sum(testfilter.cloudmask), 42018)
         np.testing.assert_almost_equal(np.sum(testfilter.cloudmask), 20551)
         self.assertEqual(np.sum(testfilter.mask), 19857)
         self.assertEqual(testfilter.line, 141)
@@ -471,7 +473,9 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
 
         # Evaluate results
         self.assertNotEqual(np.nansum(testfilter.mask), 0)
-        self.assertEqual(np.nansum(testfilter.mask), np.nansum(self.low_sd_mask))
+        self.assertEqual(
+                np.nansum(testfilter.mask),
+                np.nansum(self.low_sd_mask))
 
     def test_spatial_homogenity_filter_highsd(self):
         # Create cloud filter
@@ -491,8 +495,9 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
                 msum += nval
 
         self.assertNotEqual(np.nansum(testfilter.mask), 0)
-        self.assertEqual(np.nansum(testfilter.mask),
-                np.count_nonzero(self.high_sd_clusterma.mask)+ msum)
+        self.assertEqual(
+                np.nansum(testfilter.mask),
+                np.count_nonzero(self.high_sd_clusterma.mask) + msum)
 
     def test_spatial_homogenity_filter_maxsize(self):
         # Create cloud filter
@@ -555,7 +560,7 @@ class Test_LowCloudFilter(unittest.TestCase):
         snowfilter = SnowFilter(cloudfilter.result, **self.input)
         ret, snowmask = snowfilter.apply()
         # Get clusters
-        fls = FLS(**self.input)
+        FLS(**self.input)
         self.clusters = FLS.get_cloud_cluster(self.cloudmask, False)
         self.clusters.mask[self.clusters != 120] = True
         self.input = {'ir108': self.ir108,
@@ -811,8 +816,8 @@ class Test_StationFusionFilter(unittest.TestCase):
         # No cloud mask
         nomask, novalid = testfilter.interpolate_dem(self.test_stations,
                                                      self.test_elev, 50)
-        noother, novalido = testfilter.interpolate_dem(self.test_stations_valid,
-                                                       self.test_elev, 50)
+        noother, novalido = testfilter.interpolate_dem(
+                self.test_stations_valid, self.test_elev, 50)
         # With cloud mask
         mask, valid = testfilter.interpolate_dem(self.test_stations,
                                                  self.test_elev, 50,
@@ -843,8 +848,8 @@ class Test_StationFusionFilter(unittest.TestCase):
         # No cloud mask
         nomask, novalid = testfilter.interpolate_dem(self.test_stations,
                                                      self.test_elev, 50)
-        noother, novalido = testfilter.interpolate_dem(self.test_stations_valid,
-                                                       self.test_elev, 50)
+        noother, novalido = testfilter.interpolate_dem(
+                self.test_stations_valid, self.test_elev, 50)
         # With cloud mask
         mask, valid = testfilter.interpolate_dem(self.test_stations,
                                                  self.test_elev, 50,
@@ -908,13 +913,16 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_IceCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CirrusCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_WaterCloudFilter))
-    mysuite.addTest(loader.loadTestsFromTestCase(Test_SpatialCloudTopHeightFilter))
-    mysuite.addTest(loader.loadTestsFromTestCase(Test_SpatialHomogeneityFilter))
+    mysuite.addTest(
+            loader.loadTestsFromTestCase(Test_SpatialCloudTopHeightFilter))
+    mysuite.addTest(
+            loader.loadTestsFromTestCase(Test_SpatialHomogeneityFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CloudMotionFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_StationFusionFilter))
 
     return mysuite
+
 
 if __name__ == "__main__":
     unittest.main()

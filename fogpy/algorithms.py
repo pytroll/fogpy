@@ -25,12 +25,9 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import sys
-import time
 
 from copy import deepcopy
 from datetime import datetime
-from matplotlib.cm import get_cmap
 from numpy.lib.stride_tricks import as_strided
 from scipy.ndimage import measurements
 from scipy.stats import linregress
@@ -55,9 +52,11 @@ class NotProcessibleError(Exception):
     """Exception to be raised when a filter is not applicable."""
     pass
 
+
 class DummyException(Exception):
     """Never raised
     """
+
 
 class BaseSatelliteAlgorithm(object):
     """This super filter class provide all functionalities to run an algorithm
@@ -142,7 +141,7 @@ class BaseSatelliteAlgorithm(object):
     def plot_result(self, array=None, save=False, dir="/tmp", resize=1,
                     name='array', type='png', area=None, floating_point=False):
         """Plotting the algorithm result.
-        
+
         Method disabled pending https://github.com/gerritholl/fogpy/issues/6"""
 
         # The problem is that instead of Image we should use XRImage, but
@@ -156,9 +155,7 @@ class BaseSatelliteAlgorithm(object):
         # Using Trollimage if available, else matplotlib is used to plot
         try:
             from trollimage.image import Image
-            from trollimage.colormap import rainbow
             from trollimage.colormap import ylorrd
-            from trollimage.colormap import Colormap
             from mpop.imageo.geo_image import GeoImage
         except ImportError:
             logger.info("{} results can't be plotted to: {}". format(self.name,
@@ -193,10 +190,6 @@ class BaseSatelliteAlgorithm(object):
                 result_img = Image(array.squeeze(), mode='L', fill_value=None)
         result_img.stretch("crude")
         # Colorize image
-        # Define custom fog colormap
-        customcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
-                             (1., (1.0, 1.0, 229 / 255.0)),
-                             (self.plotrange[1], (0.0, 1.0, 229 / 255.0)))
         ylorrd.set_range(*self.plotrange)
         logger.info("Set color range to {}".format(self.plotrange))
         if not floating_point:
@@ -689,7 +682,6 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                 self.dz[index] = delta_z
                 # 3. Find rising terrain from cloudy to margin pixels
                 idrise = [i for i, x in enumerate(zmargin) if x > zcenter]
-                zrise = [zmargin[i] for i in idrise]
                 # 4. Test Pixel for DEM height extraction
                 if delta_z >= 50 and idrise:
                     cthmargin = [zmargin[i] for i in idrise]
@@ -697,7 +689,6 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                     self.ndem += 1
                 else:
                     tmargin = [tneigh[i] for i in idmargin]
-                    cclmargin = [cclneigh[i] for i in idmargin]
                     cthmargin = self.apply_lapse_rate(tcenter, tmargin,
                                                       zmargin)
                     cth = np.nanmean(cthmargin)
@@ -823,7 +814,6 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                 clstindex = self.clusters == index
                 ctt_c = ctt[clstindex]
                 cth_c = cth[clstindex]
-                mask_c = mask[clstindex]
                 result_c = result[clstindex]
                 if np.sum(np.isnan(cth_c)) == 0:
                     continue
@@ -846,14 +836,6 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         # Set invalide values
         result[mask] = np.nan
 
-        # Save regression plot
-        if hasattr(self, 'time'):
-            ts = self.time
-        else:
-            ts = datetime.now()
-        savedir = os.path.join(self.dir, self.name + '_linreg_' +
-                               datetime.strftime(ts,
-                                                 '%Y%m%d%H%M') + '.png')
         return result
 
     def apply_linear_regression(self, x, y, x_arr, y_arr, out):
@@ -915,7 +897,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             | tcc (:obj:`float`): Temperature of cloud contaminated pixel in K.
             | tcf (:obj:`float`): Temperature of cloud free margin pixel in K.
             | zneigh (:obj:`float`): Elevation of cloud free margin pixel in m.
-            | lrate (:obj:`float`): Environmental temperature lapse rate in K/m.
+            | lrate (:obj:`float`): Environmental temperature lapse rate, K/m.
 
         Returns:
             bool: True if successful, False otherwise."""
@@ -987,10 +969,10 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
 
         irange = range(i0, i1)
         jrange = range(j0, j1)
-        neighbors = [w[ix, jx][k, l] for k in irange for l in jrange
-                     if k != icell or l != jcell]
-        ids = [[k, l] for k in irange for l in jrange
-               if k != icell or l != jcell]
+        neighbors = [w[ix, jx][k, m] for k in irange for m in jrange
+                     if k != icell or m != jcell]
+        ids = [[k, m] for k in irange for m in jrange
+               if k != icell or m != jcell]
         center = arr[i, j]  # Get center cell value from additional array
 
         return center, neighbors, ids
@@ -1049,8 +1031,9 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         | mspec (:obj:`list`): List of multispectral channels as numpy
                                   arrays.
         | pan (:obj:`ndarray`): Panchromatic channel as numpy array.
-        | area (:obj:`areadefinition`) Area definition object (pyresample class)
-                                       class) for the multispectral channels.
+        | area (:obj:`areadefinition`) Area definition object
+                                       (pyresample class)
+                                       for the multispectral channels.
         | panarea (:obj:`areadefinition`): Area definition object
                                            (pyresample class) for the
                                            panchromatic channel.
@@ -1095,9 +1078,8 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         self.pan_degrad = pan_shrp_quick.image_data
         # Calculate row and column indices to translate multispectral channels
         # to  panchromatic
-        panrow, pancol = generate_nearest_neighbour_linesample_arrays(self.area,
-                                                                      self.panarea,
-                                                                      50000)
+        panrow, pancol = generate_nearest_neighbour_linesample_arrays(
+                self.area, self.panarea, 50000)
 
         self.result = []
         self.eval = []
@@ -1123,7 +1105,8 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
             for chn in self.result:
                 self.plotrange = (np.nanmin(chn), np.nanmax(chn))
                 self.plot_result(array=chn, save=self.save, dir=self.dir,
-                                 resize=self.resize, name='output_{}'.format(n),
+                                 resize=self.resize,
+                                 name='output_{}'.format(n),
                                  type='tif', area=self.panarea)
                 self.plot_result(array=self.mspec[n], save=self.save,
                                  dir=self.dir, resize=self.resize,
@@ -1163,7 +1146,8 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         logger.info("Using local regression approach by Hill")
         # Setup KDtree for nearest neighbor search
         indices = np.indices(chn.shape)
-        tree = spatial.KDTree(list(zip(indices[0].ravel(), indices[1].ravel())))
+        tree = spatial.KDTree(list(zip(indices[0].ravel(),
+                                       indices[1].ravel())))
         # Track progress
         todo = chn.size
         ready = 1
@@ -1171,8 +1155,8 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         eval_array = np.empty(chn.shape)
 
         # Compute global regression
-        gm, gc, grsqrt, gmean = self.apply_linear_regression(chn.ravel(),
-                                                             self.pan_degrad.ravel())
+        gm, gc, grsqrt, gmean = self.apply_linear_regression(
+                chn.ravel(), self.pan_degrad.ravel())
 
         # Loop over channel array
         for index, val in np.ndenumerate(chn):
@@ -1217,7 +1201,7 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
         """ simple method for printing a progress bar to stdout"""
         s = ('<' + (ready//(size//50)*'#') + (todo//(size//50)*'-') +
              '> ') + str(ready) + (' / {}'.format(size))
-        print ('\r'+s),
+        print('\r'+s)
         todo -= 1
         ready += 1
         return(ready, todo)
@@ -1575,4 +1559,3 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
         else:
             thres = None
         return(slope, thres)
-

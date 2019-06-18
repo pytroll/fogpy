@@ -104,7 +104,7 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.lwc.init_cloud_layers(421., 100)
         self.lwc.get_liquid_water_path()
         lwc = LowWaterCloud(2000., 255., 400., 0)
-        cl = CloudLayer(1900, 2000, lwc)
+        CloudLayer(1900, 2000, lwc)
         lwc.get_liquid_water_path()
         self.assertAlmostEqual(len(lwc.layers), 1)
         self.assertAlmostEqual(lwc.lwp, 60.719, 3)
@@ -289,14 +289,14 @@ class Test_LowWaterCloud(unittest.TestCase):
         self.assertTrue(np.isnan(ret_basin))
 
     def test_get_visibility(self):
-        lwc = LowWaterCloud(2000., 255., 400., 0, 10e-6)
+        LowWaterCloud(2000., 255., 400., 0, 10e-6)
         vis = self.lwc.get_visibility(1)
         vis2 = self.lwc.get_visibility(1/1000.)
         self.assertAlmostEqual(vis, 3.912, 3)
         self.assertAlmostEqual(vis2, 3912, 0)
 
     def test_get_liquid_density(self):
-        lwc = LowWaterCloud(2000., 285., 400., 0)
+        LowWaterCloud(2000., 285., 400., 0)
         rho1 = self.lwc.get_liquid_density(20, 100e5)
         rho2 = self.lwc.get_liquid_density(4, 1e5)
         rho3 = self.lwc.get_liquid_density(0, 1e5)
@@ -331,9 +331,9 @@ class Test_LowWaterCloud(unittest.TestCase):
     def test_get_fog_cloud_height2(self):
         lwc = LowWaterCloud(1000., 275., 100., 100., 10e-6)
         lwc.init_cloud_layers(100, 10)
-        lwp = lwc.get_liquid_water_path()
+        lwc.get_liquid_water_path()
         np.random.seed(42)
-        cbh = lwc.optimize_cbh(lwc.cbh, method="basin")
+        lwc.optimize_cbh(lwc.cbh, method="basin")
         fbh = lwc.get_fog_base_height()
         self.assertAlmostEqual(lwc.lwp, 100, 3)
         self.assertAlmostEqual(lwc.maxlwc, 0.494, 3)
@@ -346,12 +346,12 @@ class Test_LowWaterCloud(unittest.TestCase):
         """
         lwc = LowWaterCloud(1000., 275., 100., 100., 10e-6)
 
-        brb = lwc.optimize_cbh(lwc.cbh, method="brute")
+        lwc.optimize_cbh(lwc.cbh, method="brute")
         brl = lwc.layers
         brfb = lwc.get_fog_base_height()
 
         np.random.seed(42)
-        bhb = lwc.optimize_cbh(lwc.cbh, method="basin")
+        lwc.optimize_cbh(lwc.cbh, method="basin")
         bhl = lwc.layers
         bhfb = lwc.get_fog_base_height()
 
@@ -360,6 +360,7 @@ class Test_LowWaterCloud(unittest.TestCase):
                 [l.visibility for l in brl if l.visibility is not None],
                 -1)
         self.assertAlmostEqual(brfb, bhfb, 0)
+
 
 def suite():
     """The test suite for test_lowwatercloud.

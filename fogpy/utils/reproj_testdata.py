@@ -21,7 +21,6 @@
 
 """ This module provide utilities to reproject the test data """
 
-import pyproj
 import os
 import numpy as np
 import fogpy
@@ -30,7 +29,6 @@ from pyresample import image, geometry
 from pyresample import utils
 from satpy.scene import Scene
 from satpy.dataset import Dataset
-from trollimage.image import Image
 from trollimage.colormap import Colormap
 from satpy.utils import debug_on
 
@@ -56,14 +54,13 @@ xll, xur = xproj[y, x]
 yll, yur = yproj[y, x]
 new_extent = (xll, yll, xur, yur)
 print(new_extent)
-#print(geos_coords
 area_id = 'Ger_geos'
 name = 'Ger_geos'
 proj_id = 'Ger_geos'
-proj4_args = 'proj=geos, lat_0=0.0, lon_0=0, a=6378144.0, b=6356759.0, h=35785831.0, rf=295.49'
+proj4_args = ("proj=geos, lat_0=0.0, lon_0=0, a=6378144.0, "
+              "b=6356759.0, h=35785831.0, rf=295.49")
 x_size = 298
 y_size = 141
-#area_extent = (-5326849.0625, -5326849.0625, 5326849.0625, 5326849.0625)
 proj_dict = {'a': '6378144.0', 'b': '6356759.0', 'units': 'm', 'lon_0': '0',
              'h': '35785831.0', 'lat_0': '0', 'rf': '295.49',
              'proj': 'geos'}
@@ -107,21 +104,13 @@ array_kwargs = {'area': area_def}
 
 testscene['ir108'] = Dataset(ir108.squeeze(), **array_kwargs)
 print(testscene['ir108'])
-testscene.show('ir108', overlay={'coast_dir': '/home/mastho/data/', 'color': 'gray'})
+testscene.show(
+        'ir108',
+        overlay={'coast_dir': '/home/mastho/data/', 'color': 'gray'})
 resampscene = testscene.resample('germ')
 print(resampscene.shape)
-#resampscene.show('ir108', overlay={'coast_dir': '/home/mastho/data/', 'color': 'gray'})
 
 # Define custom fog colormap
 fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
                   (1., (1.0, 1.0, 229 / 255.0)))
 maskcol = (250 / 255.0, 200 / 255.0, 40 / 255.0)
-# Create image from data
-#filter_img = Image(resampscene, mode='L', fill_value=None)
-#filter_img.stretch("crude")
-#filter_img.invert()
-#print(self.result.squeeze().shape)
-#filter_img.merge(bg_img)
-#filter_img.colorize(fogcol)
-#filter_img.show()
-

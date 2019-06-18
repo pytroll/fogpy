@@ -36,8 +36,10 @@ from datetime import datetime
 trollbufr_logger = logging.getLogger('trollbufr')
 trollbufr_logger.setLevel(logging.CRITICAL)
 
+
 class DummyException(Exception):
     pass
+
 
 def read_synop(file, params, min=None, max=None):
     """ Reading bufr files for synoptical station data and provide dictionary
@@ -58,7 +60,6 @@ def read_synop(file, params, min=None, max=None):
         bfr.decode(blob)
         try:
             for subset in bfr.next_subset():
-                gotit = 0
                 stationdict = {}
                 for (k, m, v, q) in subset.next_data():
                     if k == 1015:  # Station name
@@ -90,7 +91,7 @@ def read_synop(file, params, min=None, max=None):
                     elif k == 20013:  # Cloud base height
                         if v is not None:
                             if ('cbh' in stationdict.keys() and
-                                stationdict["cbh"] is not None):
+                                    stationdict["cbh"] is not None):
                                 if stationdict['cbh'] > v:
                                     stationdict['cbh'] = v
                             else:
@@ -178,7 +179,6 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
         bfr.decode(blob)
         try:
             for subset in bfr.next_subset():
-                gotit = 0
                 stationdict = {}
                 for (k, m, v, q) in subset.next_data():
                     if k == 1063:  # Station name
@@ -210,7 +210,7 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                     elif k == 20013:  # Cloud base height
                         if v is not None:
                             if ('cbh' in stationdict.keys() and
-                                stationdict["cbh"] is not None):
+                                    stationdict["cbh"] is not None):
                                 if stationdict['cbh'] > v:
                                     stationdict['cbh'] = v
                             else:
@@ -224,7 +224,8 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                     elif k == 20060:  # Prevailing visibility
                         stationdict['visibility'] = v
                     elif k == 12023:  # Mean air temperature in °C
-                        stationdict['air temperature'] = CL.check_temp(v, 'kelvin')
+                        stationdict['air temperature'] = CL.check_temp(
+                                v, 'kelvin')
                     elif k == 12024:  # Dew point temperature in °C
                         stationdict['dew point'] = CL.check_temp(v, 'kelvin')
                     elif k == 20010:  # Cloud cover in %
@@ -311,7 +312,6 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
         bfr.decode(blob)
         try:
             for subset in bfr.next_subset():
-                gotit = 0
                 stationdict = {}
                 for (k, m, v, q) in subset.next_data():
                     if k == 1015:  # Station name
@@ -345,7 +345,7 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                     elif k == 20013:  # Cloud base height
                         if v is not None:
                             if ('cbh' in stationdict.keys() and
-                                stationdict["cbh"] is not None):
+                                    stationdict["cbh"] is not None):
                                 if stationdict['cbh'] > v:
                                     stationdict['cbh'] = v
                             else:
@@ -433,11 +433,16 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
 def main():
     base = os.path.split(fogpy.__file__)
     synopfile = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
-    metarfile = os.path.join(base[0], '..', 'etc', 'result_20131112_metar.bufr')
+    metarfile = os.path.join(
+            base[0],
+            '..',
+            'etc',
+            'result_20131112_metar.bufr')
     swisfile = os.path.join(base[0], '..', 'etc', 'result_20131112_swis.bufr')
     print(read_synop(synopfile, ['visibility']))
     print(read_metar(metarfile, 'visibility', latlim=(45, 60), lonlim=(3, 18)))
     print(read_swis(swisfile, ['visibility']))
+
 
 if __name__ == '__main__':
     main()

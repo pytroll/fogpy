@@ -32,6 +32,10 @@ import osgeo.osr
 from fogpy.utils import import_synop
 
 
+class DummyException(Exception):
+    pass
+
+
 def create_shpfile(data, outfile, epsg=4326, para=['vis'], nodata=-9999):
     """ Function to export synoptical station data as ESRI shape file"""
     # Init spatial reference locally
@@ -42,7 +46,8 @@ def create_shpfile(data, outfile, epsg=4326, para=['vis'], nodata=-9999):
     # Create export file
     shapeData = driver.CreateDataSource(outfile)
     # Create a corresponding layer for our data with given spatial information.
-    layer = shapeData.CreateLayer('layer', spatialReference, osgeo.ogr.wkbPoint)
+    layer = shapeData.CreateLayer(
+            'layer', spatialReference, osgeo.ogr.wkbPoint)
     # Gets parameters of the current shapefile
     layer_defn = layer.GetLayerDefn()
     index = 0
@@ -71,7 +76,7 @@ def create_shpfile(data, outfile, epsg=4326, para=['vis'], nodata=-9999):
                 val = row[fielddict[field]]
             try:
                 feature.SetField(i, val)
-            except:
+            except DummyException:
                 Warning("Index: {} - Value {} of type: {} can't be added"
                         .format(i, val, type(val)))
                 feature.SetField(i, None)
@@ -84,7 +89,11 @@ def main():
     shpfile = '/tmp/FLS/stations_20131112080000.shp'
     base = os.path.split(fogpy.__file__)
     synopfile = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
-    metarfile = os.path.join(base[0], '..', 'etc', 'result_20131112_metar.bufr')
+    metarfile = os.path.join(
+            base[0],
+            '..',
+            'etc',
+            'result_20131112_metar.bufr')
     swisfile = os.path.join(base[0], '..', 'etc', 'result_20131112_swis.bufr')
     synops = import_synop.read_synop(synopfile, 'visibility')
     metars = import_synop.read_metar(metarfile, 'visibility', latlim=(47, 56),
@@ -93,6 +102,7 @@ def main():
     input = synops['20131112080000'] + metars['20131112083000'] + \
         swis['20131112083000']
     create_shpfile(input, shpfile)
+
 
 if __name__ == '__main__':
     main()

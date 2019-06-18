@@ -52,6 +52,7 @@ def _pickle_method(m):
     else:
         return getattr, (m.im_self, m.im_func.func_name)
 
+
 copyreg.pickle(types.MethodType, _pickle_method)
 
 
@@ -59,9 +60,11 @@ class NotApplicableError(Exception):
     """Exception to be raised when a filter is not applicable."""
     pass
 
+
 class DummyException(Exception):
     """Small helper, never raised
     """
+
 
 class BaseArrayFilter(object):
     """This super filter class provide all functionalities to apply a filter
@@ -74,7 +77,7 @@ class BaseArrayFilter(object):
             self.arr = np.ma.masked_array(arr, np.zeros_like(arr))
         else:
             raise TypeError('The filter <{}> needs a valid 2d numpy array '
-                              'as input'.format(self.__class__.__name__))
+                            'as input'.format(self.__class__.__name__))
         self.inmask = self.arr.mask
         if kwargs is not None:
             for key, value in kwargs.items():
@@ -218,7 +221,7 @@ class BaseArrayFilter(object):
         except ImportError:
             cmap = get_cmap('gray')
             cmap.set_bad('goldenrod', 1.)
-            imgplot = plt.imshow(self.result.squeeze())
+            plt.imshow(self.result.squeeze())
             plt.axis('off')
             plt.tight_layout()
             if save:
@@ -325,7 +328,6 @@ class BaseArrayFilter(object):
         # Define custom fog colormap
         fogcol = Colormap((0., (250 / 255.0, 200 / 255.0, 40 / 255.0)),
                           (1., (1.0, 1.0, 229 / 255.0)))
-        maskcol = Colormap((1., (250 / 255.0, 200 / 255.0, 40 / 255.0)))
         # Get save directory
         attrdir = os.path.join(dir, self.name + '_' + name + '_' +
                                datetime.strftime(self.time,
@@ -410,7 +412,6 @@ class CloudFilter(BaseArrayFilter):
         # Find local min and max values
         peaks = np.sign(np.diff(self.hist[0]))
         localmin = (np.diff(peaks) > 0).nonzero()[0] + 1
-        localmax = (np.diff(peaks) < 0).nonzero()[0] + 1
 
         # Utilize scipy signal funciton to find peaks
         peakind = find_peaks_cwt(self.hist[0],
@@ -866,7 +867,7 @@ class CloudPhysicsFilter(BaseArrayFilter):
         logger.info("Applying Spatial Clustering Inhomogenity Filter")
 
         if np.ma.isMaskedArray(self.cot):
-                self.cot = self.cot.base
+            self.cot = self.cot.base
         if np.ma.isMaskedArray(self.reff):
             self.reff = self.reff.base
         # Add mask by microphysical thresholds
@@ -954,7 +955,8 @@ class LowCloudFilter(BaseArrayFilter):
                     logger.info("All Done. Completed {} tasks"
                                 .format(task_count))
                     break
-                remain = float(task_count - incomplete_count) / task_count * 100
+                remain = (float(task_count - incomplete_count)
+                          / task_count * 100)
                 logger.info("{} Tasks Remaining --- {:.2f} % Complete"
                             .format(incomplete_count, remain))
                 time.sleep(1)
@@ -969,7 +971,7 @@ class LowCloudFilter(BaseArrayFilter):
                 self.cbh[r, c] = self.result_list[i][0]
                 self.fbh[r, c] = self.result_list[i][1]
             # Mask non ground fog clouds
-            self.fog_mask[(self.fbh - self.elev > 0) \
+            self.fog_mask[(self.fbh - self.elev > 0)
                           | np.isnan(self.fbh)] = True
 
         else:  # Run low cloud models parallized aggregated for cloud clusters
@@ -1004,7 +1006,8 @@ class LowCloudFilter(BaseArrayFilter):
                     logger.info("All Done. Completed {} tasks"
                                 .format(task_count))
                     break
-                remain = float(task_count - incomplete_count) / task_count * 100
+                remain = (float(task_count - incomplete_count)
+                          / task_count * 100)
                 logger.info("{} Tasks Remaining --- {:.2f} % Complete"
                             .format(incomplete_count, remain))
                 time.sleep(1)
@@ -1018,8 +1021,7 @@ class LowCloudFilter(BaseArrayFilter):
                 self.fbh[self.clusters == k] = res[1]
                 # Mask non ground fog clouds
                 self.fog_mask[(self.clusters == k) & (self.fbh -
-                                                            self.elev >
-                                                            0)] = True
+                              self.elev > 0)] = True
         # Create cloud physics mask for image array
         self.mask = self.fog_mask
 
@@ -1170,13 +1172,10 @@ class CloudMotionFilter(BaseArrayFilter):
         penult = penult / (max_val - min_val)
         penult = penult.astype(np.float32)
 
-        if isinstance(penult.data, np.ndarray): # masked
+        if isinstance(penult.data, np.ndarray):  # masked
             flow = optflow.calc(penult.data, ult.data, None)
-        else: # not masked
+        else:  # not masked
             flow = optflow.calc(penult, ult, None)
-
-        flow_x = flow[:, :, 0]
-        flow_y = flow[:, :, 1]
 
         if plot:
             # Plot motion field
@@ -1298,9 +1297,6 @@ class StationFusionFilter(BaseArrayFilter):
         # 3. Compare with cloud clusters
         cloudcluster, ncloudclst = ndimage.label(~self.cloudmask)
         lowcluster, nlowclst = ndimage.label(~self.lowcloudmask)
-        cloudtrue = cloudcluster[fogstations]
-        lowcloudfog = lowcluster[fogstations]
-        lowcloudnofog = lowcluster[nofogstations]
 
         # Compare stations with low cloud mask
         firstvalid = self.validate_fogmask(fogstations, nofogstations,
@@ -1334,26 +1330,23 @@ class StationFusionFilter(BaseArrayFilter):
             logger.info("Limit mask to station data region x: {} - {},"
                         " y: {} - {}".format(xmin, xmax, ymin, ymax))
             # Crop to limited region with station coverage
-            l = (ymin, ymax, xmin, xmax)
+            lim = (ymin, ymax, xmin, xmax)
 
-            self.arr = self.arr[l[0]:l[1], l[2]:l[3]]
-            self.inmask = self.inmask[l[0]:l[1], l[2]:l[3]]
-            self.mask = self.mask[l[0]:l[1], l[2]:l[3]]
-            self.missdemmask = self.missdemmask[l[0]:l[1], l[2]:l[3]]
-            self.falsedemmask = self.falsedemmask[l[0]:l[1], l[2]:l[3]]
-            self.cloudmask = self.cloudmask[l[0]:l[1], l[2]:l[3]]
-            self.lowcloudmask = self.lowcloudmask[l[0]:l[1], l[2]:l[3]]
-            fogstations = fogstations[l[0]:l[1], l[2]:l[3]]
-            nofogstations = nofogstations[l[0]:l[1], l[2]:l[3]]
+            self.arr = self.arr[lim[0]:lim[1], lim[2]:lim[3]]
+            self.inmask = self.inmask[lim[0]:lim[1], lim[2]:lim[3]]
+            self.mask = self.mask[lim[0]:lim[1], lim[2]:lim[3]]
+            self.missdemmask = self.missdemmask[lim[0]:lim[1], lim[2]:lim[3]]
+            self.falsedemmask = self.falsedemmask[lim[0]:lim[1], lim[2]:lim[3]]
+            self.cloudmask = self.cloudmask[lim[0]:lim[1], lim[2]:lim[3]]
+            self.lowcloudmask = self.lowcloudmask[lim[0]:lim[1], lim[2]:lim[3]]
+            fogstations = fogstations[lim[0]:lim[1], lim[2]:lim[3]]
+            nofogstations = nofogstations[lim[0]:lim[1], lim[2]:lim[3]]
 
         self.fogmask = ~fogstations
         self.nofogmask = ~nofogstations
 
         lowcluster, nlowclst = ndimage.label(~self.mask)
-        secondvalid = self.validate_fogmask(fogstations, nofogstations,
-                                            lowcluster.squeeze(),
-                                            nlowclst, True, firstvalid,
-                                            elev=self.elev)
+
         # Return filtered output with mask
         self.result = np.ma.array(self.arr, mask=self.mask)
 
@@ -1447,7 +1440,8 @@ class StationFusionFilter(BaseArrayFilter):
                      "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
                      "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
                      "    --------------------------------------------" \
-                     .format(stationsum, np.nanmin(self.check_zerolist(allelev)),
+                     .format(stationsum,
+                             np.nanmin(self.check_zerolist(allelev)),
                              np.nanmean(self.check_zerolist(allelev)),
                              np.nanmax(self.check_zerolist(allelev)),
                              np.nansum(self.check_zerolist(fogstations)),
@@ -1458,49 +1452,77 @@ class StationFusionFilter(BaseArrayFilter):
                              np.nanmin(self.check_zerolist(nofogelev)),
                              np.nanmean(self.check_zerolist(nofogelev)),
                              np.nanmax(self.check_zerolist(nofogelev)),
-                             nlowclst, np.min(self.check_zerolist(elev[lowcluster != 0])),
-                             np.nanmean(self.check_zerolist(elev[lowcluster != 0])),
-                             np.nanmax(self.check_zerolist(elev[lowcluster != 0])),
+                             nlowclst,
+                             np.min(self.check_zerolist(
+                                 elev[lowcluster != 0])),
+                             np.nanmean(self.check_zerolist(
+                                 elev[lowcluster != 0])),
+                             np.nanmax(self.check_zerolist(
+                                 elev[lowcluster != 0])),
                              np.nansum(self.check_zerolist(lowcloudhit)),
                              np.nanmin(self.check_zerolist(elev[lowcloudhit])),
-                             np.nanmean(self.check_zerolist(elev[lowcloudhit])),
+                             np.nanmean(self.check_zerolist(
+                                 elev[lowcloudhit])),
                              np.nanmax(self.check_zerolist(elev[lowcloudhit])),
                              np.nansum(self.check_zerolist(lowcloudmiss)),
-                             np.nanmin(self.check_zerolist(elev[lowcloudmiss])),
-                             np.nanmean(self.check_zerolist(elev[lowcloudmiss])),
-                             np.nanmax(self.check_zerolist(elev[lowcloudmiss])),
+                             np.nanmin(self.check_zerolist(
+                                 elev[lowcloudmiss])),
+                             np.nanmean(self.check_zerolist(
+                                 elev[lowcloudmiss])),
+                             np.nanmax(self.check_zerolist(
+                                 elev[lowcloudmiss])),
                              np.nansum(self.check_zerolist(lowcloudfalse)),
-                             np.nanmin(self.check_zerolist(elev[lowcloudfalse])),
-                             np.nanmean(self.check_zerolist(elev[lowcloudfalse])),
-                             np.nanmax(self.check_zerolist(elev[lowcloudfalse])),
+                             np.nanmin(self.check_zerolist(
+                                 elev[lowcloudfalse])),
+                             np.nanmean(self.check_zerolist(
+                                 elev[lowcloudfalse])),
+                             np.nanmax(self.check_zerolist(
+                                 elev[lowcloudfalse])),
                              np.nansum(self.check_zerolist(lowcloudtrueneg)),
-                             np.nanmin(self.check_zerolist(elev[lowcloudtrueneg])),
-                             np.nanmean(self.check_zerolist(elev[lowcloudtrueneg])),
-                             np.nanmax(self.check_zerolist(elev[lowcloudtrueneg])))
+                             np.nanmin(self.check_zerolist(
+                                 elev[lowcloudtrueneg])),
+                             np.nanmean(self.check_zerolist(
+                                 elev[lowcloudtrueneg])),
+                             np.nanmax(self.check_zerolist(
+                                 elev[lowcloudtrueneg])))
 
             if compare:
-                compmsg = "\n         ------ Comparision validation ------\n" \
-                          "    Hits:         {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
-                          "    Misses:       {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
-                          "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
-                          "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n" \
-                          "    --------------------------------------------" \
-                          .format(np.nansum(self.check_zerolist(compare[0])),
-                                  np.nanmin(self.check_zerolist(elev[compare[0]])),
-                                  np.nanmean(self.check_zerolist(elev[compare[0]])),
-                                  np.nanmax(self.check_zerolist(elev[compare[0]])),
-                                  np.nansum(self.check_zerolist(compare[1])),
-                                  np.nanmin(self.check_zerolist(elev[compare[1]])),
-                                  np.nanmean(self.check_zerolist(elev[compare[1]])),
-                                  np.nanmax(self.check_zerolist(elev[compare[1]])),
-                                  np.nansum(self.check_zerolist(compare[2])),
-                                  np.nanmin(self.check_zerolist(elev[compare[2]])),
-                                  np.nanmean(self.check_zerolist(elev[compare[2]])),
-                                  np.nanmax(self.check_zerolist(elev[compare[2]])),
-                                  np.nansum(self.check_zerolist(compare[3])),
-                                  np.nanmin(self.check_zerolist(elev[compare[3]])),
-                                  np.nanmean(self.check_zerolist(elev[compare[3]])),
-                                  np.nanmax(self.check_zerolist(elev[compare[3]])))
+                compmsg = (
+                        "\n         ------ Comparision validation ------\n"
+                        "    Hits:         {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                        "    Misses:       {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                        "    False alarm:  {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                        "    True negativ: {:6d} | {:6.2f} {:6.2f} {:6.2f}\n"
+                        "    --------------------------------------------"
+                        ).format(
+                                np.nansum(self.check_zerolist(compare[0])),
+                                np.nanmin(self.check_zerolist(
+                                    elev[compare[0]])),
+                                np.nanmean(self.check_zerolist(
+                                    elev[compare[0]])),
+                                np.nanmax(self.check_zerolist(
+                                    elev[compare[0]])),
+                                np.nansum(self.check_zerolist(compare[1])),
+                                np.nanmin(self.check_zerolist(
+                                    elev[compare[1]])),
+                                np.nanmean(self.check_zerolist(
+                                    elev[compare[1]])),
+                                np.nanmax(self.check_zerolist(
+                                    elev[compare[1]])),
+                                np.nansum(self.check_zerolist(compare[2])),
+                                np.nanmin(self.check_zerolist(
+                                    elev[compare[2]])),
+                                np.nanmean(self.check_zerolist(
+                                    elev[compare[2]])),
+                                np.nanmax(self.check_zerolist(
+                                    elev[compare[2]])),
+                                np.nansum(self.check_zerolist(compare[3])),
+                                np.nanmin(self.check_zerolist(
+                                    elev[compare[3]])),
+                                np.nanmean(self.check_zerolist(
+                                    elev[compare[3]])),
+                                np.nanmax(self.check_zerolist(
+                                    elev[compare[3]])))
                 logger.info(logmsg + compmsg)
             else:
                 logger.info(logmsg)
