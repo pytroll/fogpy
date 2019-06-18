@@ -58,7 +58,7 @@ def read_synop(file, params, min=None, max=None):
             for subset in bfr.next_subset():
                 gotit = 0
                 stationdict = {}
-                for k, m, (v, q) in subset.next_data():
+                for (k, m, v, q) in subset.next_data():
                     if k == 1015:  # Station name
                         stationdict['name'] = v.strip()
                     if k == 5001:  # Latitude
@@ -177,7 +177,7 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
             for subset in bfr.next_subset():
                 gotit = 0
                 stationdict = {}
-                for k, m, (v, q) in subset.next_data():
+                for (k, m, v, q) in subset.next_data():
                     if k == 1063:  # Station name
                         stationdict['name'] = v.strip()
                     if k == 5002:  # Latitude
@@ -309,7 +309,7 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
             for subset in bfr.next_subset():
                 gotit = 0
                 stationdict = {}
-                for k, m, (v, q) in subset.next_data():
+                for (k, m, v, q) in subset.next_data():
                     if k == 1015:  # Station name
                         stationdict['name'] = v.strip()
                     if k == 5001:  # Latitude
