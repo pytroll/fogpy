@@ -36,6 +36,8 @@ from datetime import datetime
 trollbufr_logger = logging.getLogger('trollbufr')
 trollbufr_logger.setLevel(logging.CRITICAL)
 
+class DummyException(Exception):
+    pass
 
 def read_synop(file, params, min=None, max=None):
     """ Reading bufr files for synoptical station data and provide dictionary
@@ -150,7 +152,7 @@ def read_synop(file, params, min=None, max=None):
                                            stationdict['altitude'],
                                            stationdict['lat'],
                                            stationdict['lon']] + paralist]
-        except Exception as e:
+        except DummyException as e:
             "ERROR: Unresolved station request: {}".format(e)
     return(result)
 
@@ -283,7 +285,7 @@ def read_metar(file, params, min=None, max=None, latlim=None, lonlim=None):
                                            stationdict['altitude'],
                                            stationdict['lat'],
                                            stationdict['lon']] + paralist]
-        except Exception as e:
+        except DummyException as e:
             "ERROR: Unresolved station request: {}".format(e)
     return(result)
 
@@ -423,7 +425,7 @@ def read_swis(file, params, min=None, max=None, latlim=None, lonlim=None):
                                            stationdict['altitude'],
                                            stationdict['lat'],
                                            stationdict['lon']] + paralist]
-        except Exception as e:
+        except DummyException as e:
             "ERROR: Unresolved station request: {}".format(e)
     return(result)
 
