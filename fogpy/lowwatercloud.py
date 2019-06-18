@@ -264,7 +264,7 @@ class LowWaterCloud(object):
     def get_cloud_base_height(self, start=0, method='basin'):
         """ Calculate cloud base height [m]."""
         # Calculate cloud base height
-        self.cbh = self.optimize_cbh(start, method='basin', debug=self.debug)
+        self.cbh = self.optimize_cbh(start, method=method, debug=self.debug)
 
         return self.cbh
 
