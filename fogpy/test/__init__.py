@@ -38,6 +38,5 @@ def suite():
     mysuite.addTests(test_lowwatercloud.suite())
     mysuite.addTests(test_filters.suite())
     mysuite.addTests(test_algorithms.suite())
-    #mysuite.addTests(test_fogpy.suite())
 
     return mysuite

@@ -21,16 +21,12 @@
 
 """ Setup file for fogpy"""
 
-from setuptools import setup, find_packages
+from setuptools import setup
 import os
 import subprocess
-#import imp
 
 BASE_PATH = os.path.sep.join(os.path.dirname(
     os.path.realpath(__file__)).split(os.path.sep))
-
-#version = imp.load_source('fogpy.version', 'fogpy/version.py')
-# here = os.path.abspath(os.path.dirname(__file__))
 
 # get commits since last tagged version
 cp = subprocess.run(
@@ -47,14 +43,12 @@ cp = subprocess.run(
 br = cp.stdout.strip().decode("utf-8")
 
 # optionally add commit/branch to version string
-if "-" in so: # we're not at a tagged version
+if "-" in so:  # we're not at a tagged version
     version = so[1:].replace("-", "+dev", 1).replace("-", ".")
     if br != "master":
         version += "." + br
 else:
     version = so[1:]
-
-
 
 setup(
     name='fogpy',

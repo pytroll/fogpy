@@ -129,9 +129,6 @@ def add_to_image(image, area, time, bufr, savedir='/tmp', name=None,
     # Create array for synop parameter
     visarr = np.empty(arrshp)
     visarr.fill(np.nan)
-    # Define custom fog colormap
-    viscol = Colormap((0., (1.0, 0.0, 0.0)),
-                      (5000, (0.7, 0.7, 0.7)))
     # Red - Violet - Blue - Green
     vis_colset = Colormap((0, (228 / 255.0, 26 / 255.0, 28 / 255.0)),
                           (1000, (152 / 255.0, 78 / 255.0, 163 / 255.0)),
@@ -169,6 +166,7 @@ def add_to_image(image, area, time, bufr, savedir='/tmp', name=None,
         station_img.save(savepath)
 
     return(station_img)
+
 
 if __name__ == '__main__':
 

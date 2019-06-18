@@ -38,9 +38,6 @@ from fogpy.filters import SnowFilter
 from fogpy.filters import IceCloudFilter
 from fogpy.filters import CirrusCloudFilter
 from fogpy.filters import WaterCloudFilter
-from pyorbital.orbital import Orbital
-from pyorbital import tlefile
-from fogpy.utils import add_synop
 from pyresample import geometry
 # Test data array order:
 # ir108, ir039, vis08, nir16, vis06, ir087, ir120, elev, cot, reff, cwp,
@@ -284,9 +281,6 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         test_ccl = np.array([[0.2, 0.4, 0.1],
                              [0.3, 1, 0.2],
                              [0, 0.4, 0.1]])
-        test_clusters = np.array([[0, 0, 0],
-                                  [0, 1, 0],
-                                  [0, 0, 0]])
         test_cmask = np.array([[True, True, True],
                                [True, False, True],
                                [True, True, True]], dtype=bool)
@@ -616,11 +610,14 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
         self.time = datetime(2013, 11, 12, 6, 00, 00)
         # METEOSAT-10 (MSG-3) TLE file from 01.08.2017
         # http://celestrak.com/NORAD/elements/weather.txt
-        line1 = "1 38552U 12035B   17212.14216600 -.00000019  00000-0  00000-0 0  9998"
-        line2 = "2 38552   0.8450 357.8180 0002245 136.4998 225.6885  1.00275354 18379"
+        # line1 = "1 38552U 12035B   17212.14216600 -.00000019  00000-0  00000-0 0  9998"  # noqa: E501
+        # line2 = "2 38552   0.8450 357.8180 0002245 136.4998 225.6885  1.00275354 18379"  # noqa: E501
         # To convert this to lat, lon, elev:
         # from skyfield.iokit import parse_tle
-        # f = io.BytesIO(b"1 38552U 12035B   17212.14216600 -.00000019  00000-0  00000-0 0  9998\n238552   0.8450 357.8180 0002245 136.4998 225.6885  1.00275354 18379")
+        # f = io.BytesIO(b"1 38552U 12035B   17212.14216600 -.00000019  "
+        #                b"00000-0  00000-0 0  9998\n238552   0.8450 "
+        #                b"357.8180 0002245 136.4998 225.6885  1.00275354 "
+        #                b"18379")
         # sat = next(skyfield.iokit.parse_tle(f))[1]
         # pos = sat.at(sat.epoch)
         # sp = pos.subpoint()
@@ -743,7 +740,8 @@ def suite():
     loader = unittest.TestLoader()
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(Test_BaseSatelliteAlgorithm))
-    mysuite.addTest(loader.loadTestsFromTestCase(Test_DayFogLowStratusAlgorithm))
+    mysuite.addTest(
+            loader.loadTestsFromTestCase(Test_DayFogLowStratusAlgorithm))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudHeightAlgorithm))
 
     return mysuite
