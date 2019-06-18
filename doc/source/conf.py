@@ -74,7 +74,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'fogpy'
-copyright = u'2017, Thomas Leppelt'
+copyright = '2017--2019, Thomas Leppelt, Gerrit Holl'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

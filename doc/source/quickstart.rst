@@ -12,7 +12,7 @@ Import satellite data first
 
 We start with the PyTroll package *satpy*. This package provide all functionalities 
 to import and calibrate a MSG scene from HRIT files. Therefore you should make sure 
-that mpop is properly configured and all environment variables like *PPP_CONFIG_DIR* 
+that satpy is properly configured and all environment variables like *PPP_CONFIG_DIR* 
 are set and the HRIT files are in the given search path. For more guidance look up 
 in the `satpy`_ documentation
 
@@ -245,6 +245,9 @@ clouds than the daytime approach. Therefore a comparison with weather station da
 Gimme some ground truth!
 ========================
 
+.. note::
+    Documentation beyond this point out of date!
+
 Fogpy features some additional utilities for validation and comparison attempts.
 This include methods to plot weather station data from Bufr files over the FLS image results.
 The Bufr data is thereby processed by the `trollbufr`_ PyTroll package and the images are generated with `trollimage`_.
@@ -254,6 +257,8 @@ Here we load visibility data from German weather stations for the nighttime scen
     >>> from fogpy.utils import add_synop
         # Define search path for bufr file
     >>> bufr_dir = '/path/to/bufr/file/'
+    >>> from datetime import datetime
+    >>> ntime = datetime(2013, 12, 12, 4, 0)
     >>> nbufr_file = "result_{}_synop.bufr".format(ntime.strftime("%Y%m%d%H%M"))
     >>> inbufrn = os.path.join(bufr_dir, nbufr_file)
         # Create station image
