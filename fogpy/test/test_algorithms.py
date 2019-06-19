@@ -777,6 +777,8 @@ def suite():
     mysuite.addTest(
             loader.loadTestsFromTestCase(Test_DayFogLowStratusAlgorithm))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudHeightAlgorithm))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_PanSharpeningAlgorithm))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_NightFogLowStratusAlgorithm))
 
     return mysuite
 

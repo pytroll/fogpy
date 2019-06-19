@@ -6862,6 +6862,7 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CloudMotionFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_StationFusionFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_NumericalModelFilter))
 
     return mysuite
 
