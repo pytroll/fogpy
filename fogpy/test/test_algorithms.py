@@ -184,6 +184,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
     def tearDown(self):
         pass
 
+    @unittest.skipUnless(os.getenv("FOGPY_SLOW_TESTS"),
+            "Skipping slow test.  To turn on slow tests, set FOGPY_SLOW_TESTS")
     def test_fls_algorithm(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input)
         ret, mask = flsalgo.run()
@@ -199,6 +201,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
 #        add_synop.add_to_image(result_img, area_def, self.input['time'],
 #                               stationfile, bgimg=self.input['ir108'])
 
+    @unittest.skipUnless(os.getenv("FOGPY_SLOW_TESTS"),
+            "Skipping slow test.  To turn on slow tests, set FOGPY_SLOW_TESTS")
     def test_fls_algorithm_no_cth_use_clusters(self):
         self.input.pop('cth')
         self.input['single'] = False
@@ -214,6 +218,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
 #                 allow_pickle=True)
 
     # Using other tset data set
+    @unittest.skipUnless(os.getenv("FOGPY_SLOW_TESTS"),
+            "Skipping slow test.  To turn on slow tests, set FOGPY_SLOW_TESTS")
     def test_fls_algorithm_other(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input2)
         ret, mask = flsalgo.run()
