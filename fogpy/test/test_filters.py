@@ -6410,12 +6410,12 @@ class Test_LowCloudFilter(unittest.TestCase):
         FLS(**self.input)
         self.clusters = FLS.get_cloud_cluster(self.cloudmask, False)
         self.clusters.mask[self.clusters != 120] = True
-        self.input = {'ir108': self.ir108,
-                      'lwp': self.lwp,
-                      'reff': self.reff,
-                      'elev': self.elev,
-                      'clusters': self.clusters,
-                      'cth': self.cth}
+        self.input = {'ir108': self.ir108.copy(),
+                      'lwp': self.lwp.copy(),
+                      'reff': self.reff.copy(),
+                      'elev': self.elev.copy(),
+                      'clusters': self.clusters.copy(),
+                      'cth': self.cth.copy()}
 
         # Define small artificial test data
         dim = (2, 2, 1)
@@ -6437,31 +6437,31 @@ class Test_LowCloudFilter(unittest.TestCase):
         test_cth = np.empty(dim)
         test_cth.fill(200)
         # Testdata for ground cloud fog
-        self.test_lwp1 = {'ir108': test_ir,
-                          'lwp': test_lwp_static,
-                          'reff': test_reff,
-                          'elev': test_elev,
-                          'clusters': test_clusters,
-                          'cth': test_cth}
+        self.test_lwp1 = {'ir108': test_ir.copy(),
+                          'lwp': test_lwp_static.copy(),
+                          'reff': test_reff.copy(),
+                          'elev': test_elev.copy(),
+                          'clusters': test_clusters.copy(),
+                          'cth': test_cth.copy()}
         # Init with big droplet radius
         # Increase in droplet radius prevend declaration as ground fog
         test_reff = np.empty(dim)
         test_reff.fill(20e-5)
-        self.test_lwp2 = {'ir108': test_ir,
-                          'lwp': test_lwp_static,
-                          'reff': test_reff,
-                          'elev': test_elev,
-                          'clusters': test_clusters,
-                          'cth': test_cth}
+        self.test_lwp2 = {'ir108': test_ir.copy(),
+                          'lwp': test_lwp_static.copy(),
+                          'reff': test_reff.copy(),
+                          'elev': test_elev.copy(),
+                          'clusters': test_clusters.copy(),
+                          'cth': test_cth.copy()}
         # Randomly choose liquid water paths
         test_reff = np.empty(dim)
         test_reff.fill(10e-6)  # Reset radius
-        self.test_lwp3 = {'ir108': test_ir,
-                          'lwp': test_lwp_choice,
-                          'reff': test_reff,
-                          'elev': test_elev,
-                          'clusters': test_clusters,
-                          'cth': test_cth}
+        self.test_lwp3 = {'ir108': test_ir.copy(),
+                          'lwp': test_lwp_choice.copy(),
+                          'reff': test_reff.copy(),
+                          'elev': test_elev.copy(),
+                          'clusters': test_clusters.copy(),
+                          'cth': test_cth.copy()}
 
     def tearDown(self):
         pass
