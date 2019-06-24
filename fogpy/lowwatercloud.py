@@ -522,7 +522,8 @@ class LowWaterCloud(object):
                                niter=30,
                                niter_success=5,
                                stepsize=200,
-                               accept_test=cbhbounds)
+                               accept_test=cbhbounds,
+                               seed=42)
             time_diff = int(round(time.time() * 1000)) - start_time
             result = float(ret.x[0])
             logger.info('Optimized lwp: start cbh: {:.2f}, cth: {:.2f}, '
