@@ -6590,6 +6590,8 @@ class Test_StationFusionFilter(unittest.TestCase):
     def tearDown(self):
         pass
 
+    @unittest.skipUnless(os.getenv("BUFR_TABLES"),
+            "BUFR tables not defined, skipping bufr-related tests")
     def test_fusion_filter_bufr_import(self):
         # Create fusion filter
         testfilter = StationFusionFilter(self.ir108,
@@ -6607,6 +6609,8 @@ class Test_StationFusionFilter(unittest.TestCase):
         self.assertEqual(np.sum(~testfilter.fogmask), 20)
         self.assertEqual(np.sum(~testfilter.nofogmask), 181)
 
+    @unittest.skipUnless(os.getenv("BUFR_TABLES"),
+            "BUFR tables not defined, skipping bufr-related tests")
     def test_fusion_filter_dem_interpolation(self):
         # Create fusion filter
         testfilter = StationFusionFilter(self.ir108,
