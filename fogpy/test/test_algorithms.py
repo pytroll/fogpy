@@ -342,9 +342,21 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
 
     def test_lcth_algorithm_interpolate(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
-        cth = np.random.random_integers(0, 10, (5, 5)).astype(float)
+        # originally obtained with np.random.random_integers
+        cth = np.array(
+              [[ 6.,  3., 10.,  7.,  4.],
+               [ 6.,  9.,  2.,  6., 10.],
+               [10.,  7.,  4.,  3.,  7.],
+               [ 7.,  2.,  5.,  4.,  1.],
+               [ 7.,  5.,  1.,  4.,  0.]])
         cth[cth > 7] = np.nan
-        mask = np.random.random_integers(0, 1, (5, 5)).astype(bool)
+
+        mask = np.array(
+              [[ True,  True,  True, False,  True],
+               [False, False, False, False, False],
+               [ True,  True,  True,  True,  True],
+               [False,  True,  True, False,  True],
+               [False,  True, False,  True,  True]])
         result = lcthalgo.interpol_cth(cth, mask)
         self.assertEqual(result.shape, (5, 5))
         self.assertTrue(np.all(np.isnan(result[mask])))
@@ -352,10 +364,26 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
 
     def test_lcth_algorithm_linreg(self):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
-        cth = np.random.randint(0, 10, (5, 5)).astype(float)
-        ctt = np.random.randint(260, 290, (5, 5)).astype(float)
+        # originally obtained with np.random.randint
+        cth = np.array(
+              [[6., 3., 7., 4., 6.],
+               [9., 2., 6., 7., 4.],
+               [3., 7., 7., 2., 5.],
+               [4., 1., 7., 5., 1.],
+               [4., 0., 9., 5., 8.]])
+        ctt = np.array(
+              [[276., 286., 286., 269., 287.],
+               [287., 275., 274., 289., 289.],
+               [274., 289., 278., 271., 282.],
+               [279., 284., 262., 264., 278.],
+               [266., 280., 268., 266., 277.]])
         cth[cth > 7] = np.nan
-        mask = np.random.randint(0, 2, (5, 5)).astype(bool)
+        mask = np.array(
+              [[ True, False,  True,  True,  True],
+               [ True, False,  True, False,  True],
+               [ True,  True, False,  True, False],
+               [ True, False,  True, False, False],
+               [ True, False,  True,  True,  True]])
         result = lcthalgo.linreg_cth(cth, mask, ctt)
         self.assertEqual(result.shape, (5, 5))
         self.assertTrue(np.all(np.isnan(result[mask])))
