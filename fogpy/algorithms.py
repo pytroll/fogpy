@@ -19,7 +19,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""This module implements an base satellite algorithm class"""
+"""This module implements an base satellite algorithm class
+
+The implementation is based on the following publications:
+
+    * Cermak, J., & Bendix, J. (2011). Detecting ground fog from space–a
+      microphysics-based approach. International Journal of Remote Sensing,
+      32(12), 3345-3371. doi:10.1016/j.atmosres.2007.11.009
+    * Cermak, J., & Bendix, J. (2007). Dynamical nighttime fog/low stratus
+      detection based on Meteosat SEVIRI data: A feasibility study. Pure and
+      applied Geophysics, 164(6-7), 1179-1192. doi:10.1007/s00024-007-0213-8
+    * Cermak, J., & Bendix, J. (2008). A novel approach to fog/low
+      stratus detection using Meteosat 8 data. Atmospheric Research,
+      87(3-4), 279-292. doi:10.1016/j.atmosres.2007.11.009
+    * Cermak, J. (2006). SOFOS-a new satellite-based operational fog
+      observation scheme. (PhD thesis), Philipps-Universität Marburg,
+      Marburg, Germany. doi:doi.org/10.17192/z2006.0149
+
+"""
 
 import logging
 import matplotlib.pyplot as plt
@@ -284,10 +301,18 @@ class DayFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
     for daytime scenes only.
     It is utilizing the methods proposed in different innovative studies:
 
-         - A novel approach to fog/low stratus detection using Meteosat 8 data
-            J. Cermak & J. Bendix
-         - Detecting ground fog from space – a microphysics-based approach
-            J. Cermak & J. Bendix
+    The implementation is based on the following publications:
+
+        * Cermak, J., & Bendix, J. (2011). Detecting
+          ground fog from space–a microphysics-based
+          approach. International Journal of Remote Sensing, 32(12),
+          3345-3371. doi:10.1016/j.atmosres.2007.11.009
+        * Cermak, J., & Bendix, J. (2008). A novel approach to fog/low
+          stratus detection using Meteosat 8 data. Atmospheric Research,
+          87(3-4), 279-292. doi:10.1016/j.atmosres.2007.11.009
+        * Cermak, J. (2006). SOFOS-a new satellite-based operational fog
+          observation scheme. (PhD thesis), Philipps-Universität Marburg,
+          Marburg, Germany. doi:doi.org/10.17192/z2006.0149
 
     The algorithm can be applied to satellite zenith angle lower than 70°
     and a maximum solar zenith angle of 80°.
@@ -1301,11 +1326,12 @@ class NightFogLowStratusAlgorithm(BaseSatelliteAlgorithm):
     METEOSAT second generation MSG satellites for night time scenes.
     Two infrared MSG channels are used. Therefore the algorithm is applicable
     for day and night times in general, but is optimized for night time usage.
-    It is utilizing the methods proposed in the following studies:
+    It is utilizing the methods proposed in the following study:
 
-        * Dynamical nighttime fog/low stratus detection based on Meteosat
-          SEVIRI Data: A feasibility study
-          J. Cermak & J. Bendix
+        * Cermak, J., & Bendix, J. (2007). Dynamical nighttime
+          fog/low stratus detection based on Meteosat SEVIRI data:
+          A feasibility study. Pure and applied Geophysics, 164(6-7),
+          1179-1192. doi:10.1007/s00024-007-0213-8
 
     The emissivity differences between the two window channels 10.8 and 3.9
     are considerably large for small droplets (effective radius = 4 um) in
