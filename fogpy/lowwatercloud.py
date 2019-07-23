@@ -25,9 +25,14 @@ cloud top height and temperature and cloud liquid water path, e.g. from
 satellite retrievals.
 The implemented approch is based on a publication:
 
-* Detecting ground fog from space – a microphysics-based approach
-  Jan Cermak and Joerg Bendi, 2010
+
+The implementation is based on the following publications:
+
+    * Cermak, J., & Bendix, J. (2011). Detecting ground fog from space–a microphysics-based approach. International Journal of Remote Sensing, 32(12), 3345-3371. doi:10.1016/j.atmosres.2007.11.009
+    * Cermak, J., & Bendix, J. (2008). A novel approach to fog/low stratus detection using Meteosat 8 data. Atmospheric Research, 87(3-4), 279-292. doi:10.1016/j.atmosres.2007.11.009
+    * Cermak, J. (2006). SOFOS-a new satellite-based operational fog observation scheme. (PhD thesis), Philipps-Universität Marburg, Marburg, Germany. doi:doi.org/10.17192/z2006.0149
 """
+
 import math
 import logging
 import time
