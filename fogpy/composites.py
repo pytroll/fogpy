@@ -89,7 +89,7 @@ class FogCompositor(satpy.composites.GenericCompositor):
                 for p in projectables]
 
     @staticmethod
-    def _convert_to_xr(projectables, fls, mask):
+    def _convert_ma_to_xr(projectables, fls, mask):
         """Convert fogpy algorithm result to xarray images
 
         The fogpy algorithms return numpy masked arrays, but satpy
@@ -104,15 +104,15 @@ class FogCompositor(satpy.composites.GenericCompositor):
                 passes on to the ``__call__`` method of each Compositor
                 class.
             fls (masked_array): Masked array such as returned by
-                fogpy.algorithms.BaseSatelliteAlgorithm.run or its
+                ``fogpy.algorithms.BaseSatelliteAlgorithm.run`` or its
                 subclasses
             mask (masked_array): Mask corresponding to fls.
 
         Returns:
-            (xrfls, xrmsk) tuple of two xarray DataArrays, corresponding
-            to the algorithm result image and mask, respectively.  Those
-            can be passed to GenericCompositor.__call__ to get a LA image
-            xarray DataArray.
+            List[xarray.DataArray] list of xarray DataArrays, corresponding
+            to the ``*args`` inputs passed.  If an image and a mask, those
+            can be passed to ``GenericCompositor.__call__`` to get a LA image
+            ``xarray.DataArray``, or the latter can be constructed directly.
         """
 
         # convert to xarray images
@@ -124,20 +124,17 @@ class FogCompositor(satpy.composites.GenericCompositor):
                            "orbital_parameters", "georef_offset_corrected",
                            "start_time", "end_time", "area", "resolution")}
 
-        xrfls = xarray.DataArray(
-                fls.data, dims=dims, coords=coords, attrs=attrs)
-        xrmsk = xarray.DataArray(
-                mask.data, dims=dims, coords=coords, attrs=attrs)
+        das = [xarray.DataArray(
+                    ma.data, dims=dims, coords=coords, attrs=attrs)
+                    for ma in *args]
+        for (ma, da) in zip(args, das):
+            da.values[ma.mask] = fv
+            da.encoding["_FillValue"] = fv
 
-        return (xrfls, xrmsk)
-
-    def __call__(self, datasets, optional_datasets=None, **info):
-        return super().__call__(datasets,
-                                optional_datasets=optional_datasets,
-                                **info)
+        return das
 
 
-class FogCompositorDay(FogCompositor):
+class _IntermediateFogCompositorDay(FogCompositor):
     def __init__(self, path_dem, *args, **kwargs):
         self.elevation = Scene(reader="generic_image",
                                filenames=[path_dem])
@@ -172,10 +169,29 @@ class FogCompositorDay(FogCompositor):
         flsalgo = DayFogLowStratusAlgorithm(**flsinput)
         fls, mask = flsalgo.run()
 
-        (xrfls, xrmsk) = self._convert_to_xr(projectables, fls, mask)
+        (xrfls, xrmsk, xrvmask, xrcbh, xrfbh, xrlcth) = self._convert_ma_to_xr(
+                projectables, fls, mask, xrvmask, xrcbh, xrfbh, xrflcth)
 
-        return super().__call__((xrfls, xrmsk), *args, **kwargs)
+        vmaskimg = flsalgo.vcloudmask
+        cbhimg = flsalgo.cbh
+        fbhimg = flsalgo.fbh
+        lcthimg = flsalgo.lcth
 
+        ds = xarray.Dataset({
+            "fls_day": xrfls,
+            "fls_mask": xrmsk,
+            "vmask": xrvmask,
+            "cbh": xrcbh,
+            "fbh": xrfbh,
+            "lcthimg": xrlcth})
+
+
+        return ds
+
+class FogCompositorDay(satpy.composites.GenericCompositor):
+    def __call__(self, projectables, *args, **kwargs):
+        ds = projectables[0]
+        return super().__call__((ds["fls_day"], ds["fls_mask"]), *args, **kwargs)
 
 class FogCompositorNight(FogCompositor):
 
@@ -199,6 +215,6 @@ class FogCompositorNight(FogCompositor):
         flsalgo = NightFogLowStratusAlgorithm(**flsinput)
         fls, mask = flsalgo.run()
 
-        (xrfls, xrmsk) = self._convert_to_xr(projectables, fls, mask)
+        (xrfls, xrmsk) = self._convert_ma_to_xr(projectables, fls, mask)
 
         return super().__call__((xrfls, xrmsk), *args, **kwargs)
