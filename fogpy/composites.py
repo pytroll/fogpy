@@ -89,7 +89,7 @@ class FogCompositor(satpy.composites.GenericCompositor):
                 for p in projectables]
 
     @staticmethod
-    def _convert_ma_to_xr(projectables, fls, mask):
+    def _convert_ma_to_xr(projectables, *args):
         """Convert fogpy algorithm result to xarray images
 
         The fogpy algorithms return numpy masked arrays, but satpy
@@ -115,6 +115,7 @@ class FogCompositor(satpy.composites.GenericCompositor):
             ``xarray.DataArray``, or the latter can be constructed directly.
         """
 
+        fv = 9000
         # convert to xarray images
         dims = projectables[0].dims
         coords = projectables[0].coords
@@ -125,8 +126,8 @@ class FogCompositor(satpy.composites.GenericCompositor):
                            "start_time", "end_time", "area", "resolution")}
 
         das = [xarray.DataArray(
-                    ma.data, dims=dims, coords=coords, attrs=attrs)
-                    for ma in *args]
+               ma.data, dims=dims, coords=coords, attrs=attrs)
+               for ma in args]
         for (ma, da) in zip(args, das):
             da.values[ma.mask] = fv
             da.encoding["_FillValue"] = fv
@@ -170,12 +171,8 @@ class _IntermediateFogCompositorDay(FogCompositor):
         fls, mask = flsalgo.run()
 
         (xrfls, xrmsk, xrvmask, xrcbh, xrfbh, xrlcth) = self._convert_ma_to_xr(
-                projectables, fls, mask, xrvmask, xrcbh, xrfbh, xrflcth)
-
-        vmaskimg = flsalgo.vcloudmask
-        cbhimg = flsalgo.cbh
-        fbhimg = flsalgo.fbh
-        lcthimg = flsalgo.lcth
+                projectables, fls, mask, flsalgo.vcloudmask, flsalgo.cbh,
+                flsalgo.fbh, flsalgo.lcth)
 
         ds = xarray.Dataset({
             "fls_day": xrfls,
@@ -185,13 +182,14 @@ class _IntermediateFogCompositorDay(FogCompositor):
             "fbh": xrfbh,
             "lcthimg": xrlcth})
 
-
         return ds
+
 
 class FogCompositorDay(satpy.composites.GenericCompositor):
     def __call__(self, projectables, *args, **kwargs):
         ds = projectables[0]
         return super().__call__((ds["fls_day"], ds["fls_mask"]), *args, **kwargs)
+
 
 class FogCompositorNight(FogCompositor):
 
