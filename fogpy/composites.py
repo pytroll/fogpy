@@ -121,9 +121,8 @@ class FogCompositor(satpy.composites.GenericCompositor):
         attrs = {k: projectables[0].attrs[k]
                  for k in ("satellite_longitude", "satellite_latitude",
                            "satellite_altitude", "sensor", "platform_name",
-                           "projection", "georef_offset_corrected",
-                           "navigation", "start_time", "end_time", "area",
-                           "resolution")}
+                           "orbital_parameters", "georef_offset_corrected",
+                           "start_time", "end_time", "area", "resolution")}
 
         xrfls = xarray.DataArray(
                 fls.data, dims=dims, coords=coords, attrs=attrs)
