@@ -30,3 +30,9 @@ composites:
     prerequisites:
       - _intermediate_fls_day
     standard_name: fls_day
+
+  fls_day_extra:
+    compositor: !!python/name:fogpy.composites.FogCompositorDayExtra
+    prerequisites:
+      - _intermediate_fls_day
+    standard_name: fls_day_extra

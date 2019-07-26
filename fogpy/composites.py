@@ -204,6 +204,11 @@ class FogCompositorDay(satpy.composites.GenericCompositor):
         return super().__call__((ds["fls_day"], ds["fls_mask"]), *args, **kwargs)
 
 
+class FogCompositorDayExtra(satpy.composites.GenericCompositor):
+    def __call__(self, projectables, *args, **kwargs):
+        return projectables[0]
+
+
 class FogCompositorNight(FogCompositor):
 
     def __call__(self, projectables, *args, **kwargs):
