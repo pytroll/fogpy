@@ -28,6 +28,7 @@ import numpy
 import xarray
 
 import satpy.composites
+import satpy.dataset
 import pyorbital.astronomy
 
 from satpy import Scene
@@ -185,6 +186,14 @@ class _IntermediateFogCompositorDay(FogCompositor):
             "cbh": xrcbh,
             "fbh": xrfbh,
             "lcthimg": xrlcth})
+
+        ds.attrs.update(satpy.dataset.combine_metadata(
+                xrfls.attrs, xrmsk.attrs, xrvmask.attrs,
+                xrcbh.attrs, xrfbh.attrs, xrlcth.attrs))
+
+        # NB: isn't this done somewhere more generically?
+        for k in ("standard_name", "name", "resolution"):
+            ds.attrs[k] = self.attrs[k]
 
         return ds
 
