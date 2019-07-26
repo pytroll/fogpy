@@ -126,10 +126,14 @@ class FogCompositor(satpy.composites.GenericCompositor):
                            "start_time", "end_time", "area", "resolution")}
 
         das = [xarray.DataArray(
-               ma.data, dims=dims, coords=coords, attrs=attrs)
+                   ma.data if isinstance(ma, numpy.ma.MaskedArray) else ma,
+                   dims=dims, coords=coords, attrs=attrs)
                for ma in args]
         for (ma, da) in zip(args, das):
-            da.values[ma.mask] = fv
+            try:
+                da.values[ma.mask] = fv
+            except AttributeError:  # no mask
+                pass
             da.encoding["_FillValue"] = fv
 
         return das
