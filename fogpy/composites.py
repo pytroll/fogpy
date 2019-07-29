@@ -207,7 +207,7 @@ class FogCompositorDay(satpy.composites.GenericCompositor):
 class FogCompositorDayExtra(satpy.composites.GenericCompositor):
     def __call__(self, projectables, *args, **kwargs):
         ds = projectables[0]
-        ds["standard_name"] = ds["name"] = "fls_day_extra"
+        ds.attrs["standard_name"] = ds.attrs["name"] = "fls_day_extra"
         return ds
 
 
