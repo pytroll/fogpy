@@ -4,14 +4,14 @@
 
 The package uses OOP extensively, to allow higher level metaobject handling.
 
-For this tutorial, we will use a MSG scene for creating different 
+For this tutorial, we will use a MSG-SEVIRI scene for creating different 
 fog products.
 
 Import satellite data first
 ===========================
 
 We start with the PyTroll package *satpy*. This package provide all functionalities 
-to import and calibrate a MSG scene from HRIT files. Therefore you should make sure 
+to import and calibrate a SEVIRI scene from HRIT files. Therefore you should make sure 
 that satpy is properly configured and all environment variables like *PPP_CONFIG_DIR* 
 are set and the HRIT files are in the given search path. For more guidance look up 
 in the `satpy`_ documentation
@@ -64,7 +64,7 @@ for the imported scene.  For this we need:
   * Seviri L1B data, read by Satpy with the ``seviri_l1b_hrit`` reader.
   * Cloud microphysical data, read by Satpy with the ``nwcsaf-geo`` reader.
     In principle, `CMSAF`_ data could also be used, but as of May 2019, there
-    is no CM-SAF reader within Satpy.
+    is no CMSAF reader within Satpy.
   * A digital elevation model.  This can derived from data available from 
     the European Environmental Agency (`EEA`_).
     Although this can be read by Satpy using
