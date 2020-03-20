@@ -85,6 +85,7 @@ setup(
                       "satpy >= 0.15",
                       'pyresample >= 1.11',
                       "opencv-python >= 4.1",
+                      "opencv-contrib-python",
                       'trollbufr >= 0.10'],
     tests_require=[],
 )
