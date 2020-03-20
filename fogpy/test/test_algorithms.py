@@ -25,6 +25,8 @@ import fogpy
 import numpy as np
 import os
 import unittest
+import pkg_resources
+import functools
 
 import pyorbital.orbital
 from datetime import datetime
@@ -45,17 +47,17 @@ from pyresample import geometry
 # Use indexing and np.dsplit(testdata, 13) to extract specific products
 
 # Import test data
-base = os.path.split(fogpy.__file__)
-testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
-hrvfile = os.path.join(base[0], '..', 'etc', 'fog_testdata_hrv.npy')
-testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
-testfile_night = os.path.join(base[0], '..', 'etc', 'fog_testdata_night.npy')
-testfile_night2 = os.path.join(base[0], '..', 'etc', 'fog_testdata_night2.npy')
+fogres = functools.partial(pkg_resources.resource_filename, "fogpy")
+testfile = fogres(os.path.join('etc', 'fog_testdata.npy'))
+hrvfile = fogres(os.path.join('etc', 'fog_testdata_hrv.npy'))
+testfile2 = fogres(os.path.join('etc', 'fog_testdata2.npy'))
+testfile_night = fogres(os.path.join('etc', 'fog_testdata_night.npy'))
+testfile_night2 = fogres(os.path.join('etc', 'fog_testdata_night2.npy'))
 testdata = np.load(testfile)
 hrvdata = np.load(hrvfile)
 testdata2 = np.load(testfile2)
-stationfile = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
-stationfile2 = os.path.join(base[0], '..', 'etc', 'result_20140827.bufr')
+stationfile = fogres(os.path.join('etc', 'result_20131112.bufr'))
+stationfile2 = fogres(os.path.join('etc', 'result_20140827.bufr'))
 testdata_night = np.load(testfile_night)
 testdata_night2 = np.load(testfile_night2)
 # Get area definition for test data

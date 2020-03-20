@@ -21,7 +21,7 @@
 
 """ Setup file for fogpy"""
 
-from setuptools import setup
+from setuptools import find_packages, setup
 import os
 import subprocess
 
@@ -58,10 +58,11 @@ setup(
     author='Thomas Leppelt, Gerrit Holl',
     author_email='thomas.leppelt@gmail.com; gerrit.holl@dwd.de',
     description='Satellite based fog and low stratus detection and nowcasting',
-    packages=['fogpy', 'fogpy.utils'],
     include_package_data=True,
-    data_files=[(os.path.join('etc'),
-                 [os.path.join('etc', 'fog_testdata.npy')])],
+    packages=find_packages(),
+    package_data={"fogpy": [os.path.join('etc'),
+                            os.path.join("etc", "composites", "*.yaml"),
+                            os.path.join("etc", "enhancements", "*.yaml")]},
     platforms='any',
     test_suite='fogpy.test.suite',
     python_requires=">=3.7",
@@ -84,6 +85,7 @@ setup(
                       "satpy >= 0.15",
                       'pyresample >= 1.11',
                       "opencv-python >= 4.1",
+                      "opencv-contrib-python",
                       'trollbufr >= 0.10'],
     tests_require=[],
 )
