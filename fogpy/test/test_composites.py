@@ -1,13 +1,63 @@
 import pytest
 import numpy
+import datetime
+import functools
 from numpy import array
 from xarray import DataArray as xrda
 
 
 @pytest.fixture
 def fogpy_inputs():
+    import pyresample
+    fkattr = {
+            'satellite_longitude': 0.0,
+            'satellite_latitude': 0.0,
+            'satellite_altitude': 35785831.0,
+            'orbital_parameters': {
+                'projection_longitude': 0.0,
+                'projection_latitude': 0.0,
+                'projection_altitude': 35785831.0,
+                'satellite_nominal_longitude': 0.0,
+                'satellite_nominal_latitude': 0.0,
+                'satellite_actual_longitude': 0.0688189107392428,
+                'satellite_actual_latitude': 0.1640766475684642,
+                'satellite_actual_altitude': 35782769.05113167},
+            'sensor': 'seviri',
+            'platform_name': 'Meteosat-11',
+            'georef_offset_corrected': True,
+            'start_time': datetime.datetime(2020, 1, 6, 10, 0, 10, 604000),
+            'end_time': datetime.datetime(2020, 1, 6, 10, 12, 43, 608000),
+            'area': pyresample.AreaDefinition(
+                "germ",
+                "germ",
+                None,
+                {
+                    'a': '6378144',
+                    'b': '6356759',
+                    'lat_0': '90',
+                    'lat_ts': '50',
+                    'lon_0': '5',
+                    'no_defs': 'None',
+                    'proj': 'stere',
+                    'type': 'crs',
+                    'units': 'm',
+                    'x_0': '0',
+                    'y_0': '0'},
+                1024,
+                1024,
+                (-155100.4363, -4441495.3795, 868899.5637, -3417495.3795)),
+            'name': 'VIS006',
+            'resolution': 3000.403165817,
+            'calibration': 'reflectance',
+            'polarization': None,
+            'level': None,
+            'modifiers': (),
+            'ancillary_variables': []}
+
+    mk = functools.partial(xrda, dims=("x", "y"), attrs=fkattr)
+
     return dict(
-        ir08=xrda(
+        ir08=mk(
             array(
                 [
                     [267.781, 265.75, 265.234],
@@ -15,9 +65,8 @@ def fogpy_inputs():
                     [266.092, 266.771, 268.614],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        ir139=xrda(
+        ir139=mk(
             array(
                 [
                     [274.07, 270.986, 269.281],
@@ -25,9 +74,8 @@ def fogpy_inputs():
                     [277.023, 279.663, 279.663],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        vis008=xrda(
+        vis008=mk(
             array(
                 [
                     [9.814, 10.652, 11.251],
@@ -35,9 +83,8 @@ def fogpy_inputs():
                     [15.081, 16.158, 16.637],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        nir016=xrda(
+        nir016=mk(
             array(
                 [
                     [9.439, 9.559, 10.156],
@@ -45,9 +92,8 @@ def fogpy_inputs():
                     [15.055, 16.25, 16.967],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        vis006=xrda(
+        vis006=mk(
             array(
                 [
                     [8.614, 9.215, 9.615],
@@ -55,9 +101,8 @@ def fogpy_inputs():
                     [12.72, 13.422, 13.722],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        ir087=xrda(
+        ir087=mk(
             array(
                 [
                     [265.139, 263.453, 262.67],
@@ -65,9 +110,8 @@ def fogpy_inputs():
                     [263.453, 264.071, 266.338],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        ir120=xrda(
+        ir120=mk(
             array(
                 [
                     [266.903, 265.208, 264.694],
@@ -75,9 +119,8 @@ def fogpy_inputs():
                     [265.037, 265.037, 267.406],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        elev=xrda(
+        elev=mk(
             array(
                 [
                     [319.481, 221.918, 300.449],
@@ -85,13 +128,11 @@ def fogpy_inputs():
                     [521.734, 520.214, 505.892],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        cot=xrda(
+        cot=mk(
             array([[6.15, 10.98, 11.78], [13.92, 16.04, 7.93], [7.94, 10.01, 6.12]]),
-            dims=("x", "y"),
         ),
-        reff=xrda(
+        reff=mk(
             array(
                 [
                     [3.06e-06, 3.01e-06, 3.01e-06],
@@ -99,13 +140,11 @@ def fogpy_inputs():
                     [3.01e-06, 3.01e-06, 9.32e-06],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        lwp=xrda(
+        lwp=mk(
             array([[0.013, 0.022, 0.024], [0.028, 0.032, 0.016], [0.016, 0.02, 0.038]]),
-            dims=("x", "y"),
         ),
-        lat=xrda(
+        lat=mk(
             array(
                 [
                     [50.669, 50.669, 50.67],
@@ -113,13 +152,11 @@ def fogpy_inputs():
                     [50.559, 50.56, 50.561],
                 ]
             ),
-            dims=("x", "y"),
         ),
-        lon=xrda(
+        lon=mk(
             array([[6.437, 6.482, 6.528], [6.428, 6.474, 6.52], [6.42, 6.466, 6.511]]),
-            dims=("x", "y"),
         ),
-        cth=xrda(
+        cth=mk(
             array(
                 [
                     [4400.0, 4200.0, 4000.0],
@@ -127,7 +164,6 @@ def fogpy_inputs():
                     [1600.0, 1000.0, 800.0],
                 ]
             ),
-            dims=("x", "y"),
         ),
     )
 
@@ -156,4 +192,4 @@ def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
             *fogpy_outputs)
     assert len(conv) == len(fogpy_outputs)
     assert all([isinstance(c, xrda) for c in conv])
-    assert numpy.array_equal(fogpy_outputs.data[0], conv[0].values)
+    assert numpy.array_equal(fogpy_outputs[0].data, conv[0].values)
