@@ -3,7 +3,8 @@ import numpy
 import datetime
 import functools
 from numpy import array
-from xarray import DataArray as xrda
+from xarray import Dataset, DataArray as xrda
+from unittest import mock
 
 
 @pytest.fixture
@@ -57,7 +58,7 @@ def fogpy_inputs():
     mk = functools.partial(xrda, dims=("x", "y"), attrs=fkattr)
 
     return dict(
-        ir08=mk(
+        ir108=mk(
             array(
                 [
                     [267.781, 265.75, 265.234],
@@ -66,7 +67,7 @@ def fogpy_inputs():
                 ]
             ),
         ),
-        ir139=mk(
+        ir039=mk(
             array(
                 [
                     [274.07, 270.986, 269.281],
@@ -179,17 +180,114 @@ def fogpy_outputs():
                            [[True, False], [False, False]])
     return (fls, mask)
 
+@pytest.fixture
+def fog_comp_interim():
+    from fogpy.composites import _IntermediateFogCompositorDay
+    with mock.patch("fogpy.composites.Scene"):
+        ifcd = _IntermediateFogCompositorDay("/no/such/path.tiff",
+                name='_intermediate_fls_day',
+                standard_name='_intermediate_fls_day',
+                prerequities=['VIS006', 'VIS008', 'IR_016', 'IR_039', 'IR_087',
+                    'IR_108', 'IR_120', 'cmic_cot', 'cmic_lwp', 'cmic_reff'],
+                optional_prerequisites=[],
+                resolution=None)
+    return ifcd
+
+
+@pytest.fixture
+def fog_extra():
+    return {
+            "vcloudmask": numpy.ma.masked_array(
+                data=[[True, True], [False, True]],
+                mask=[[False, False], [False, False]],
+                fill_value=True),
+            "cbh": numpy.array([[0., 0.], [0., 0.]]),
+            "fbh": numpy.array([[0., 0.], [0., 0.]]),
+            "lcth": numpy.array([
+                [numpy.nan, numpy.nan],
+                [numpy.nan, numpy.nan]])}
+
+
+@pytest.fixture
+def fog_comp_day():
+    from fogpy.composites import FogCompositorDay
+    return FogCompositorDay(name="fls_day")
+
+
+@pytest.fixture
+def fog_comp_day_extra():
+    from fogpy.composites import FogCompositorDayExtra
+    return FogCompositorDayExtra(name="fls_day_extra")
+
+
+@pytest.fixture
+def fog_comp_night():
+    from fogpy.composites import FogCompositorNight
+    return FogCompositorNight(name="fls_night")
+
+@pytest.fixture
+def fog_intermediate_dataset(fog_extra, fogpy_outputs):
+    ds = Dataset(
+            {k: (("y", "x"), v) for (k, v) in fog_extra.items()})
+    (fls_day, fls_mask) = fogpy_outputs
+    ds["fls_day"] = (("y", "x"), fls_day)
+    ds["fls_mask"] = (("y", "x"), fls_mask)
+    return ds
+
+
 def test_convert_projectables(fogpy_inputs, fog_comp_base):
     fi_ma = fog_comp_base._convert_projectables(
-            [fogpy_inputs["ir08"], fogpy_inputs["vis008"]])
+            [fogpy_inputs["ir108"], fogpy_inputs["vis008"]])
     assert len(fi_ma) == 2
     assert all([isinstance(ma, numpy.ma.MaskedArray) for ma in fi_ma])
-    assert numpy.array_equal(fi_ma[0].data, fogpy_inputs["ir08"].values)
+    assert numpy.array_equal(fi_ma[0].data, fogpy_inputs["ir108"].values)
 
 def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
     conv = fog_comp_base._convert_ma_to_xr(
-            [fogpy_inputs["ir08"], fogpy_inputs["vis008"]],
+            [fogpy_inputs["ir108"], fogpy_inputs["vis008"]],
             *fogpy_outputs)
     assert len(conv) == len(fogpy_outputs)
     assert all([isinstance(c, xrda) for c in conv])
     assert numpy.array_equal(fogpy_outputs[0].data, conv[0].values)
+    # check without mask
+    conv = fog_comp_base._convert_ma_to_xr(
+            [fogpy_inputs["ir108"], fogpy_inputs["vis008"]],
+            *(fo.data for fo in fogpy_outputs))
+
+def test_get_area_lat_lon(fogpy_inputs, fog_comp_base):
+    (area, lat, lon) = fog_comp_base._get_area_lat_lon(
+            [fogpy_inputs["ir108"], fogpy_inputs["vis008"]])
+    assert area == fogpy_inputs["ir108"].area
+
+
+def test_interim(fogpy_inputs, fog_comp_interim, fogpy_outputs, fog_extra):
+    with mock.patch("fogpy.composites.Scene") as fcS, \
+            mock.patch("fogpy.composites.DayFogLowStratusAlgorithm") as fcD:
+        fcD.return_value.run.return_value = fogpy_outputs
+        fcD.return_value.vcloudmask = fog_extra["vcloudmask"]
+        fcD.return_value.cbh = fog_extra["cbh"]
+        fcD.return_value.fbh = fog_extra["fbh"]
+        fcD.return_value.lcth = fog_extra["lcth"]
+        ds = fog_comp_interim(
+                [fogpy_inputs[k] for k in ["vis006", "vis008", "nir016",
+                    "ir039", "ir087", "ir108", "ir120", "cot", "lwp",
+                    "reff"]])
+        assert isinstance(ds, Dataset)
+        assert ds.data_vars.keys() == {
+                'vmask', 'fls_mask', 'fbh', 'cbh', 'fls_day', 'lcthimg'}
+        numpy.testing.assert_equal(ds["cbh"].values, fcD.return_value.cbh)
+
+
+def test_fog_comp_day(fog_comp_day, fog_intermediate_dataset):
+    composite = fog_comp_day([fog_intermediate_dataset])
+    assert isinstance(composite, xrda)
+
+
+def test_fog_comp_day_extra(fog_comp_day_extra, fog_intermediate_dataset):
+    composite = fog_comp_day_extra([fog_intermediate_dataset])
+    assert isinstance(composite, Dataset)
+
+
+def test_fog_comp_night(fog_comp_night, fogpy_inputs):
+    composite = fog_comp_night([fogpy_inputs["ir039"], fogpy_inputs["ir108"]])
+    assert isinstance(composite, xrda)

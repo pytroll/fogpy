@@ -200,6 +200,10 @@ class _IntermediateFogCompositorDay(FogCompositor):
 
 class FogCompositorDay(satpy.composites.GenericCompositor):
     def __call__(self, projectables, *args, **kwargs):
+        # in the yaml file, fls_day has as a single prerequisite
+        # _intermediate_fls_day.  Therefore, the first and only
+        # projectable is actually a Dataset, and pass a DataArray
+        # to the superclass.__call__ method.
         ds = projectables[0]
         return super().__call__((ds["fls_day"], ds["fls_mask"]), *args, **kwargs)
 
