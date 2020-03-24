@@ -168,26 +168,31 @@ def fogpy_inputs():
         ),
     )
 
+
 @pytest.fixture
 def fog_comp_base():
     from fogpy.composites import FogCompositor
     return FogCompositor(name="fls_day")
 
+
 @pytest.fixture
 def fogpy_outputs():
     fls = numpy.ma.masked_array([[1, 2], [3, 4]], [[True, False], [False, False]])
     mask = numpy.ma.masked_array([[True, False], [False, True]],
-                           [[True, False], [False, False]])
+                                 [[True, False], [False, False]])
     return (fls, mask)
+
 
 @pytest.fixture
 def fog_comp_interim():
     from fogpy.composites import _IntermediateFogCompositorDay
     with mock.patch("fogpy.composites.Scene"):
-        ifcd = _IntermediateFogCompositorDay("/no/such/path.tiff",
+        ifcd = _IntermediateFogCompositorDay(
+                "/no/such/path.tiff",
                 name='_intermediate_fls_day',
                 standard_name='_intermediate_fls_day',
-                prerequities=['VIS006', 'VIS008', 'IR_016', 'IR_039', 'IR_087',
+                prerequities=[
+                    'VIS006', 'VIS008', 'IR_016', 'IR_039', 'IR_087',
                     'IR_108', 'IR_120', 'cmic_cot', 'cmic_lwp', 'cmic_reff'],
                 optional_prerequisites=[],
                 resolution=None)
@@ -225,6 +230,7 @@ def fog_comp_night():
     from fogpy.composites import FogCompositorNight
     return FogCompositorNight(name="fls_night")
 
+
 @pytest.fixture
 def fog_intermediate_dataset(fog_extra, fogpy_outputs):
     ds = Dataset(
@@ -242,6 +248,7 @@ def test_convert_projectables(fogpy_inputs, fog_comp_base):
     assert all([isinstance(ma, numpy.ma.MaskedArray) for ma in fi_ma])
     assert numpy.array_equal(fi_ma[0].data, fogpy_inputs["ir108"].values)
 
+
 def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
     conv = fog_comp_base._convert_ma_to_xr(
             [fogpy_inputs["ir108"], fogpy_inputs["vis008"]],
@@ -254,6 +261,7 @@ def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
             [fogpy_inputs["ir108"], fogpy_inputs["vis008"]],
             *(fo.data for fo in fogpy_outputs))
 
+
 def test_get_area_lat_lon(fogpy_inputs, fog_comp_base):
     (area, lat, lon) = fog_comp_base._get_area_lat_lon(
             [fogpy_inputs["ir108"], fogpy_inputs["vis008"]])
@@ -261,7 +269,7 @@ def test_get_area_lat_lon(fogpy_inputs, fog_comp_base):
 
 
 def test_interim(fogpy_inputs, fog_comp_interim, fogpy_outputs, fog_extra):
-    with mock.patch("fogpy.composites.Scene") as fcS, \
+    with mock.patch("fogpy.composites.Scene"), \
             mock.patch("fogpy.composites.DayFogLowStratusAlgorithm") as fcD:
         fcD.return_value.run.return_value = fogpy_outputs
         fcD.return_value.vcloudmask = fog_extra["vcloudmask"]
@@ -269,9 +277,9 @@ def test_interim(fogpy_inputs, fog_comp_interim, fogpy_outputs, fog_extra):
         fcD.return_value.fbh = fog_extra["fbh"]
         fcD.return_value.lcth = fog_extra["lcth"]
         ds = fog_comp_interim(
-                [fogpy_inputs[k] for k in ["vis006", "vis008", "nir016",
-                    "ir039", "ir087", "ir108", "ir120", "cot", "lwp",
-                    "reff"]])
+                [fogpy_inputs[k] for k in [
+                    "vis006", "vis008", "nir016", "ir039", "ir087", "ir108",
+                    "ir120", "cot", "lwp", "reff"]])
         assert isinstance(ds, Dataset)
         assert ds.data_vars.keys() == {
                 'vmask', 'fls_mask', 'fbh', 'cbh', 'fls_day', 'lcthimg'}
