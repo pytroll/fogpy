@@ -44,8 +44,8 @@ def fogpy_inputs():
                     'units': 'm',
                     'x_0': '0',
                     'y_0': '0'},
-                1024,
-                1024,
+                3,
+                3,
                 (-155100.4363, -4441495.3795, 868899.5637, -3417495.3795)),
             'name': 'VIS006',
             'resolution': 3000.403165817,
@@ -288,6 +288,8 @@ def test_fog_comp_day_extra(fog_comp_day_extra, fog_intermediate_dataset):
     assert isinstance(composite, Dataset)
 
 
-def test_fog_comp_night(fog_comp_night, fogpy_inputs):
-    composite = fog_comp_night([fogpy_inputs["ir039"], fogpy_inputs["ir108"]])
+def test_fog_comp_night(fog_comp_night, fogpy_inputs, fogpy_outputs):
+    with mock.patch("fogpy.composites.NightFogLowStratusAlgorithm") as fcN:
+        fcN.return_value.run.return_value = fogpy_outputs
+        composite = fog_comp_night([fogpy_inputs["ir039"], fogpy_inputs["ir108"]])
     assert isinstance(composite, xrda)
