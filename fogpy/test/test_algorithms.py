@@ -835,14 +835,15 @@ def test_get_center_marg_manynan(lcth_manynan):
     np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
     np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
     np.testing.assert_array_almost_equal(
-            tm, np.array([261.2, 261.4, 261.6, 262.6]))
+            tm, np.array([261.2, np.nan, 261.6, np.nan]))
 
 
 def test_neighbors_somenan(lcth_somenan):
-    nb = lcth_somenan.get_neighbors(lcth_somenan.ir108, 2, 2, nan=True)
+    nb = lcth_somenan.get_neighbors(lcth_somenan.ir108, 2, 2, nan=True)[1]
     np.testing.assert_array_almost_equal(
             nb,
-            np.array([261.2, 261.4, 261.6, np.nan, 262.6, 263.2, 263.4, 263.8]))
+            np.array([261.2, 261.4, 261.6, np.nan, 262.6, 263.2, 263.4, 263.6]))
+
 
 def suite():
     """The test suite for test_filter.

@@ -867,7 +867,11 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if not nan:
             return center, neighbors[~np.isnan(neighbors)], ids
         else:
-            return center, neighbors, ids
+            # deselect center from neighbors; for not-nan case this is already
+            # taken care of by defining centre as nan
+            b = np.ones_like(neighbors, dtype="?")
+            b[i - i_min, j - j_min] = False
+            return center, neighbors[b], ids
 
     def apply_lapse_rate(self, tcc, tcf, zneigh, lrate=-0.0054):
         """Compute cloud top height with constant atmosphere temperature
@@ -1007,24 +1011,28 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         # Get neighbor elevations
         zcenter, zneigh, zids = self.get_neighbors(self.elev,
                                                    index[0],
-                                                   index[1])
+                                                   index[1],
+                                                   nan=True)
         # Get neighbor entity values
         idcenter, idneigh, ids = self.get_neighbors(self.clusters,
                                                     index[0],
                                                     index[1],
-                                                    mask=zids)
+                                                    mask=zids,
+                                                    nan=True)
         # Get neighbor temperature values
         tcenter, tneigh, ids = self.get_neighbors(self.ir108,
                                                   i=index[0],
                                                   j=index[1],
-                                                  mask=ids)
+                                                  mask=ids,
+                                                  nan=True)
         # Get neighbor cloud confidence values
         cclcenter, cclneigh, ids = self.get_neighbors(self.ccl,
                                                       i=index[0],
                                                       j=index[1],
-                                                      mask=ids)
+                                                      mask=ids,
+                                                      nan=True)
         # 1. Get margin neighbor pixel
-        idmargin = (idneigh==0).nonzero()[0]
+        idmargin = (idneigh == 0).nonzero()[0]
         # 2. Check margin elevation for minimum relief
         zmargin = [zneigh[i] for i in idmargin]
         tmargin = [tneigh[i] for i in idmargin]
@@ -1051,8 +1059,8 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             self.dz[index] = np.nan
             return
         (idcenter, idmargin, idneigh,
-                zcenter, zmargin, zneigh,
-                tcenter, tmargin, tneigh) = self.get_center_margin_neighbour_id_z_t(index)
+         zcenter, zmargin, zneigh,
+         tcenter, tmargin, tneigh) = self.get_center_margin_neighbour_id_z_t(index)
         if idmargin.size == 0:
             self.dz[index] = np.nan
             return
