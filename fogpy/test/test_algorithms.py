@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017
+# Copyright (c) 2017, 2020
 # Author(s):
 #   Thomas Leppelt <thomas.leppelt@dwd.de>
+#   Gerrit Holl <thomas.leppelt@dwd.de>
 
 # This file is part of the fogpy package.
 
@@ -27,6 +28,8 @@ import os
 import unittest
 import pkg_resources
 import functools
+import pytest
+import copy
 
 import pyorbital.orbital
 from datetime import datetime
@@ -79,6 +82,38 @@ y_size = 422
 hrvarea_def = geometry.AreaDefinition(area_id, name, proj_id,
                                       proj_dict, x_size, y_size,
                                       area_extent)
+
+@pytest.fixture
+def lcth_ok():
+    alg = LowCloudHeightAlgorithm()
+    alg.elev = np.zeros((5, 5))
+    alg.ir108 = np.arange(260, 265, 0.2).reshape(5, 5)
+    alg.ccl = np.ones((5, 5))
+    alg.clusters = np.array([
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 1, 1, 0, 0],
+        [0, 1, 1, 1, 0],
+        [1, 1, 0, 0, 0]], dtype="i4")
+    alg.dz = np.zeros((5, 5))
+    alg.cth = np.zeros((5, 5))
+    alg.nlapse = 0
+    return alg
+
+
+@pytest.fixture
+def lcth_somenan(lcth_ok):
+    alg = copy.deepcopy(lcth_ok)
+    alg.ir108[2, 1] = np.nan
+    return alg
+
+
+@pytest.fixture
+def lcth_manynan(lcth_ok):
+    alg = copy.deepcopy(lcth_ok)
+    alg.ir108[2, :] = np.nan
+    alg.ir108[:, 2] = np.nan
+    return alg
 
 
 class Test_BaseSatelliteAlgorithm(unittest.TestCase):
@@ -768,6 +803,30 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(slope[8], -1)
         self.assertEqual(np.alen(slope), 9)
         self.assertEqual(thres, 6)
+
+
+def test_get_center_marg_okdata(lcth_ok):
+    (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_ok.get_center_margin_neighbour_id_z_t((2, 2))
+    np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
+    np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
+    np.testing.assert_array_almost_equal(tm, np.array([261.2, 261.4, 261.6,
+        262.6]))
+
+
+def test_get_center_marg_somenan(lcth_somenan):
+    (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_somenan.get_center_margin_neighbour_id_z_t((2, 2))
+    np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
+    np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
+    np.testing.assert_array_almost_equal(tm, np.array([261.2, 261.4, 261.6,
+        262.6]))
+
+
+def test_get_center_marg_manynan(lcth_manynan):
+    (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_manynan.get_center_margin_neighbour_id_z_t((2, 2))
+    np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
+    np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
+    np.testing.assert_array_almost_equal(tm, np.array([261.2, 261.4, 261.6,
+        262.6]))
 
 
 def suite():

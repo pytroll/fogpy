@@ -981,10 +981,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
 
         return result
 
-    def get_cth_from_neighbours(self, index, val):
-        if val == 0:
-            self.dz[index] = np.nan
-            return
+    def get_center_margin_neighbour_id_z_t(self, index):
         # Get neighbor elevations
         zcenter, zneigh, zids = self.get_neighbors(self.elev,
                                                    index[0],
@@ -1006,11 +1003,23 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                                                       mask=ids)
         # 1. Get margin neighbor pixel
         idmargin = (idneigh==0).nonzero()[0]
+        # 2. Check margin elevation for minimum relief
+        zmargin = [zneigh[i] for i in idmargin]
+        tmargin = [tneigh[i] for i in idmargin]
+        return (idcenter, idmargin, idneigh,
+                zcenter, zmargin, zneigh,
+                tcenter, tmargin, tneigh)
+
+    def get_cth_from_neighbours(self, index, val):
+        if val == 0:
+            self.dz[index] = np.nan
+            return
+        (idcenter, idmargin, idneigh,
+                zcenter, zmargin, zneigh,
+                tcenter, tmargin, tneigh) = self.get_center_margin_neighbour_id_z_t(index)
         if idmargin.size == 0:
             self.dz[index] = np.nan
             return
-        # 2. Check margin elevation for minimum relief
-        zmargin = [zneigh[i] for i in idmargin]
         delta_z = max([zcenter] + zmargin) - min([zcenter] + zmargin)
         self.dz[index] = delta_z
         # 3. Find rising terrain from cloudy to margin pixels
@@ -1021,7 +1030,6 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
             cth = np.mean(cthmargin)
             self.ndem += 1
         else:
-            tmargin = [tneigh[i] for i in idmargin]
             cthmargin = self.apply_lapse_rate(tcenter, tmargin,
                                               zmargin)
             cth = np.nanmean(cthmargin)
