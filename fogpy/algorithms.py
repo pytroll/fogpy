@@ -674,52 +674,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         # Execute pixel wise height detection in two steps
         if self.elev.shape == ctt.shape:
             for index, val in np.ndenumerate(self.clusters):
-                if val == 0:
-                    self.dz[index] = np.nan
-                    continue
-                # Get neighbor elevations
-                zcenter, zneigh, zids = self.get_neighbors(self.elev,
-                                                           index[0],
-                                                           index[1])
-                # Get neighbor entity values
-                idcenter, idneigh, ids = self.get_neighbors(self.clusters,
-                                                            index[0],
-                                                            index[1],
-                                                            mask=zids)
-                # Get neighbor temperature values
-                tcenter, tneigh, ids = self.get_neighbors(self.ir108,
-                                                          i=index[0],
-                                                          j=index[1],
-                                                          mask=ids)
-                # Get neighbor cloud confidence values
-                cclcenter, cclneigh, ids = self.get_neighbors(self.ccl,
-                                                              i=index[0],
-                                                              j=index[1],
-                                                              mask=ids)
-                # 1. Get margin neighbor pixel
-                idmargin = [i for i, x in enumerate(idneigh) if x == 0]
-                if not idmargin:
-                    self.dz[index] = np.nan
-                    continue
-                # 2. Check margin elevation for minimum relief
-                zmargin = [zneigh[i] for i in idmargin]
-                delta_z = max([zcenter] + zmargin) - min([zcenter] + zmargin)
-                self.dz[index] = delta_z
-                # 3. Find rising terrain from cloudy to margin pixels
-                idrise = [i for i, x in enumerate(zmargin) if x > zcenter]
-                # 4. Test Pixel for DEM height extraction
-                if delta_z >= 50 and idrise:
-                    cthmargin = [zmargin[i] for i in idrise]
-                    cth = np.mean(cthmargin)
-                    self.ndem += 1
-                else:
-                    tmargin = [tneigh[i] for i in idmargin]
-                    cthmargin = self.apply_lapse_rate(tcenter, tmargin,
-                                                      zmargin)
-                    cth = np.nanmean(cthmargin)
-                    if not np.isnan(cth):
-                        self.nlapse += 1
-                self.cth[index] = cth
+                self.get_cth_from_margins(index, val)
         # Interpolate height values
         if not np.all(np.isnan(self.cth)):
             logger.info("Perform low cloud height interpolation")
@@ -912,7 +867,11 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         if not nan:
             return center, neighbors[~np.isnan(neighbors)], ids
         else:
-            return center, neighbors, ids
+            # deselect center from neighbors; for not-nan case this is already
+            # taken care of by defining centre as nan
+            b = np.ones_like(neighbors, dtype="?")
+            b[i - i_min, j - j_min] = False
+            return center, neighbors[b], ids
 
     def apply_lapse_rate(self, tcc, tcf, zneigh, lrate=-0.0054):
         """Compute cloud top height with constant atmosphere temperature
@@ -1025,6 +984,102 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                      % np.nanmax(np.unique(result)))
 
         return result
+
+    def get_center_margin_neighbour_id_z_t(self, index):
+        """Extract centre, margin, and neighbour pixels
+
+        Extract centre, margin, and neighbour pixels for cluster id, elevation,
+        and temperature.  Centre pixels are pixels at the indicated index.
+        Neighbour pixels are the 8 adjecent pixels.  Margin pixels are those
+        neighbour pixels that are cloudfree while the centre pixel is assumed
+        cloudy.
+
+        Args:
+            index (tuple): Coordinates for pixel
+
+        Returns:
+            idcenter (int): cluster id of central pixel
+            idmargin (ndarray): indices in idneigh of cloudfree neighbour pixels
+            idneigh (ndarray): cluster ids of neighbour pixels
+            zcenter (int): elevation at central pixel
+            zmargin (ndarray): elevation at cloudfree neighbour pixels
+            zneigh (ndarray): elevation at all neighbour pixels
+            tcenter (int): temperature at central pixel
+            tmargin (ndarray): temperature at cloudfree neighbour pixels
+            tneigh (ndarray): temperature at all neighbour pixels
+        """
+        # Get neighbor elevations
+        zcenter, zneigh, zids = self.get_neighbors(self.elev,
+                                                   index[0],
+                                                   index[1],
+                                                   nan=True)
+        # Get neighbor entity values
+        idcenter, idneigh, ids = self.get_neighbors(self.clusters,
+                                                    index[0],
+                                                    index[1],
+                                                    mask=zids,
+                                                    nan=True)
+        # Get neighbor temperature values
+        tcenter, tneigh, ids = self.get_neighbors(self.ir108,
+                                                  i=index[0],
+                                                  j=index[1],
+                                                  mask=ids,
+                                                  nan=True)
+        # Get neighbor cloud confidence values
+        cclcenter, cclneigh, ids = self.get_neighbors(self.ccl,
+                                                      i=index[0],
+                                                      j=index[1],
+                                                      mask=ids,
+                                                      nan=True)
+        # 1. Get margin neighbor pixel
+        idmargin = (idneigh == 0).nonzero()[0]
+        # 2. Check margin elevation for minimum relief
+        zmargin = [zneigh[i] for i in idmargin]
+        tmargin = [tneigh[i] for i in idmargin]
+        return (idcenter, idmargin, idneigh,
+                zcenter, zmargin, zneigh,
+                tcenter, tmargin, tneigh)
+
+    def get_cth_from_margins(self, index, val):
+        """Approximate cloud top height by looking at margins
+
+        Attempt to derive the cloud top height by looking at the pixels on the
+        margins (cloud-free neighbour pixels).  If cloud-free neighbour pixels
+        have a higher elevation than the central pixel by at least 50 metre,
+        calculate their average.  Otherwise, take their temperatures and use
+        the lapse rate to estimate the cloud top height.
+
+        Returns nothing, but stores result in ``self.dz`` and ``self.cth``.
+
+        Args:
+            index (tuple): coordinates for central pixel
+            val (int): ID for current cluster
+        """
+        if val == 0:
+            self.dz[index] = np.nan
+            return
+        (idcenter, idmargin, idneigh,
+         zcenter, zmargin, zneigh,
+         tcenter, tmargin, tneigh) = self.get_center_margin_neighbour_id_z_t(index)
+        if idmargin.size == 0:
+            self.dz[index] = np.nan
+            return
+        delta_z = max([zcenter] + zmargin) - min([zcenter] + zmargin)
+        self.dz[index] = delta_z
+        # 3. Find rising terrain from cloudy to margin pixels
+        idrise = (zmargin > zcenter).nonzero()[0]
+        # 4. Test Pixel for DEM height extraction
+        if delta_z >= 50 and idrise.size > 0:
+            cthmargin = [zmargin[i] for i in idrise]
+            cth = np.mean(cthmargin)
+            self.ndem += 1
+        else:
+            cthmargin = self.apply_lapse_rate(tcenter, tmargin,
+                                              zmargin)
+            cth = np.nanmean(cthmargin)
+            if not np.isnan(cth):
+                self.nlapse += 1
+        self.cth[index] = cth
 
 
 class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
