@@ -22,7 +22,6 @@
 
 """ This module tests the satellite algorithm classes """
 
-import fogpy
 import numpy as np
 import os
 import unittest
@@ -82,6 +81,7 @@ y_size = 422
 hrvarea_def = geometry.AreaDefinition(area_id, name, proj_id,
                                       proj_dict, x_size, y_size,
                                       area_extent)
+
 
 @pytest.fixture
 def lcth_ok():
@@ -221,7 +221,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skipUnless(os.getenv("FOGPY_SLOW_TESTS"),
+    @unittest.skipUnless(
+            os.getenv("FOGPY_SLOW_TESTS"),
             "Skipping slow test.  To turn on slow tests, set FOGPY_SLOW_TESTS")
     def test_fls_algorithm(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input)
@@ -238,7 +239,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
 #        add_synop.add_to_image(result_img, area_def, self.input['time'],
 #                               stationfile, bgimg=self.input['ir108'])
 
-    @unittest.skipUnless(os.getenv("FOGPY_SLOW_TESTS"),
+    @unittest.skipUnless(
+            os.getenv("FOGPY_SLOW_TESTS"),
             "Skipping slow test.  To turn on slow tests, set FOGPY_SLOW_TESTS")
     def test_fls_algorithm_no_cth_use_clusters(self):
         self.input.pop('cth')
@@ -255,7 +257,8 @@ class Test_DayFogLowStratusAlgorithm(unittest.TestCase):
 #                 allow_pickle=True)
 
     # Using other tset data set
-    @unittest.skipUnless(os.getenv("FOGPY_SLOW_TESTS"),
+    @unittest.skipUnless(
+            os.getenv("FOGPY_SLOW_TESTS"),
             "Skipping slow test.  To turn on slow tests, set FOGPY_SLOW_TESTS")
     def test_fls_algorithm_other(self):
         flsalgo = DayFogLowStratusAlgorithm(**self.input2)
@@ -387,19 +390,19 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
         lcthalgo = LowCloudHeightAlgorithm(**self.testinput)
         # originally obtained with np.random.random_integers
         cth = np.array(
-              [[ 6.,  3., 10.,  7.,  4.],
-               [ 6.,  9.,  2.,  6., 10.],
-               [10.,  7.,  4.,  3.,  7.],
-               [ 7.,  2.,  5.,  4.,  1.],
-               [ 7.,  5.,  1.,  4.,  0.]])
+              [[ 6.,  3., 10.,  7.,  4.],  # noqa: E201
+               [ 6.,  9.,  2.,  6., 10.],  # noqa: E201
+               [10.,  7.,  4.,  3.,  7.],  # noqa: E201
+               [ 7.,  2.,  5.,  4.,  1.],  # noqa: E201
+               [ 7.,  5.,  1.,  4.,  0.]])  # noqa: E201
         cth[cth > 7] = np.nan
 
         mask = np.array(
-              [[ True,  True,  True, False,  True],
-               [False, False, False, False, False],
-               [ True,  True,  True,  True,  True],
-               [False,  True,  True, False,  True],
-               [False,  True, False,  True,  True]])
+              [[ True,  True,  True, False,  True],  # noqa: E201
+               [False, False, False, False, False],  # noqa: E201
+               [ True,  True,  True,  True,  True],  # noqa: E201
+               [False,  True,  True, False,  True],  # noqa: E201
+               [False,  True, False,  True,  True]])  # noqa: E201
         result = lcthalgo.interpol_cth(cth, mask)
         self.assertEqual(result.shape, (5, 5))
         self.assertTrue(np.all(np.isnan(result[mask])))
@@ -422,11 +425,11 @@ class Test_LowCloudHeightAlgorithm(unittest.TestCase):
                [266., 280., 268., 266., 277.]])
         cth[cth > 7] = np.nan
         mask = np.array(
-              [[ True, False,  True,  True,  True],
-               [ True, False,  True, False,  True],
-               [ True,  True, False,  True, False],
-               [ True, False,  True, False, False],
-               [ True, False,  True,  True,  True]])
+              [[ True, False,  True,  True,  True],  # noqa: E201
+               [ True, False,  True, False,  True],  # noqa: E201
+               [ True,  True, False,  True, False],  # noqa: E201
+               [ True, False,  True, False, False],  # noqa: E201
+               [ True, False,  True,  True,  True]])  # noqa: E201
         result = lcthalgo.linreg_cth(cth, mask, ctt)
         self.assertEqual(result.shape, (5, 5))
         self.assertTrue(np.all(np.isnan(result[mask])))
@@ -805,28 +808,31 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
         self.assertEqual(thres, 6)
 
 
+# pytest based tests #
+
+
 def test_get_center_marg_okdata(lcth_ok):
     (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_ok.get_center_margin_neighbour_id_z_t((2, 2))
     np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
     np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
-    np.testing.assert_array_almost_equal(tm, np.array([261.2, 261.4, 261.6,
-        262.6]))
+    np.testing.assert_array_almost_equal(
+            tm, np.array([261.2, 261.4, 261.6, 262.6]))
 
 
 def test_get_center_marg_somenan(lcth_somenan):
     (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_somenan.get_center_margin_neighbour_id_z_t((2, 2))
     np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
     np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
-    np.testing.assert_array_almost_equal(tm, np.array([261.2, 261.4, 261.6,
-        262.6]))
+    np.testing.assert_array_almost_equal(
+            tm, np.array([261.2, 261.4, 261.6, 262.6]))
 
 
 def test_get_center_marg_manynan(lcth_manynan):
     (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_manynan.get_center_margin_neighbour_id_z_t((2, 2))
     np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
     np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
-    np.testing.assert_array_almost_equal(tm, np.array([261.2, 261.4, 261.6,
-        262.6]))
+    np.testing.assert_array_almost_equal(
+            tm, np.array([261.2, 261.4, 261.6, 262.6]))
 
 
 def suite():
