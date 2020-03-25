@@ -813,6 +813,7 @@ class Test_NightFogLowStratusAlgorithm(unittest.TestCase):
 
 def test_get_center_marg_okdata(lcth_ok):
     (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_ok.get_center_margin_neighbour_id_z_t((2, 2))
+    assert idn.size == 8
     np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
     np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
     np.testing.assert_array_almost_equal(
@@ -821,6 +822,7 @@ def test_get_center_marg_okdata(lcth_ok):
 
 def test_get_center_marg_somenan(lcth_somenan):
     (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_somenan.get_center_margin_neighbour_id_z_t((2, 2))
+    assert idn.size == 8
     np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
     np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
     np.testing.assert_array_almost_equal(
@@ -829,11 +831,18 @@ def test_get_center_marg_somenan(lcth_somenan):
 
 def test_get_center_marg_manynan(lcth_manynan):
     (idc, idm, idn, zc, zm, zn, tc, tm, tn) = lcth_manynan.get_center_margin_neighbour_id_z_t((2, 2))
+    assert idn.size == 8
     np.testing.assert_array_equal(idm, np.array([0, 1, 2, 4]))
     np.testing.assert_array_equal(zm, np.array([0, 0, 0, 0]))
     np.testing.assert_array_almost_equal(
             tm, np.array([261.2, 261.4, 261.6, 262.6]))
 
+
+def test_neighbors_somenan(lcth_somenan):
+    nb = lcth_somenan.get_neighbors(lcth_somenan.ir108, 2, 2, nan=True)
+    np.testing.assert_array_almost_equal(
+            nb,
+            np.array([261.2, 261.4, 261.6, np.nan, 262.6, 263.2, 263.4, 263.8]))
 
 def suite():
     """The test suite for test_filter.
