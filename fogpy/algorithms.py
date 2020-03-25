@@ -674,7 +674,7 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         # Execute pixel wise height detection in two steps
         if self.elev.shape == ctt.shape:
             for index, val in np.ndenumerate(self.clusters):
-                self.get_cth_from_neighbours(index, val)
+                self.get_cth_from_margins(index, val)
         # Interpolate height values
         if not np.all(np.isnan(self.cth)):
             logger.info("Perform low cloud height interpolation")
@@ -982,6 +982,28 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
         return result
 
     def get_center_margin_neighbour_id_z_t(self, index):
+        """Extract centre, margin, and neighbour pixels
+
+        Extract centre, margin, and neighbour pixels for cluster id, elevation,
+        and temperature.  Centre pixels are pixels at the indicated index.
+        Neighbour pixels are the 8 adjecent pixels.  Margin pixels are those
+        neighbour pixels that are cloudfree while the centre pixel is assumed
+        cloudy.
+
+        Args:
+            index (tuple): Coordinates for pixel
+
+        Returns:
+            idcenter (int): cluster id of central pixel
+            idmargin (ndarray): indices in idneigh of cloudfree neighbour pixels
+            idneigh (ndarray): cluster ids of neighbour pixels
+            zcenter (int): elevation at central pixel
+            zmargin (ndarray): elevation at cloudfree neighbour pixels
+            zneigh (ndarray): elevation at all neighbour pixels
+            tcenter (int): temperature at central pixel
+            tmargin (ndarray): temperature at cloudfree neighbour pixels
+            tneigh (ndarray): temperature at all neighbour pixels
+        """
         # Get neighbor elevations
         zcenter, zneigh, zids = self.get_neighbors(self.elev,
                                                    index[0],
@@ -1010,7 +1032,21 @@ class LowCloudHeightAlgorithm(BaseSatelliteAlgorithm):
                 zcenter, zmargin, zneigh,
                 tcenter, tmargin, tneigh)
 
-    def get_cth_from_neighbours(self, index, val):
+    def get_cth_from_margins(self, index, val):
+        """Approximate cloud top height by looking at margins
+
+        Attempt to derive the cloud top height by looking at the pixels on the
+        margins (cloud-free neighbour pixels).  If cloud-free neighbour pixels
+        have a higher elevation than the central pixel by at least 50 metre,
+        calculate their average.  Otherwise, take their temperatures and use
+        the lapse rate to estimate the cloud top height.
+
+        Returns nothing, but stores result in ``self.dz`` and ``self.cth``.
+
+        Args:
+            index (tuple): coordinates for central pixel
+            val (int): ID for current cluster
+        """
         if val == 0:
             self.dz[index] = np.nan
             return
