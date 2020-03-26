@@ -240,3 +240,31 @@ class FogCompositorNight(FogCompositor):
         (xrfls, xrmsk) = self._convert_ma_to_xr(projectables, fls, mask)
 
         return super().__call__((xrfls, xrmsk), *args, **kwargs)
+
+
+def save_extras(sc, fn):
+    """Save the `fls_days_extra` dataset to NetCDF
+
+    The ``fls_day_extra`` dataset as produced by the `FogCompositorDayExtra` and
+    loaded using ``.load(["fls_day_extra"])`` is unique in the sense that it is
+    an `xarray.Dataset` rather than an `xarray.DataArray`.  This means it can't
+    be stored with the usual satpy routines.  Because some of its attributes
+    contain special types, it can`t be stored with `Dataset.to_netcdf` either.
+
+    This function transfers the data variables as direct members of a new
+    `Scene` object and then use the `cf_writer` to write those to a NetCDF file.
+
+    Args:
+        sc : Scene
+            Scene object with the already loaded ``fls_day_extra`` "composite"
+        fn : str-like or path
+            Path to which to write NetCDF
+    """
+    s = Scene()
+    ds = sc["fls_day_extra"]
+    for k in ds.data_vars:
+        s[k] = ds[k]
+    s.save_datasets(
+            writer="cf",
+            datasets=ds.data_vars.keys(),
+            filename=str(fn))

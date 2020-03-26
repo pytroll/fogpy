@@ -2,15 +2,16 @@ import pytest
 import numpy
 import datetime
 import functools
+import tempfile
+import pathlib
 from numpy import array
-from xarray import Dataset, DataArray as xrda
+from xarray import Dataset, DataArray as xrda, open_dataset
 from unittest import mock
 
-
 @pytest.fixture
-def fogpy_inputs():
+def fkattr():
     import pyresample
-    fkattr = {
+    return {
             'satellite_longitude': 0.0,
             'satellite_latitude': 0.0,
             'satellite_altitude': 35785831.0,
@@ -54,6 +55,10 @@ def fogpy_inputs():
             'level': None,
             'modifiers': (),
             'ancillary_variables': []}
+
+
+@pytest.fixture
+def fogpy_inputs(fkattr):
 
     mk = functools.partial(xrda, dims=("x", "y"), attrs=fkattr)
 
@@ -177,9 +182,10 @@ def fog_comp_base():
 
 @pytest.fixture
 def fogpy_outputs():
-    fls = numpy.ma.masked_array([[1, 2], [3, 4]], [[True, False], [False, False]])
-    mask = numpy.ma.masked_array([[True, False], [False, True]],
-                                 [[True, False], [False, False]])
+    fls = numpy.ma.masked_array(
+            numpy.arange(9).reshape((3, 3)),
+            (numpy.arange(9)%2).astype("?").reshape((3, 3)))
+    mask = (numpy.arange(9)%2).astype("?").reshape((3, 3))
     return (fls, mask)
 
 
@@ -203,14 +209,12 @@ def fog_comp_interim():
 def fog_extra():
     return {
             "vcloudmask": numpy.ma.masked_array(
-                data=[[True, True], [False, True]],
-                mask=[[False, False], [False, False]],
+                data=[[True, True, True,], [False, False, True], [True, False, False]],
+                mask=numpy.zeros((3, 3), dtype="?"),
                 fill_value=True),
-            "cbh": numpy.array([[0., 0.], [0., 0.]]),
-            "fbh": numpy.array([[0., 0.], [0., 0.]]),
-            "lcth": numpy.array([
-                [numpy.nan, numpy.nan],
-                [numpy.nan, numpy.nan]])}
+            "cbh": numpy.zeros((3, 3)),
+            "fbh": numpy.zeros((3, 3)),
+            "lcth": numpy.full((3, 3), numpy.nan)}
 
 
 @pytest.fixture
@@ -232,12 +236,14 @@ def fog_comp_night():
 
 
 @pytest.fixture
-def fog_intermediate_dataset(fog_extra, fogpy_outputs):
+def fog_intermediate_dataset(fog_extra, fogpy_outputs, fkattr):
     ds = Dataset(
-            {k: (("y", "x"), v) for (k, v) in fog_extra.items()})
+            {k: xrda(v, dims=("y", "x"), attrs=fkattr) for (k, v) in
+                fog_extra.items()},
+            attrs=fkattr)
     (fls_day, fls_mask) = fogpy_outputs
-    ds["fls_day"] = (("y", "x"), fls_day)
-    ds["fls_mask"] = (("y", "x"), fls_mask)
+    ds["fls_day"] = xrda(fls_day, dims=("y", "x"), attrs=fkattr)
+    ds["fls_mask"] = xrda(fls_mask, dims=("y", "x"), attrs=fkattr)
     return ds
 
 
@@ -301,3 +307,18 @@ def test_fog_comp_night(fog_comp_night, fogpy_inputs, fogpy_outputs):
         fcN.return_value.run.return_value = fogpy_outputs
         composite = fog_comp_night([fogpy_inputs["ir039"], fogpy_inputs["ir108"]])
     assert isinstance(composite, xrda)
+
+
+def test_save_extras(fog_intermediate_dataset):
+    from satpy import Scene
+    from fogpy.composites import save_extras
+    sc = Scene()
+    sc["fls_day_extra"] = fog_intermediate_dataset
+    with tempfile.TemporaryDirectory() as td:
+        fn = pathlib.Path(td) / "tofu.nc"
+        save_extras(sc, fn)
+        with open_dataset(fn) as ds:
+            ds.load()
+            assert set(ds.data_vars.keys()) >= {
+                    "vcloudmask", "fls_mask", "fbh", "cbh", "fls_day", "lcth"}
+            numpy.testing.assert_array_equal(ds["fbh"].values, numpy.zeros((3,3)))
