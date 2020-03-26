@@ -8,6 +8,7 @@ from numpy import array
 from xarray import Dataset, DataArray as xrda, open_dataset
 from unittest import mock
 
+
 @pytest.fixture
 def fkattr():
     import pyresample
@@ -184,8 +185,8 @@ def fog_comp_base():
 def fogpy_outputs():
     fls = numpy.ma.masked_array(
             numpy.arange(9).reshape((3, 3)),
-            (numpy.arange(9)%2).astype("?").reshape((3, 3)))
-    mask = (numpy.arange(9)%2).astype("?").reshape((3, 3))
+            (numpy.arange(9) % 2).astype("?").reshape((3, 3)))
+    mask = (numpy.arange(9) % 2).astype("?").reshape((3, 3))
     return (fls, mask)
 
 
@@ -209,7 +210,7 @@ def fog_comp_interim():
 def fog_extra():
     return {
             "vcloudmask": numpy.ma.masked_array(
-                data=[[True, True, True,], [False, False, True], [True, False, False]],
+                data=[[True, True, True], [False, False, True], [True, False, False]],
                 mask=numpy.zeros((3, 3), dtype="?"),
                 fill_value=True),
             "cbh": numpy.zeros((3, 3)),
@@ -321,4 +322,4 @@ def test_save_extras(fog_intermediate_dataset):
             ds.load()
             assert set(ds.data_vars.keys()) >= {
                     "vcloudmask", "fls_mask", "fbh", "cbh", "fls_day", "lcth"}
-            numpy.testing.assert_array_equal(ds["fbh"].values, numpy.zeros((3,3)))
+            numpy.testing.assert_array_equal(ds["fbh"].values, numpy.zeros((3, 3)))
