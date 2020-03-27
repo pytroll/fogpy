@@ -9,8 +9,8 @@ composites:
       - IR_108
     standard_name: fls_night
 
-  fls_day:
-    compositor: !!python/name:fogpy.composites.FogCompositorDay
+  _intermediate_fls_day:
+    compositor: !!python/name:fogpy.composites._IntermediateFogCompositorDay
     prerequisites:
       - VIS006
       - VIS008
@@ -22,5 +22,17 @@ composites:
       - cmic_cot
       - cmic_lwp
       - cmic_reff
-    standard_name: fls_day
+    standard_name: _intermediate_fls_day
     path_dem: /media/nas/x21308/DEM/dem_eu_1km.tif
+
+  fls_day:
+    compositor: !!python/name:fogpy.composites.FogCompositorDay
+    prerequisites:
+      - _intermediate_fls_day
+    standard_name: fls_day
+
+  fls_day_extra:
+    compositor: !!python/name:fogpy.composites.FogCompositorDayExtra
+    prerequisites:
+      - _intermediate_fls_day
+    standard_name: fls_day_extra

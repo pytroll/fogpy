@@ -28,6 +28,7 @@ import numpy
 import xarray
 
 import satpy.composites
+import satpy.dataset
 import pyorbital.astronomy
 
 from satpy import Scene
@@ -89,7 +90,7 @@ class FogCompositor(satpy.composites.GenericCompositor):
                 for p in projectables]
 
     @staticmethod
-    def _convert_to_xr(projectables, fls, mask):
+    def _convert_ma_to_xr(projectables, *args):
         """Convert fogpy algorithm result to xarray images
 
         The fogpy algorithms return numpy masked arrays, but satpy
@@ -104,17 +105,18 @@ class FogCompositor(satpy.composites.GenericCompositor):
                 passes on to the ``__call__`` method of each Compositor
                 class.
             fls (masked_array): Masked array such as returned by
-                fogpy.algorithms.BaseSatelliteAlgorithm.run or its
+                ``fogpy.algorithms.BaseSatelliteAlgorithm.run`` or its
                 subclasses
             mask (masked_array): Mask corresponding to fls.
 
         Returns:
-            (xrfls, xrmsk) tuple of two xarray DataArrays, corresponding
-            to the algorithm result image and mask, respectively.  Those
-            can be passed to GenericCompositor.__call__ to get a LA image
-            xarray DataArray.
+            List[xarray.DataArray] list of xarray DataArrays, corresponding
+            to the ``*args`` inputs passed.  If an image and a mask, those
+            can be passed to ``GenericCompositor.__call__`` to get a LA image
+            ``xarray.DataArray``, or the latter can be constructed directly.
         """
 
+        fv = 9000
         # convert to xarray images
         dims = projectables[0].dims
         coords = projectables[0].coords
@@ -124,20 +126,21 @@ class FogCompositor(satpy.composites.GenericCompositor):
                            "orbital_parameters", "georef_offset_corrected",
                            "start_time", "end_time", "area", "resolution")}
 
-        xrfls = xarray.DataArray(
-                fls.data, dims=dims, coords=coords, attrs=attrs)
-        xrmsk = xarray.DataArray(
-                mask.data, dims=dims, coords=coords, attrs=attrs)
+        das = [xarray.DataArray(
+                   ma.data if isinstance(ma, numpy.ma.MaskedArray) else ma,
+                   dims=dims, coords=coords, attrs=attrs)
+               for ma in args]
+        for (ma, da) in zip(args, das):
+            try:
+                da.values[ma.mask] = fv
+            except AttributeError:  # no mask
+                pass
+            da.encoding["_FillValue"] = fv
 
-        return (xrfls, xrmsk)
-
-    def __call__(self, datasets, optional_datasets=None, **info):
-        return super().__call__(datasets,
-                                optional_datasets=optional_datasets,
-                                **info)
+        return das
 
 
-class FogCompositorDay(FogCompositor):
+class _IntermediateFogCompositorDay(FogCompositor):
     def __init__(self, path_dem, *args, **kwargs):
         self.elevation = Scene(reader="generic_image",
                                filenames=[path_dem])
@@ -172,9 +175,44 @@ class FogCompositorDay(FogCompositor):
         flsalgo = DayFogLowStratusAlgorithm(**flsinput)
         fls, mask = flsalgo.run()
 
-        (xrfls, xrmsk) = self._convert_to_xr(projectables, fls, mask)
+        (xrfls, xrmsk, xrvmask, xrcbh, xrfbh, xrlcth) = self._convert_ma_to_xr(
+                projectables, fls, mask, flsalgo.vcloudmask, flsalgo.cbh,
+                flsalgo.fbh, flsalgo.lcth)
 
-        return super().__call__((xrfls, xrmsk), *args, **kwargs)
+        ds = xarray.Dataset({
+            "fls_day": xrfls,
+            "fls_mask": xrmsk,
+            "vmask": xrvmask,
+            "cbh": xrcbh,
+            "fbh": xrfbh,
+            "lcthimg": xrlcth})
+
+        ds.attrs.update(satpy.dataset.combine_metadata(
+                xrfls.attrs, xrmsk.attrs, xrvmask.attrs,
+                xrcbh.attrs, xrfbh.attrs, xrlcth.attrs))
+
+        # NB: isn't this done somewhere more generically?
+        for k in ("standard_name", "name", "resolution"):
+            ds.attrs[k] = self.attrs[k]
+
+        return ds
+
+
+class FogCompositorDay(satpy.composites.GenericCompositor):
+    def __call__(self, projectables, *args, **kwargs):
+        # in the yaml file, fls_day has as a single prerequisite
+        # _intermediate_fls_day.  Therefore, the first and only
+        # projectable is actually a Dataset, and pass a DataArray
+        # to the superclass.__call__ method.
+        ds = projectables[0]
+        return super().__call__((ds["fls_day"], ds["fls_mask"]), *args, **kwargs)
+
+
+class FogCompositorDayExtra(satpy.composites.GenericCompositor):
+    def __call__(self, projectables, *args, **kwargs):
+        ds = projectables[0]
+        ds.attrs["standard_name"] = ds.attrs["name"] = "fls_day_extra"
+        return ds
 
 
 class FogCompositorNight(FogCompositor):
@@ -199,6 +237,34 @@ class FogCompositorNight(FogCompositor):
         flsalgo = NightFogLowStratusAlgorithm(**flsinput)
         fls, mask = flsalgo.run()
 
-        (xrfls, xrmsk) = self._convert_to_xr(projectables, fls, mask)
+        (xrfls, xrmsk) = self._convert_ma_to_xr(projectables, fls, mask)
 
         return super().__call__((xrfls, xrmsk), *args, **kwargs)
+
+
+def save_extras(sc, fn):
+    """Save the `fls_days_extra` dataset to NetCDF
+
+    The ``fls_day_extra`` dataset as produced by the `FogCompositorDayExtra` and
+    loaded using ``.load(["fls_day_extra"])`` is unique in the sense that it is
+    an `xarray.Dataset` rather than an `xarray.DataArray`.  This means it can't
+    be stored with the usual satpy routines.  Because some of its attributes
+    contain special types, it can`t be stored with `Dataset.to_netcdf` either.
+
+    This function transfers the data variables as direct members of a new
+    `Scene` object and then use the `cf_writer` to write those to a NetCDF file.
+
+    Args:
+        sc : Scene
+            Scene object with the already loaded ``fls_day_extra`` "composite"
+        fn : str-like or path
+            Path to which to write NetCDF
+    """
+    s = Scene()
+    ds = sc["fls_day_extra"]
+    for k in ds.data_vars:
+        s[k] = ds[k]
+    s.save_datasets(
+            writer="cf",
+            datasets=ds.data_vars.keys(),
+            filename=str(fn))
