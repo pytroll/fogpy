@@ -9,8 +9,8 @@ composites:
       - C14
     standard_name: fls_night
 
-  fls_day:
-    compositor: !!python/name:fogpy.composites.FogCompositorDay
+  _intermediate_fls_day:
+    compositor: !!python/name:fogpy.composites._IntermediateFogCompositorDay
     prerequisites:
       - C02
       - C03
@@ -22,5 +22,17 @@ composites:
       - cmic_cot
       - cmic_lwp
       - cmic_reff
-    standard_name: fls_day
+    standard_name: _intermediate_fls_day
     path_dem: data/DEM/new-england-500.tif
+
+  fls_day:
+    compositor: !!python/name:fogpy.composites.FogCompositorDay
+    prerequisites:
+      - _intermediate_fls_day
+    standard_name: fls_day
+
+  fls_day_extra:
+    compositor: !!python/name:fogpy.composites.FogCompositorDayExtra
+    prerequisites:
+      - _intermediate_fls_day
+    standard_name: fls_day_extra
