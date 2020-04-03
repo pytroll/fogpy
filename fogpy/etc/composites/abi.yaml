@@ -23,4 +23,4 @@ composites:
       - cmic_lwp
       - cmic_reff
     standard_name: fls_day
-    path_dem: /media/nas/x21308/DEM/dem_eu_1km.tif
+    path_dem: data/DEM/new-england-500.tif
