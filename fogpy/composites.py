@@ -121,10 +121,11 @@ class FogCompositor(satpy.composites.GenericCompositor):
         dims = projectables[0].dims
         coords = projectables[0].coords
         attrs = {k: projectables[0].attrs[k]
-                 for k in ("satellite_longitude", "satellite_latitude",
+                 for k in {"satellite_longitude", "satellite_latitude",
                            "satellite_altitude", "sensor", "platform_name",
                            "orbital_parameters", "georef_offset_corrected",
-                           "start_time", "end_time", "area", "resolution")}
+                           "start_time", "end_time", "area", "resolution"} &
+                          projectables[0].attrs.keys()}
 
         das = [xarray.DataArray(
                    ma.data if isinstance(ma, numpy.ma.MaskedArray) else ma,
