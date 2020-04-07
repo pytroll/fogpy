@@ -19,8 +19,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-""" This module implements satellite image based fog and low stratus
-detection and forecasting algorithm as a PyTROLL custom composite object.
+"""Interface Fogpy functionality as Satpy composite.
+
+This module implements satellite image based fog and low stratus
+detection and forecasting algorithm as a Satpy custom composite object.
 """
 
 import logging
@@ -40,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 class FogCompositor(satpy.composites.GenericCompositor):
-    """A compositor for fog
+    """A compositor for fog.
 
     FIXME DOC
     """
@@ -125,7 +127,7 @@ class FogCompositor(satpy.composites.GenericCompositor):
                            "satellite_altitude", "sensor", "platform_name",
                            "orbital_parameters", "georef_offset_corrected",
                            "start_time", "end_time", "area", "resolution"} &
-                          projectables[0].attrs.keys()}
+                 projectables[0].attrs.keys()}
 
         das = [xarray.DataArray(
                    ma.data if isinstance(ma, numpy.ma.MaskedArray) else ma,
