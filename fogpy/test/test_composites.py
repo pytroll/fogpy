@@ -254,6 +254,11 @@ def test_convert_projectables(fogpy_inputs, fog_comp_base):
     assert len(fi_ma) == 2
     assert all([isinstance(ma, numpy.ma.MaskedArray) for ma in fi_ma])
     assert numpy.array_equal(fi_ma[0].data, fogpy_inputs["ir108"].values)
+    # try with some attributes missing
+    ir108 = fogpy_inputs["ir108"].copy()
+    del ir108.attrs["satellite_longitude"]
+    del ir108.attrs["end_time"]
+    fi_ma = fog_comp_base._convert_projectables([ir108])
 
 
 def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
@@ -263,10 +268,16 @@ def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
     assert len(conv) == len(fogpy_outputs)
     assert all([isinstance(c, xrda) for c in conv])
     assert numpy.array_equal(fogpy_outputs[0].data, conv[0].values)
+    assert conv[0].attrs["sensor"] == fogpy_inputs["ir108"].attrs["sensor"]
     # check without mask
     conv = fog_comp_base._convert_ma_to_xr(
             [fogpy_inputs["ir108"], fogpy_inputs["vis008"]],
             *(fo.data for fo in fogpy_outputs))
+    # try with some attributes missing
+    ir108 = fogpy_inputs["ir108"].copy()
+    del ir108.attrs["satellite_longitude"]
+    del ir108.attrs["end_time"]
+    fog_comp_base._convert_ma_to_xr([ir108])
 
 
 def test_get_area_lat_lon(fogpy_inputs, fog_comp_base):
