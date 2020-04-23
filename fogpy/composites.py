@@ -32,6 +32,7 @@ import xarray
 import satpy.composites
 import satpy.dataset
 import pyorbital.astronomy
+import pkg_resources
 
 from satpy import Scene
 from .algorithms import DayFogLowStratusAlgorithm
@@ -145,8 +146,9 @@ class FogCompositor(satpy.composites.GenericCompositor):
 
 class _IntermediateFogCompositorDay(FogCompositor):
     def __init__(self, path_dem, *args, **kwargs):
+        filenames = [pkg_resources.resource_filename("fogpy", path_dem)]
         self.elevation = Scene(reader="generic_image",
-                               filenames=[path_dem])
+                               filenames=filenames)
         self.elevation.load(["image"])
         return super().__init__(*args, **kwargs)
 

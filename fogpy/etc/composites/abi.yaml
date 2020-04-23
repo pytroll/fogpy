@@ -23,7 +23,7 @@ composites:
       - cmic_lwp
       - cmic_reff
     standard_name: _intermediate_fls_day
-    path_dem: data/DEM/new-england-500.tif
+    path_dem: data/DEM/new-england-500m.tif
 
   fls_day:
     compositor: !!python/name:fogpy.composites.FogCompositorDay
