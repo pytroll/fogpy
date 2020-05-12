@@ -152,7 +152,27 @@ class _IntermediateFogCompositorDay(FogCompositor):
         self.elevation.load(["image"])
         return super().__init__(*args, **kwargs)
 
-    def __call__(self, projectables, *args, **kwargs):
+    def _verify_requirements(self, optional_datasets):
+        """Verify that required cloud microphysics present
+
+        Can be either cmic_cot/cmic_lwp/cmic_reff or cot/lwp/reff.
+        """
+        D = {}
+        needs = {"cot": {"cot", "cmic_cot"},
+                 "lwp": {"lwp", "cwp", "cmic_lwp"},
+                 "reff": {"reff", "cmic_lwp"}}
+        for x in optional_datasets:
+            for (n, p) in needs.items():
+                if x.name in p:
+                    D[n] = x
+                    continue
+        missing = needs.keys() - D.keys()
+        if missing:
+            raise ValueError("Missing fog inputs: " + ", ".join(missing))
+        return D
+
+    def __call__(self, projectables, *args, optional_datasets, **kwargs):
+        D = self._verify_requirements(optional_datasets)
         (area, lat, lon) = self._get_area_lat_lon(projectables)
 
         # fogpy is still working with masked arrays and does not yet support
@@ -172,10 +192,10 @@ class _IntermediateFogCompositorDay(FogCompositor):
                     'time': projectables[0].start_time,
                     'elev': numpy.ma.masked_invalid(
                         elev["image"].sel(bands="L").values, copy=False),
-                    'cot': maskproj[7],
-                    'reff': maskproj[9],
-                    'lwp': maskproj[8],
-                    "cwp": maskproj[8]}
+                    'cot': D["cot"],
+                    'reff': D["reff"],
+                    'lwp': D["lwp"],
+                    "cwp": D["lwp"]}
         # Compute fog mask
         flsalgo = DayFogLowStratusAlgorithm(**flsinput)
         fls, mask = flsalgo.run()

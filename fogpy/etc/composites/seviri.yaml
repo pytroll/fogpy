@@ -19,9 +19,13 @@ composites:
       - IR_087
       - IR_108
       - IR_120
+    optional_prerequisites:
       - cmic_cot
       - cmic_lwp
       - cmic_reff
+      - cot
+      - cwp
+      - reff
     standard_name: _intermediate_fls_day
     path_dem: data/DEM/eu-1km.tif
 
