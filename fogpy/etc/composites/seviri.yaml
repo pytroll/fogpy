@@ -23,7 +23,7 @@ composites:
       - cmic_lwp
       - cmic_reff
     standard_name: _intermediate_fls_day
-    path_dem: /media/nas/x21308/DEM/dem_eu_1km.tif
+    path_dem: data/DEM/eu-1km.tif
 
   fls_day:
     compositor: !!python/name:fogpy.composites.FogCompositorDay
