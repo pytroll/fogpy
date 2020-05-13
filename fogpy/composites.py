@@ -68,7 +68,7 @@ class FogCompositor(satpy.composites.GenericCompositor):
         return (area, lat, lon)
 
     @staticmethod
-    def _convert_projectables(projectables):
+    def _convert_xr_to_ma(projectables):
         """Convert projectables to masked arrays
 
         fogpy is still working with masked arrays and does not yet support
@@ -177,7 +177,8 @@ class _IntermediateFogCompositorDay(FogCompositor):
 
         # fogpy is still working with masked arrays and does not yet support
         # xarray / dask (see #6).  For now, convert to masked arrays.
-        maskproj = self._convert_projectables(projectables)
+        maskproj = self._convert_xr_to_ma(projectables)
+        D = dict(zip(D.keys(), self._convert_xr_to_ma(D.values())))
 
         elev = self.elevation.resample(area)
         flsinput = {'vis006': maskproj[0],
