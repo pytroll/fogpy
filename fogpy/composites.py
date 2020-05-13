@@ -249,7 +249,7 @@ class FogCompositorNight(FogCompositor):
         sza = pyorbital.astronomy.sun_zenith_angle(
                 projectables[0].start_time, lon, lat)
 
-        maskproj = self._convert_projectables(projectables)
+        maskproj = self._convert_xr_to_ma(projectables)
 
         flsinput = {'ir108': maskproj[1],
                     'ir039': maskproj[0],

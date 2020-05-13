@@ -219,8 +219,8 @@ def fog_intermediate_dataset(fog_extra, fogpy_outputs, fkattr):
     return ds
 
 
-def test_convert_projectables(fogpy_inputs, fog_comp_base):
-    fi_ma = fog_comp_base._convert_projectables(
+def test_convert_xr_to_ma(fogpy_inputs, fog_comp_base):
+    fi_ma = fog_comp_base._convert_xr_to_ma(
             [fogpy_inputs["ir108"], fogpy_inputs["vis008"]])
     assert len(fi_ma) == 2
     assert all([isinstance(ma, numpy.ma.MaskedArray) for ma in fi_ma])
@@ -229,7 +229,7 @@ def test_convert_projectables(fogpy_inputs, fog_comp_base):
     ir108 = fogpy_inputs["ir108"].copy()
     del ir108.attrs["satellite_longitude"]
     del ir108.attrs["end_time"]
-    fi_ma = fog_comp_base._convert_projectables([ir108])
+    fi_ma = fog_comp_base._convert_xr_to_ma([ir108])
 
 
 def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
