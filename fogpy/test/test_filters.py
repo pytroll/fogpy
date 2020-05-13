@@ -24,7 +24,9 @@
 import unittest
 import numpy as np
 import os
+import functools
 import fogpy
+import pkg_resources
 
 from datetime import datetime
 from fogpy.filters import BaseArrayFilter
@@ -49,11 +51,11 @@ from scipy import ndimage
 # Use indexing and np.dsplit(testdata, 13) to extract specific products
 
 # Import test data
-base = os.path.split(fogpy.__file__)
-testfile = os.path.join(base[0], '..', 'etc', 'fog_testdata.npy')
-testfile_pre = os.path.join(base[0], '..', 'etc', 'fog_testdata_pre.npy')
-testfile2 = os.path.join(base[0], '..', 'etc', 'fog_testdata2.npy')
-filefogmask = os.path.join(base[0], '..', 'etc', 'fog_testdata_fogmask.npy')
+fogres = functools.partial(pkg_resources.resource_filename, "fogpy")
+testfile = fogres(os.path.join('etc', 'fog_testdata.npy'))
+testfile_pre = fogres(os.path.join('etc', 'fog_testdata_pre.npy'))
+testfile2 = fogres(os.path.join('etc', 'fog_testdata2.npy'))
+filefogmask = fogres(os.path.join('etc', 'fog_testdata_fogmask.npy'))
 
 testdata = np.load(testfile)
 testdata_pre = np.load(testfile_pre)
@@ -61,7 +63,7 @@ testdata2 = np.load(testfile2)
 testfogmask = np.load(filefogmask)
 
 # BUFR files
-testbufr = os.path.join(base[0], '..', 'etc', 'result_20131112.bufr')
+testbufr = fogres(os.path.join('etc', 'result_20131112.bufr'))
 
 # Get area definition for test data
 area_id = "geos_germ"
@@ -6862,6 +6864,7 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(Test_CloudMotionFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_LowCloudFilter))
     mysuite.addTest(loader.loadTestsFromTestCase(Test_StationFusionFilter))
+    mysuite.addTest(loader.loadTestsFromTestCase(Test_NumericalModelFilter))
 
     return mysuite
 

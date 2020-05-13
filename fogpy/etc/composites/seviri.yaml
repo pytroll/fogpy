@@ -1,0 +1,42 @@
+sensor_name: visir/seviri
+
+composites:
+
+  fls_night:
+    compositor: !!python/name:fogpy.composites.FogCompositorNight
+    prerequisites:
+      - IR_039
+      - IR_108
+    standard_name: fls_night
+
+  _intermediate_fls_day:
+    compositor: !!python/name:fogpy.composites._IntermediateFogCompositorDay
+    prerequisites:
+      - VIS006
+      - VIS008
+      - IR_016
+      - IR_039
+      - IR_087
+      - IR_108
+      - IR_120
+    optional_prerequisites:
+      - cmic_cot
+      - cmic_lwp
+      - cmic_reff
+      - cot
+      - cwp
+      - reff
+    standard_name: _intermediate_fls_day
+    path_dem: data/DEM/eu-1km.tif
+
+  fls_day:
+    compositor: !!python/name:fogpy.composites.FogCompositorDay
+    prerequisites:
+      - _intermediate_fls_day
+    standard_name: fls_day
+
+  fls_day_extra:
+    compositor: !!python/name:fogpy.composites.FogCompositorDayExtra
+    prerequisites:
+      - _intermediate_fls_day
+    standard_name: fls_day_extra
