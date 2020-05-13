@@ -1,7 +1,6 @@
 import pytest
 import numpy
 import datetime
-import functools
 import tempfile
 import pathlib
 from numpy import array
@@ -49,7 +48,6 @@ def fkattr():
                 3,
                 3,
                 (-155100.4363, -4441495.3795, 868899.5637, -3417495.3795)),
-            'name': 'VIS006',
             'resolution': 3000.403165817,
             'calibration': 'reflectance',
             'polarization': None,
@@ -61,118 +59,91 @@ def fkattr():
 @pytest.fixture
 def fogpy_inputs(fkattr):
 
-    mk = functools.partial(xrda, dims=("x", "y"), attrs=fkattr)
-
-    return dict(
-        ir108=mk(
-            array(
+    D = dict(
+        ir108=array(
                 [
                     [267.781, 265.75, 265.234],
                     [266.771, 265.75, 266.432],
                     [266.092, 266.771, 268.614],
                 ]
             ),
-        ),
-        ir039=mk(
-            array(
+        ir039=array(
                 [
                     [274.07, 270.986, 269.281],
                     [273.335, 275.477, 277.236],
                     [277.023, 279.663, 279.663],
                 ]
             ),
-        ),
-        vis008=mk(
-            array(
+        vis008=array(
                 [
                     [9.814, 10.652, 11.251],
                     [11.49, 13.884, 15.799],
                     [15.081, 16.158, 16.637],
                 ]
             ),
-        ),
-        nir016=mk(
-            array(
+        nir016=array(
                 [
                     [9.439, 9.559, 10.156],
                     [11.47, 13.86, 16.011],
                     [15.055, 16.25, 16.967],
                 ]
             ),
-        ),
-        vis006=mk(
-            array(
+        vis006=array(
                 [
                     [8.614, 9.215, 9.615],
                     [9.916, 11.519, 12.921],
                     [12.72, 13.422, 13.722],
                 ]
             ),
-        ),
-        ir087=mk(
-            array(
+        ir087=array(
                 [
                     [265.139, 263.453, 262.67],
                     [264.225, 263.141, 263.608],
                     [263.453, 264.071, 266.338],
                 ]
             ),
-        ),
-        ir120=mk(
-            array(
+        ir120=array(
                 [
                     [266.903, 265.208, 264.694],
                     [265.55, 264.522, 265.379],
                     [265.037, 265.037, 267.406],
                 ]
             ),
-        ),
-        elev=mk(
-            array(
+        elev=array(
                 [
                     [319.481, 221.918, 300.449],
                     [388.51, 501.519, 431.15],
                     [521.734, 520.214, 505.892],
                 ]
             ),
-        ),
-        cot=mk(
-            array([[6.15, 10.98, 11.78], [13.92, 16.04, 7.93], [7.94, 10.01, 6.12]]),
-        ),
-        reff=mk(
-            array(
+        cot=array([[6.15, 10.98, 11.78], [13.92, 16.04, 7.93], [7.94, 10.01, 6.12]]),
+        reff=array(
                 [
                     [3.06e-06, 3.01e-06, 3.01e-06],
                     [3.01e-06, 3.01e-06, 3.01e-06],
                     [3.01e-06, 3.01e-06, 9.32e-06],
                 ]
             ),
-        ),
-        lwp=mk(
-            array([[0.013, 0.022, 0.024], [0.028, 0.032, 0.016], [0.016, 0.02, 0.038]]),
-        ),
-        lat=mk(
-            array(
+        lwp=array([[0.013, 0.022, 0.024], [0.028, 0.032, 0.016], [0.016, 0.02, 0.038]]),
+        lat=array(
                 [
                     [50.669, 50.669, 50.67],
                     [50.614, 50.615, 50.616],
                     [50.559, 50.56, 50.561],
                 ]
             ),
-        ),
-        lon=mk(
-            array([[6.437, 6.482, 6.528], [6.428, 6.474, 6.52], [6.42, 6.466, 6.511]]),
-        ),
-        cth=mk(
-            array(
+        lon=array([[6.437, 6.482, 6.528], [6.428, 6.474, 6.52], [6.42, 6.466, 6.511]]),
+        cth=array(
                 [
                     [4400.0, 4200.0, 4000.0],
                     [4200.0, 2800.0, 1200.0],
                     [1600.0, 1000.0, 800.0],
                 ]
             ),
-        ),
     )
+
+    return {k: xrda(v, dims=("x", "y"), attrs={**fkattr, "name": k})
+            for (k, v) in D.items()}
 
 
 @pytest.fixture
@@ -248,8 +219,8 @@ def fog_intermediate_dataset(fog_extra, fogpy_outputs, fkattr):
     return ds
 
 
-def test_convert_projectables(fogpy_inputs, fog_comp_base):
-    fi_ma = fog_comp_base._convert_projectables(
+def test_convert_xr_to_ma(fogpy_inputs, fog_comp_base):
+    fi_ma = fog_comp_base._convert_xr_to_ma(
             [fogpy_inputs["ir108"], fogpy_inputs["vis008"]])
     assert len(fi_ma) == 2
     assert all([isinstance(ma, numpy.ma.MaskedArray) for ma in fi_ma])
@@ -258,7 +229,7 @@ def test_convert_projectables(fogpy_inputs, fog_comp_base):
     ir108 = fogpy_inputs["ir108"].copy()
     del ir108.attrs["satellite_longitude"]
     del ir108.attrs["end_time"]
-    fi_ma = fog_comp_base._convert_projectables([ir108])
+    fi_ma = fog_comp_base._convert_xr_to_ma([ir108])
 
 
 def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
@@ -297,7 +268,8 @@ def test_interim(fogpy_inputs, fog_comp_interim, fogpy_outputs, fog_extra):
         ds = fog_comp_interim(
                 [fogpy_inputs[k] for k in [
                     "vis006", "vis008", "nir016", "ir039", "ir087", "ir108",
-                    "ir120", "cot", "lwp", "reff"]])
+                    "ir120"]],
+                optional_datasets=[fogpy_inputs[k] for k in ["cot", "lwp", "reff"]])
         assert isinstance(ds, Dataset)
         assert ds.data_vars.keys() == {
                 'vmask', 'fls_mask', 'fbh', 'cbh', 'fls_day', 'lcthimg'}

@@ -68,7 +68,7 @@ class FogCompositor(satpy.composites.GenericCompositor):
         return (area, lat, lon)
 
     @staticmethod
-    def _convert_projectables(projectables):
+    def _convert_xr_to_ma(projectables):
         """Convert projectables to masked arrays
 
         fogpy is still working with masked arrays and does not yet support
@@ -152,12 +152,33 @@ class _IntermediateFogCompositorDay(FogCompositor):
         self.elevation.load(["image"])
         return super().__init__(*args, **kwargs)
 
-    def __call__(self, projectables, *args, **kwargs):
+    def _verify_requirements(self, optional_datasets):
+        """Verify that required cloud microphysics present
+
+        Can be either cmic_cot/cmic_lwp/cmic_reff or cot/lwp/reff.
+        """
+        D = {}
+        needs = {"cot": {"cot", "cmic_cot"},
+                 "lwp": {"lwp", "cwp", "cmic_lwp"},
+                 "reff": {"reff", "cmic_lwp"}}
+        for x in optional_datasets:
+            for (n, p) in needs.items():
+                if x.attrs["name"] in p:
+                    D[n] = x
+                    continue
+        missing = needs.keys() - D.keys()
+        if missing:
+            raise ValueError("Missing fog inputs: " + ", ".join(missing))
+        return D
+
+    def __call__(self, projectables, *args, optional_datasets, **kwargs):
+        D = self._verify_requirements(optional_datasets)
         (area, lat, lon) = self._get_area_lat_lon(projectables)
 
         # fogpy is still working with masked arrays and does not yet support
         # xarray / dask (see #6).  For now, convert to masked arrays.
-        maskproj = self._convert_projectables(projectables)
+        maskproj = self._convert_xr_to_ma(projectables)
+        D = dict(zip(D.keys(), self._convert_xr_to_ma(D.values())))
 
         elev = self.elevation.resample(area)
         flsinput = {'vis006': maskproj[0],
@@ -172,10 +193,10 @@ class _IntermediateFogCompositorDay(FogCompositor):
                     'time': projectables[0].start_time,
                     'elev': numpy.ma.masked_invalid(
                         elev["image"].sel(bands="L").values, copy=False),
-                    'cot': maskproj[7],
-                    'reff': maskproj[9],
-                    'lwp': maskproj[8],
-                    "cwp": maskproj[8]}
+                    'cot': D["cot"],
+                    'reff': D["reff"],
+                    'lwp': D["lwp"],
+                    "cwp": D["lwp"]}
         # Compute fog mask
         flsalgo = DayFogLowStratusAlgorithm(**flsinput)
         fls, mask = flsalgo.run()
@@ -228,7 +249,7 @@ class FogCompositorNight(FogCompositor):
         sza = pyorbital.astronomy.sun_zenith_angle(
                 projectables[0].start_time, lon, lat)
 
-        maskproj = self._convert_projectables(projectables)
+        maskproj = self._convert_xr_to_ma(projectables)
 
         flsinput = {'ir108': maskproj[1],
                     'ir039': maskproj[0],
