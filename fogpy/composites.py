@@ -163,7 +163,7 @@ class _IntermediateFogCompositorDay(FogCompositor):
                  "reff": {"reff", "cmic_lwp"}}
         for x in optional_datasets:
             for (n, p) in needs.items():
-                if x.name in p:
+                if x.attrs["name"] in p:
                     D[n] = x
                     continue
         missing = needs.keys() - D.keys()

@@ -142,7 +142,7 @@ def fogpy_inputs(fkattr):
             ),
     )
 
-    return {k: xrda(v, dims=("x", "y"), attrs=fkattr, name=k)
+    return {k: xrda(v, dims=("x", "y"), attrs={**fkattr, "name": k})
             for (k, v) in D.items()}
 
 
