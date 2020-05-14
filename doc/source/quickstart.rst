@@ -109,9 +109,6 @@ And then inspect the cloud optical thickness product::
 .. _pyresample: https://github.com/pytroll/pyresample
 .. _trollimage: http://trollimage.readthedocs.io/en/latest/
 
-.. FIXME: Why does the second image look so different from the first?
-
-.. image:: ./fogpy_docu_example_6.png
 .. image:: ./claas-eurol-cot.jpg
 
 Get hands-on fogpy at daytime
@@ -129,12 +126,17 @@ composites and all fogpy composites can be used directly in Satpy.
 Let's try it with the *fls_day* composite.  This composite determines
 low clouds and ground fog cells from a satellite scene.  It is limited
 to daytime because it requires channels in the visible spectrum to be
-successfully applicable.  We create a fogpy composite for the resampled
-MSG scene::
+successfully applicable and because the cloud microphysical properties
+are only available during the day.  Let's focus on Germany now::
+
+    >>> ls = sc.resample("germ2")
+    
+We create a fogpy composite for the resampled MSG scene::
 
     >>> ls.load(["fls_day"])
 
-This may take a while to complete.
+This may take a while to complete.  Although most Satpy composites use
+dask for postponed evaluation, Fogpy does not currently support this.
 You see that we don't have to import the fogpy package manually.
 It's done automagically in the background after the satpy configuration.
 
@@ -145,6 +147,10 @@ The dataset has two bands:
  
 - Band ``L`` is an image of a selected channel (Default is the 10.8 IR channel) where only the detected ground fog cells are displayed
 - Band ``A`` is an image for the fog mask
+
+.. FIXME: Get this right in an easy way with fogpy.  The data appears
+.. to be correct in the L and A bands, but it's not showing up correctly.
+.. Investigate.
 
 .. image:: ./fogpy_docu_example_10.png
 
