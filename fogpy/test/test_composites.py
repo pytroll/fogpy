@@ -155,9 +155,9 @@ def fog_comp_base():
 @pytest.fixture
 def fogpy_outputs():
     fls = numpy.ma.masked_array(
-            numpy.arange(9).reshape((3, 3)),
+            numpy.arange(9, dtype="f4").reshape((3, 3)),
             (numpy.arange(9) % 2).astype("?").reshape((3, 3)))
-    mask = (numpy.arange(9) % 2).astype("?").reshape((3, 3))
+    mask = (numpy.arange(9, dtype="f4") % 2).astype("?").reshape((3, 3))
     return (fls, mask)
 
 
@@ -238,7 +238,7 @@ def test_convert_ma_to_xr(fogpy_inputs, fog_comp_base, fogpy_outputs):
             *fogpy_outputs)
     assert len(conv) == len(fogpy_outputs)
     assert all([isinstance(c, xrda) for c in conv])
-    assert numpy.array_equal(fogpy_outputs[0].data, conv[0].values)
+    numpy.testing.assert_array_equal(fogpy_outputs[0].data, conv[0].values)
     assert conv[0].attrs["sensor"] == fogpy_inputs["ir108"].attrs["sensor"]
     # check without mask
     conv = fog_comp_base._convert_ma_to_xr(

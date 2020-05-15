@@ -119,7 +119,7 @@ class FogCompositor(satpy.composites.GenericCompositor):
             ``xarray.DataArray``, or the latter can be constructed directly.
         """
 
-        fv = 9000
+        fv = numpy.nan
         # convert to xarray images
         dims = projectables[0].dims
         coords = projectables[0].coords
@@ -231,7 +231,16 @@ class FogCompositorDay(satpy.composites.GenericCompositor):
         # projectable is actually a Dataset, and pass a DataArray
         # to the superclass.__call__ method.
         ds = projectables[0]
-        return super().__call__((ds["fls_day"], ds["fls_mask"]), *args, **kwargs)
+        # the fogpy algorithm has the mask as True where fog is absent and
+        # False where fog is present, although that is OK for a masked array,
+        # we want the opposite interpretation when visualising it as the A band
+        # on a LA-type image, therefore invert the truthiness with a unary
+
+        # normally we'd invert this with ~x, but due ta a bug this loses the
+        # attributes: see https://github.com/pydata/xarray/issues/4065
+        # True^x is equivalent to ~x for booleans
+        with xarray.set_options(keep_attrs=True):
+            return super().__call__((ds["fls_day"], True ^ ds["fls_mask"]), *args, **kwargs)
 
 
 class FogCompositorDayExtra(satpy.composites.GenericCompositor):
