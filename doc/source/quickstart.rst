@@ -148,16 +148,16 @@ The dataset has two bands:
 - Band ``L`` is an image of a selected channel (Default is the 10.8 IR channel) where only the detected ground fog cells are displayed
 - Band ``A`` is an image for the fog mask
 
-.. FIXME: Get this right in an easy way with fogpy.  The data appears
-.. to be correct in the L and A bands, but it's not showing up correctly.
-.. Investigate.
+::
+    
+    >>> ls.show("fls_day")
 
-.. image:: ./fogpy_docu_example_10.png
+.. image:: ./fogpy-germ2-fls_day.jpg
 
 The result image shows the area with potential ground fog calculated
-by the algorithm, fine.  But the remaining areas are missing... maybe
+by the algorithm.  But the remaining areas are missing... maybe
 a different visualization could be helpful.  We can improve the image
-output by colorize the fog mask and blending it over an overview composite
+output by colorising the fog mask and blending it over an overview composite
 using trollimage:
 
 .. Wait for this composite to work correctly
@@ -168,22 +168,29 @@ using trollimage:
 
 ::
 
+    >>> import satpy.writers
+    >>> import xarray as xr
+    >>> from trollimage.xrimage import XRImage
+    >>> from trollimage.colormap import Colormap
+    >>> ls.load(["overview"])
     >>> ov = satpy.writers.get_enhanced_image(ls["overview"]).convert("RGBA")
     >>> A = ls["fls_day"].sel(bands="A")
-    >>> Ap = (1-A).where(1-A==0, 0.5)
+    >>> Ap = A.where(A==0, 0.5)
     >>> im = XRImage(Ap)
     >>> im.stretch()
+    >>> fogcol = trollimage.colormap.Colormap(
+    ...     (0.0, (0.0, 0.0, 0.8)),
+    ...     (1.0, (250 / 255, 200 / 255, 40 / 255)))
     >>> im.colorize(fogcol)
     >>> RGBA = xr.concat([im.data, Ap], dim="bands")
     >>> blend = ov.blend(XRImage(RGBA))
 
-.. note::
-	Images not yet updated!
-
-.. image:: ./fogpy_docu_example_11.png
+.. image:: ./fogpy-germ2-blend.jpg
 
 Here are some example algorithm results for the given MSG scene. 
 As described above, the different masks are blendes over the overview RGB composite in yellow, except the right image where the fog RGB is in the background:
+
+.. FIXME: Not updated beyond this point!
 
 +----------------------------------------+----------------------------------------+----------------------------------------+
 | .. image:: ./fogpy_docu_example_13.png | .. image:: ./fogpy_docu_example_12.png | .. image:: ./fogpy_docu_example_14.png |
