@@ -292,7 +292,7 @@ def test_interim(fogpy_inputs_seviri_cmsaf, fogpy_inputs_abi_nwcsaf,
                  comp_loader, fogpy_outputs, fog_extra):
     fc_sev = comp_loader.get_compositor("_intermediate_fls_day", ["seviri"])
     fc_abi = comp_loader.get_compositor("_intermediate_fls_day", ["abi"])
-    with mock.patch("fogpy.composites.Scene"), \
+    with mock.patch("satpy.Scene"), \
             mock.patch("fogpy.composites.DayFogLowStratusAlgorithm") as fcD:
         fcD.return_value.run.return_value = fogpy_outputs
         fcD.return_value.vcloudmask = fog_extra["vcloudmask"]
