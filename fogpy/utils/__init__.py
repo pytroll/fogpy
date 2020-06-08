@@ -22,14 +22,12 @@
 """Small utilities needed by Fogpy
 """
 
-import datetime
-import itertools
-import os
 import logging
 
 import requests
 
 logger = logging.getLogger(__name__)
+
 
 def dl_dem(dem):
     """Download Digital Elevation Model
