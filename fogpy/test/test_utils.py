@@ -1,6 +1,7 @@
 import pytest
 import unittest.mock
 
+
 @unittest.mock.patch("requests.get")
 def test_dl_dem(rg, tmp_path):
     from fogpy.utils import dl_dem
