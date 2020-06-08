@@ -202,7 +202,7 @@ def comp_loader():
     """Get a compositor loader for loading fogpy composites."""
     from satpy.composites import CompositorLoader
     cpl = CompositorLoader(pkg_resources.resource_filename("fogpy", "etc/"))
-    with mock.patch("requests.get") as rg:
+    with mock.patch("requests.get") as rg, mock.patch("satpy.Scene"):
         rg.return_value.content = b"12345"
         cpl.load_compositors(["seviri", "abi"])
     return cpl

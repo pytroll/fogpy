@@ -152,7 +152,7 @@ class _IntermediateFogCompositorDay(FogCompositor):
         dem = pathlib.Path(appdirs.user_data_dir("fogpy")) / path_dem
         if not dem.exists():
             dl_dem(dem)
-        filenames = [pkg_resources.resource_filename("fogpy", path_dem)]
+        filenames = [dem]
         self.elevation = Scene(reader="generic_image",
                                filenames=filenames)
         self.elevation.load(["image"])
