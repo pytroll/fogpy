@@ -3,6 +3,8 @@ import numpy
 import datetime
 import tempfile
 import pathlib
+import appdirs
+import pytest
 from numpy import array
 from xarray import Dataset, DataArray as xrda, open_dataset
 from unittest import mock
@@ -164,9 +166,12 @@ def fogpy_outputs():
 @pytest.fixture
 def fog_comp_interim():
     from fogpy.composites import _IntermediateFogCompositorDay
-    with mock.patch("fogpy.composites.Scene"):
+    with mock.patch("fogpy.composites.Scene") as fcS, \
+            mock.patch("requests.get") as rg:
+
+        rg.return_value.content = b"12345"
         ifcd = _IntermediateFogCompositorDay(
-                "/no/such/path.tiff",
+                "path.tiff",
                 name='_intermediate_fls_day',
                 standard_name='_intermediate_fls_day',
                 prerequities=[
