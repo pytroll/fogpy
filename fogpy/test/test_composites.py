@@ -208,24 +208,6 @@ def comp_loader():
     return cpl
 
 
-# def fog_comp_interim():
-#     from fogpy.composites import _IntermediateFogCompositorDay
-#     with mock.patch("fogpy.composites.Scene"), \
-#             mock.patch("requests.get") as rg:
-# 
-#         rg.return_value.content = b"12345"
-#         ifcd = _IntermediateFogCompositorDay(
-#                 "path.tiff",
-#                 name='_intermediate_fls_day',
-#                 standard_name='_intermediate_fls_day',
-#                 prerequities=[
-#                     'VIS006', 'VIS008', 'IR_016', 'IR_039', 'IR_087',
-#                     'IR_108', 'IR_120', 'cmic_cot', 'cmic_lwp', 'cmic_reff'],
-#                 optional_prerequisites=[],
-#                 resolution=None)
-#     return ifcd
-
-
 @pytest.fixture
 def fog_extra():
     return {
