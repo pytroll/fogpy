@@ -50,8 +50,6 @@ from scipy.optimize import brute
 
 # Configure logger.
 logger = logging.getLogger('lowwatercloud')
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - '
-                           '%(message)s', level=logging.INFO)
 
 
 class CloudLayer(object):
