@@ -28,7 +28,9 @@ detection and forecasting algorithm as a Satpy custom composite object.
 import logging
 import numpy
 import xarray
+import pathlib
 
+import appdirs
 import satpy.composites
 import satpy.dataset
 import pyorbital.astronomy
@@ -37,6 +39,7 @@ import pkg_resources
 from satpy import Scene
 from .algorithms import DayFogLowStratusAlgorithm
 from .algorithms import NightFogLowStratusAlgorithm
+from .utils import dl_dem
 
 
 logger = logging.getLogger(__name__)
@@ -146,6 +149,9 @@ class FogCompositor(satpy.composites.GenericCompositor):
 
 class _IntermediateFogCompositorDay(FogCompositor):
     def __init__(self, path_dem, *args, **kwargs):
+        dem = pathlib.Path(appdirs.user_data_dir("fogpy")) / path_dem
+        if not dem.exists():
+            dl_dem(dem)
         filenames = [pkg_resources.resource_filename("fogpy", path_dem)]
         self.elevation = Scene(reader="generic_image",
                                filenames=filenames)

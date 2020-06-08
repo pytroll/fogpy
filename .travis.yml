@@ -6,7 +6,7 @@ env:
     global:
       - PYTHON_VERSION=$TRAVIS_PYTHON_VERSION
       - MAIN_CMD='pytest'
-      - CONDA_DEPENDENCIES='numpy scipy matplotlib satpy pyresample opencv coverage'
+      - CONDA_DEPENDENCIES='numpy scipy matplotlib satpy pyresample opencv coverage appdirs requests'
       - PIP_DEPENDENCIES='trollimage pyorbital trollbufr opencv-contrib-python'
       - SETUP_XVFB=False
       - EVENT_TYPE='push pull_request'

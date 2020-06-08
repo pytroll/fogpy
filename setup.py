@@ -87,6 +87,8 @@ setup(
                       'pyresample >= 1.11',
                       "opencv-python >= 4.1",
                       "opencv-contrib-python",
-                      'trollbufr >= 0.10'],
+                      'trollbufr >= 0.10',
+                      "appdirs",
+                      "requests"],
     tests_require=[],
 )
