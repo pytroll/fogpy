@@ -44,7 +44,7 @@ def dl_dem(dem):
     if dem.exists():
         raise FileExistsError("Already exists: {dem!s}")
     r = requests.get(src)
-    logger.info("Downloading {src!s} to {dem!s}")
+    logger.info(f"Downloading {src!s} to {dem!s}")
     dem.parent.mkdir(exist_ok=True, parents=True)
     with dem.open(mode="wb") as fp:
         fp.write(r.content)
