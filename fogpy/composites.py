@@ -31,12 +31,12 @@ import xarray
 import pathlib
 
 import appdirs
+import satpy
 import satpy.composites
 import satpy.dataset
 import pyorbital.astronomy
 import pkg_resources
 
-from satpy import Scene
 from .algorithms import DayFogLowStratusAlgorithm
 from .algorithms import NightFogLowStratusAlgorithm
 from .utils import dl_dem
@@ -152,8 +152,8 @@ class _IntermediateFogCompositorDay(FogCompositor):
         dem = pathlib.Path(appdirs.user_data_dir("fogpy")) / path_dem
         if not dem.exists():
             dl_dem(dem)
-        filenames = [pkg_resources.resource_filename("fogpy", path_dem)]
-        self.elevation = Scene(reader="generic_image",
+        filenames = [dem]
+        self.elevation = satpy.Scene(reader="generic_image",
                                filenames=filenames)
         self.elevation.load(["image"])
         return super().__init__(*args, **kwargs)
@@ -301,7 +301,7 @@ def save_extras(sc, fn):
         fn : str-like or path
             Path to which to write NetCDF
     """
-    s = Scene()
+    s = satpy.Scene()
     ds = sc["fls_day_extra"]
     for k in ds.data_vars:
         s[k] = ds[k]
