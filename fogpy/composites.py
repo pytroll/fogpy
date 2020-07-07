@@ -225,7 +225,7 @@ class _IntermediateFogCompositorDay(FogCompositor):
 
         # NB: isn't this done somewhere more generically?
         for k in ("standard_name", "name", "resolution"):
-            ds.attrs[k] = self.attrs[k]
+            ds.attrs[k] = self.attrs.get(k)
 
         return ds
 
