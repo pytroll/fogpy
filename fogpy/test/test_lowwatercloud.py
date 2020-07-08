@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017
-# Author(s):
-#   Thomas Leppelt <thomas.leppelt@dwd.de>
+# Copyright (c) 2017-2020 Fogpy developers
 
 # This file is part of the fogpy package.
 
