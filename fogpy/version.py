@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017
-# Author(s):
-#   Thomas Leppelt <thomas.leppelt@dwd.de>
+# Copyright (c) 2017-2020 Fogpy developers
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
