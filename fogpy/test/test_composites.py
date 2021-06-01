@@ -217,10 +217,11 @@ def fogpy_outputs():
 
 
 @pytest.fixture
-def comp_loader():
+def comp_loader(monkeypatch):
     """Get a compositor loader for loading fogpy composites."""
-    from satpy.composites import CompositorLoader
-    cpl = CompositorLoader(pkg_resources.resource_filename("fogpy", "etc/"))
+    monkeypatch.setenv("SATPY_CONFIG_PATH", pkg_resources.resource_filename("fogpy", "etc/"))
+    from satpy.composites.config_loader import CompositorLoader
+    cpl = CompositorLoader()
     with mock.patch("requests.get") as rg, mock.patch("satpy.Scene"):
         rg.return_value.content = b"12345"
         cpl.load_compositors(["seviri", "abi"])
