@@ -217,9 +217,8 @@ def fogpy_outputs():
 
 
 @pytest.fixture
-def comp_loader(monkeypatch):
+def comp_loader():
     """Get a compositor loader for loading fogpy composites."""
-    monkeypatch.setenv("SATPY_CONFIG_PATH", pkg_resources.resource_filename("fogpy", "etc/"))
     from satpy.composites.config_loader import CompositorLoader
     cpl = CompositorLoader()
     with mock.patch("requests.get") as rg, mock.patch("satpy.Scene"):
