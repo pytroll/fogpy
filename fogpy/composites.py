@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017
-# Author(s):
-#   Thomas Leppelt <thomas.leppelt@dwd.de>
+# Copyright (c) 2017-2020 Fogpy developers
 
 # This file is part of the fogpy package.
 
@@ -28,15 +26,18 @@ detection and forecasting algorithm as a Satpy custom composite object.
 import logging
 import numpy
 import xarray
+import pathlib
 
+import appdirs
+import satpy
 import satpy.composites
 import satpy.dataset
 import pyorbital.astronomy
 import pkg_resources
 
-from satpy import Scene
 from .algorithms import DayFogLowStratusAlgorithm
 from .algorithms import NightFogLowStratusAlgorithm
+from .utils import dl_dem
 
 
 logger = logging.getLogger(__name__)
@@ -146,8 +147,11 @@ class FogCompositor(satpy.composites.GenericCompositor):
 
 class _IntermediateFogCompositorDay(FogCompositor):
     def __init__(self, path_dem, *args, **kwargs):
-        filenames = [pkg_resources.resource_filename("fogpy", path_dem)]
-        self.elevation = Scene(reader="generic_image",
+        dem = pathlib.Path(appdirs.user_data_dir("fogpy")) / path_dem
+        if not dem.exists():
+            dl_dem(dem)
+        filenames = [dem]
+        self.elevation = satpy.Scene(reader="generic_image",
                                filenames=filenames)
         self.elevation.load(["image"])
         return super().__init__(*args, **kwargs)
@@ -219,7 +223,7 @@ class _IntermediateFogCompositorDay(FogCompositor):
 
         # NB: isn't this done somewhere more generically?
         for k in ("standard_name", "name", "resolution"):
-            ds.attrs[k] = self.attrs[k]
+            ds.attrs[k] = self.attrs.get(k)
 
         return ds
 
@@ -295,7 +299,7 @@ def save_extras(sc, fn):
         fn : str-like or path
             Path to which to write NetCDF
     """
-    s = Scene()
+    s = satpy.Scene()
     ds = sc["fls_day_extra"]
     for k in ds.data_vars:
         s[k] = ds[k]

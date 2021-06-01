@@ -19,9 +19,13 @@ composites:
       - C11
       - C14
       - C15
+    optional_prerequisites:
       - cmic_cot
       - cmic_lwp
       - cmic_reff
+      - cot
+      - cwp
+      - reff
     standard_name: _intermediate_fls_day
     path_dem: data/DEM/new-england-500m.tif
 

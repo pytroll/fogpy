@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017
-# Author(s):
-#   Thomas Leppelt <thomas.leppelt@dwd.de>
+# Copyright (c) 2017-2020 Fogpy developers
 
 # This file is part of the fogpy package.
 
@@ -62,8 +60,7 @@ setup(
     packages=find_packages(),
     package_data={"fogpy": [os.path.join('etc'),
                             os.path.join("etc", "composites", "*.yaml"),
-                            os.path.join("etc", "enhancements", "*.yaml"),
-                            os.path.join("data", "DEM", "*.tif")]},
+                            os.path.join("etc", "enhancements", "*.yaml")]},
     platforms='any',
     test_suite='fogpy.test.suite',
     python_requires=">=3.7",
@@ -87,6 +84,8 @@ setup(
                       'pyresample >= 1.11',
                       "opencv-python >= 4.1",
                       "opencv-contrib-python",
-                      'trollbufr >= 0.10'],
+                      'trollbufr >= 0.10',
+                      "appdirs",
+                      "requests"],
     tests_require=[],
 )

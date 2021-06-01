@@ -74,7 +74,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'fogpy'
-copyright = '2017--2020, Thomas Leppelt, Gerrit Holl'
+copyright = '2017-2020, Fogpy developers'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -224,7 +224,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'fogpy.tex', u'fogpy Documentation',
-   u'Thomas Leppelt', 'manual'),
+   'Fogpy developers', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -254,7 +254,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'fogpy', u'fogpy Documentation',
-     [u'Thomas Leppelt'], 1)
+     [u'Fogpy developers'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -268,7 +268,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'fogpy', u'fogpy Documentation',
-   u'Thomas Leppelt', 'fogpy', 'One line description of project.',
+   u'Fogpy developers', 'fogpy', 'One line description of project.',
    'Miscellaneous'),
 ]
 

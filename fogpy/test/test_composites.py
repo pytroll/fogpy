@@ -1,3 +1,22 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2017-2020 Fogpy developers
+
+# This file is part of the fogpy package.
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import pytest
 import numpy
 import datetime
@@ -6,6 +25,8 @@ import pathlib
 from numpy import array
 from xarray import Dataset, DataArray as xrda, open_dataset
 from unittest import mock
+
+import pkg_resources
 
 
 @pytest.fixture
@@ -147,6 +168,40 @@ def fogpy_inputs(fkattr):
 
 
 @pytest.fixture
+def fogpy_inputs_seviri_cmsaf(fogpy_inputs):
+    fogpy_inputs = fogpy_inputs.copy()
+    trans = {"ir108": "IR_108",
+             "ir039": "IR_039",
+             "vis008": "VIS008",
+             "nir016": "IR_016",
+             "vis006": "VIS006",
+             "ir087": "IR_087",
+             "ir120": "IR_120",
+             "lwp": "cwp"}
+    for (k, v) in trans.items():
+        fogpy_inputs[v] = fogpy_inputs.pop(k)
+    return fogpy_inputs
+
+
+@pytest.fixture
+def fogpy_inputs_abi_nwcsaf(fogpy_inputs):
+    fogpy_inputs = fogpy_inputs.copy()
+    trans = {"ir108": "C14",
+             "ir039": "C07",
+             "vis008": "C03",
+             "nir016": "C05",
+             "vis006": "C02",
+             "ir087": "C11",
+             "ir120": "C15",
+             "lwp": "cmic_lwp",
+             "cot": "cmic_cot",
+             "reff": "cmic_reff"}
+    for (k, v) in trans.items():
+        fogpy_inputs[v] = fogpy_inputs.pop(k)
+    return fogpy_inputs
+
+
+@pytest.fixture
 def fog_comp_base():
     from fogpy.composites import FogCompositor
     return FogCompositor(name="fls_day")
@@ -162,19 +217,14 @@ def fogpy_outputs():
 
 
 @pytest.fixture
-def fog_comp_interim():
-    from fogpy.composites import _IntermediateFogCompositorDay
-    with mock.patch("fogpy.composites.Scene"):
-        ifcd = _IntermediateFogCompositorDay(
-                "/no/such/path.tiff",
-                name='_intermediate_fls_day',
-                standard_name='_intermediate_fls_day',
-                prerequities=[
-                    'VIS006', 'VIS008', 'IR_016', 'IR_039', 'IR_087',
-                    'IR_108', 'IR_120', 'cmic_cot', 'cmic_lwp', 'cmic_reff'],
-                optional_prerequisites=[],
-                resolution=None)
-    return ifcd
+def comp_loader():
+    """Get a compositor loader for loading fogpy composites."""
+    from satpy.composites import CompositorLoader
+    cpl = CompositorLoader(pkg_resources.resource_filename("fogpy", "etc/"))
+    with mock.patch("requests.get") as rg, mock.patch("satpy.Scene"):
+        rg.return_value.content = b"12345"
+        cpl.load_compositors(["seviri", "abi"])
+    return cpl
 
 
 @pytest.fixture
@@ -257,23 +307,28 @@ def test_get_area_lat_lon(fogpy_inputs, fog_comp_base):
     assert area == fogpy_inputs["ir108"].area
 
 
-def test_interim(fogpy_inputs, fog_comp_interim, fogpy_outputs, fog_extra):
-    with mock.patch("fogpy.composites.Scene"), \
+def test_interim(fogpy_inputs_seviri_cmsaf, fogpy_inputs_abi_nwcsaf,
+                 comp_loader, fogpy_outputs, fog_extra):
+    fc_sev = comp_loader.get_compositor("_intermediate_fls_day", ["seviri"])
+    fc_abi = comp_loader.get_compositor("_intermediate_fls_day", ["abi"])
+    with mock.patch("satpy.Scene"), \
             mock.patch("fogpy.composites.DayFogLowStratusAlgorithm") as fcD:
         fcD.return_value.run.return_value = fogpy_outputs
         fcD.return_value.vcloudmask = fog_extra["vcloudmask"]
         fcD.return_value.cbh = fog_extra["cbh"]
         fcD.return_value.fbh = fog_extra["fbh"]
         fcD.return_value.lcth = fog_extra["lcth"]
-        ds = fog_comp_interim(
-                [fogpy_inputs[k] for k in [
-                    "vis006", "vis008", "nir016", "ir039", "ir087", "ir108",
-                    "ir120"]],
-                optional_datasets=[fogpy_inputs[k] for k in ["cot", "lwp", "reff"]])
-        assert isinstance(ds, Dataset)
-        assert ds.data_vars.keys() == {
-                'vmask', 'fls_mask', 'fbh', 'cbh', 'fls_day', 'lcthimg'}
-        numpy.testing.assert_equal(ds["cbh"].values, fcD.return_value.cbh)
+        for (fc, fpi) in ((fc_sev, fogpy_inputs_seviri_cmsaf),
+                          (fc_abi, fogpy_inputs_abi_nwcsaf)):
+            ds = fc(
+                    [fpi[k] for k in fc.attrs["prerequisites"]],
+                    optional_datasets=[
+                        fpi[k] for k in fc.attrs["optional_prerequisites"]
+                        if k in fpi])
+            assert isinstance(ds, Dataset)
+            assert ds.data_vars.keys() == {
+                    'vmask', 'fls_mask', 'fbh', 'cbh', 'fls_day', 'lcthimg'}
+            numpy.testing.assert_equal(ds["cbh"].values, fcD.return_value.cbh)
 
 
 def test_fog_comp_day(fog_comp_day, fog_intermediate_dataset):

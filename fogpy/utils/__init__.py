@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017
-# Author(s):
-#   Thomas Leppelt <thomas.leppelt@dwd.de>
+# Copyright (c) 2017-2020 Fogpy developers
 
 # This file is part of the fogpy package.
 
@@ -19,44 +17,32 @@
 # You should have received a copy of the GNU General Public License
 # along with fogpy.  If not, see <http://www.gnu.org/licenses/>.
 
-"""PP Package initializer.
+"""Small utilities needed by Fogpy
 """
 
-import datetime
-import itertools
-import os
+import logging
 
-BASE_PATH = os.path.sep.join(os.path.dirname(
-    os.path.realpath(__file__)).split(os.path.sep)[:-1])
+import requests
 
-
-def ncycle(iterable, n):
-    for item in itertools.cycle(iterable):
-        for i in range(n):
-            yield item
+logger = logging.getLogger(__name__)
 
 
-def get_time_period(start, end, step):
-    """Create time series from given start to end by certain interval
+def dl_dem(dem):
+    """Download Digital Elevation Model
 
-    Keyword arguments:
-        start    Start time as string in %Y%m%%%d%H%M format
-        end    End time as string in %Y%m%%%d%H%M format
+    Download a Digital Elevation Model (DEM) from Zenodo.
+
+    The source URI is derived from the destination path.
+
+    Args:
+        dem (pathlib.Path): Destination
     """
-    # Define time series for analysis
-    dt = datetime.datetime.strptime(start, "%Y%m%d%H%M")
-    tend = datetime.datetime.strptime(end, "%Y%m%d%H%M")
+    src = "https://zenodo.org/record/3885398/files/" + dem.name
 
-    ts = []
-    if isinstance(step, list):
-        c = ncycle(step, 1)
-    else:
-        c = ncycle([step], 1)
-
-    while dt < tend:
-        ts.append(dt)
-        ti = c.next()
-        tstep = datetime.timedelta(minutes=ti)
-        dt += tstep
-
-    return(ts)
+    if dem.exists():
+        raise FileExistsError("Already exists: {dem!s}")
+    r = requests.get(src)
+    logger.info(f"Downloading {src!s} to {dem!s}")
+    dem.parent.mkdir(exist_ok=True, parents=True)
+    with dem.open(mode="wb") as fp:
+        fp.write(r.content)

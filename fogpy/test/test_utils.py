@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2017-2020 Fogpy developers
 
 # This file is part of the fogpy package.
@@ -16,25 +14,21 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import logging
 
-"""The fogpy test suite.
-"""
-
-from fogpy.test import (test_lowwatercloud,
-                        test_filters,
-                        test_algorithms
-                        )
-
-import unittest
+import pytest
+import unittest.mock
 
 
-def suite():
-    """The global test suite.
-    """
+@unittest.mock.patch("requests.get")
+def test_dl_dem(rg, tmp_path, caplog):
+    from fogpy.utils import dl_dem
+    rg.return_value.content = b"12345"
 
-    mysuite = unittest.TestSuite()
-    mysuite.addTests(test_lowwatercloud.suite())
-    mysuite.addTests(test_filters.suite())
-    mysuite.addTests(test_algorithms.suite())
-
-    return mysuite
+    with caplog.at_level(logging.INFO):
+        dl_dem(tmp_path / "foo")
+    assert f"Downloading https://zenodo.org/record/3885398/files/foo to {tmp_path / 'foo'!s}" in caplog.text
+    assert (tmp_path / "foo").exists()
+    assert (tmp_path / "foo").open(mode="rb").read() == b"12345"
+    with pytest.raises(FileExistsError):
+        dl_dem(tmp_path / "foo")
