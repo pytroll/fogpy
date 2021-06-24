@@ -12,18 +12,17 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8, 3.9]
-
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - name: Setup Conda Environment
+        uses: conda-incubator/setup-miniconda@v2
         with:
+          miniconda-version: "latest"
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          conda install numpy scipy matplotlib satpy pyresample opencv coverage appdirs requests
-          python -m pip install --upgrade pip
-          pip install flake8 pytest trollimage pyorbital trollbufr opencv-contrib-python
+          mamba-version: "*"
+          channels: conda-forge,defaults
+          environment-file: continuous_integration/environment.yaml
+          activate-environment: test-environment
       - name: Install fogpy
         run: |
           pip install --no-deps -e .

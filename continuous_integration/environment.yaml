@@ -1,0 +1,20 @@
+name: test-environment
+channels:
+  - conda-forge
+dependencies:
+  - numpy
+  - scipy
+  - matplotlib
+  - satpy
+  - pyresample
+  - opencv
+  - coverage
+  - appdirs
+  - requests
+  - pip:
+    - flake8
+    - pytest
+    - trollimage
+    - pyorbital
+    - trollbufr
+    - opencv-contrib-python
