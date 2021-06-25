@@ -6524,7 +6524,6 @@ class Test_LowCloudFilter(unittest.TestCase):
 
         class FakeRandom(np.random.RandomState):
             def uniform(self, low=0.0, high=1.0, size=None):
-                ref = super().uniform(low, high, size)
                 if size == (1,) or size is None:
                     return (low + high)/2
                 elif len(size) == 1:
