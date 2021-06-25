@@ -6461,7 +6461,8 @@ class Test_LowCloudFilter(unittest.TestCase):
                           'reff': test_reff,
                           'elev': test_elev,
                           'clusters': test_clusters,
-                          'cth': test_cth}
+                          'cth': test_cth,
+                          "nprocs": 1}
 
     def tearDown(self):
         pass
