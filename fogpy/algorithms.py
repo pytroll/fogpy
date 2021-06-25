@@ -1242,7 +1242,9 @@ class PanSharpeningAlgorithm(BaseSatelliteAlgorithm):
             col = index[1]
             # Query tree for neighbors
             queryresult = tree.query(np.array([[row, col]]), k=25)
-            neighs = tree.data[queryresult[1][0][1:]]
+            # explicitly convert to int64, see
+            # https://github.com/scipy/scipy/issues/14296
+            neighs = tree.data[queryresult[1][0][1:]].astype(np.int64)
             # Get channel values for neighbors
             chn_neigh = chn[tuple(neighs.T)].squeeze()
             # Get panchromatic channel values for neighbors
