@@ -6,4 +6,4 @@ doc/build
 RELEASE-VERSION
 dist
 fogpy.egg-info
-
+fogpy/version.py
