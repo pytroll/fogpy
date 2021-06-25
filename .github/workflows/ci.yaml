@@ -26,6 +26,9 @@ jobs:
       - name: Install fogpy
         run: |
           pip install --no-deps -e .
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-cov
       - name: Test with pytest
         run: |
           pytest --cov=fogpy fogpy/test --cov-report=xml
