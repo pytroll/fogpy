@@ -25,6 +25,7 @@ import os
 import functools
 import fogpy
 import pkg_resources
+from unittest import mock
 
 from datetime import datetime
 from fogpy.filters import BaseArrayFilter
@@ -6357,7 +6358,6 @@ class Test_SpatialHomogeneityFilter(unittest.TestCase):
         self.assertNotEqual(np.nansum(testfilter.mask), 0)
         self.assertEqual(np.nansum(testfilter.mask), 1)
 
-
 class Test_LowCloudFilter(unittest.TestCase):
 
     def setUp(self):
@@ -6521,8 +6521,20 @@ class Test_LowCloudFilter(unittest.TestCase):
         input_single = self.test_lwp3
         input_single['single'] = True
         input_single['substitude'] = False
-        testfilter = LowCloudFilter(input_single['ir108'], **input_single)
-        ret, mask = testfilter.apply()
+
+        class FakeRandom(np.random.RandomState):
+            def uniform(self, low=0.0, high=1.0, size=None):
+                ref = super().uniform(low, high, size)
+                if size == (1,) or size is None:
+                    return (low + high)/2
+                elif len(size) == 1:
+                    return np.linspace(low, high, size[0])
+                else:
+                    raise NotImplementedError("too many dims")
+
+        with mock.patch("numpy.random.RandomState", new=FakeRandom):
+            testfilter = LowCloudFilter(input_single['ir108'], **input_single)
+            ret, mask = testfilter.apply()
 
         # Evaluate results
         self.assertEqual(np.nanmax(len(testfilter.result_list)), 4)
