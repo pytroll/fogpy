@@ -4,15 +4,15 @@
 
 The package uses OOP extensively, to allow higher level metaobject handling.
 
-For this tutorial, we will use a MSG scene for creating different 
+For this tutorial, we will use a MSG-SEVIRI scene for creating different 
 fog products.
 
 Import satellite data first
 ===========================
 
-We start with the PyTroll package *satpy*. This package provide all functionalities 
-to import and calibrate a MSG scene from HRIT files. Therefore you should make sure 
-that mpop is properly configured and all environment variables like *PPP_CONFIG_DIR* 
+We start with the Pytroll package *satpy*. This package provide all functionalities 
+to import and calibrate a SEVIRI scene from HRIT files. Therefore you should make sure 
+that satpy is properly configured and all environment variables like *PPP_CONFIG_DIR* 
 are set and the HRIT files are in the given search path. For more guidance look up 
 in the `satpy`_ documentation
 
@@ -37,20 +37,24 @@ Now we want to look at the IR 10.8 channel::
 
 	>>> msg_scene.show(10.8)
 
-.. image:: ./fogpy_docu_example_1.png
+.. image:: ./seviri-native-108.jpg
 
-Everything seems correctly imported. We see a full disk image. So lets see if we can resample it to a central European region::
+Everything seems correctly imported. We see a full disk image. It's
+upside swapped north-south and east-west because Satpy initially shows
+it as located in the file. So lets see if we can resample it to a central
+European region::
 
 	>>> eu_scene = msg_scene.resample("eurol")
 	>>> eu_scene.show(10.8)
 
-.. image:: ./fogpy_docu_example_2.png
+.. image:: ./seviri-eurol-108.jpg
 
-A lot of clouds are present over central Europe. Let's test a fog RGB composite to find some low clouds:: 
+A lot of clouds are present over central Europe. Let's test a fog RGB
+composite to find some low clouds::
 
 	>>> eu_scene.show("fog")
 
-.. image:: ./fogpy_docu_example_3.png
+.. image:: ./seviri-eurol-fog.jpg
 
 The reddish and dark colored clouds represent cold and high altitude clouds, 
 whereas the yellow-greenish color over central and eastern Europe is an indication for low clouds and fog.
@@ -61,27 +65,25 @@ Continue with more metadata
 In the next step we want to create a fog and low stratus (FLS) composite
 for the imported scene.  For this we need:
 
-  * Seviri L1B data, read by Satpy with the ``seviri_l1b_hrit`` reader.
-  * Cloud microphysical data, read by Satpy with the ``nwcsaf-geo`` reader.
-    In principle, `CMSAF`_ data could also be used, but as of May 2019, there
-    is no CM-SAF reader within Satpy.
-  * A digital elevation model.  This can derived from data available from 
-    the European Environmental Agency (`EEA`_).
-    Although this can be read by Satpy using
-    the ``generic_image`` reader, the Fogpy composite reads this as a static
-    image.  The path to this image needs to be  defined in the Fogpy
-    ``etc/composites/seviri.yaml`` file.
+  * Satellite L1b data, either from SEVIRI with the ``seviri_l1b_hrit``
+    reader, or from ABI with the ``abi_l1b`` reader.
+  * Cloud microphysical data, either from NWCSAF with the ``nwcsaf-geo``
+    reader, or from CMSAF CLAAS-2 with the ``cmsaf-claas2_l2_nc`` reader.
+  * A digital elevation model.  For Europe, this can derived from data
+    available from the European Environmental Agency (`EEA`_).  For North
+    America, we can get data from USGS. To make it available to Fogpy,
+    drop ``eu-1km.tif`` and ``new-england-500m.tif`` into the
+    ``fogpy/data/DEM`` directory.  Gerrit Holl <gerrit.holl@dwd.de> has the
+    files.
 
 We create a scene in which we load
-datasets using both the ``seviri_l1b_hrit`` and ``nwcsaf-geo`` readers.
+datasets using both the ``seviri_l1b_hrit`` and ``cmsaf-claas2_l2_nc`` readers.
 Here we choose to load all required channels and datasets explicitly::
 
-	>>> fn_nwcsaf = glob("/media/nas/x21308/scratch/NWCSAF/*100000Z.nc")
-	>>> fn_sev = glob("/media/nas/x21308/scratch/SEVIRI/*201904151000*")
-	>>> sc = Scene(filenames={"seviri_l1b_hrit": fn_sev, "nwcsaf-geo": fn_nwcsaf})
-	>>> sc.load(["cmic_reff", "IR_108", "IR_087", "cmic_cot", "IR_016", "VIS006",
-	             "IR_120", "VIS008", "cmic_lwp", "IR_039"])
-
+	>>> fn_cmsaf = glob("/media/nas/x20629/SEVIRI/repr2/level2/cpp/2013/12/12/CPPin20131212100000305SVMSG01MD.nc")
+	>>> fn_sev = glob("/media/nas/x21308/scratch/SEVIRI/2013/12/12/H-000-MSG3__-MSG3________-*201312121000*")
+	>>> sc = Scene(filenames={"seviri_l1b_hrit": fn_sev, "cmsaf-claas2_l2_nc": fn_cmsaf})
+	>>> sc.load(["reff", "IR_108", "IR_087", "cot", "IR_016", "VIS006", "IR_120", "VIS008", "cwp", "IR_039"])
 
 .. _EEA: https://www.eea.europa.eu/data-and-maps/data/copernicus-land-monitoring-service-eu-dem
 .. _satpy: https://github.com/pytroll/satpy
@@ -98,7 +100,7 @@ And then inspect the cloud optical thickness product::
 
     >>> from trollimage.xrimage import XRImage
     >>> from trollimage.colormap import set3
-    >>> xrim = XRImage(ls["cmic_cot"])
+    >>> xrim = XRImage(ls["cot"])
     >>> set3.set_range(0, 100)
     >>> xrim.palettize(set3)
     >>> xrim.show()
@@ -107,7 +109,7 @@ And then inspect the cloud optical thickness product::
 .. _pyresample: https://github.com/pytroll/pyresample
 .. _trollimage: http://trollimage.readthedocs.io/en/latest/
 
-.. image:: ./fogpy_docu_example_6.png
+.. image:: ./claas-eurol-cot.jpg
 
 Get hands-on fogpy at daytime
 =================================
@@ -124,12 +126,17 @@ composites and all fogpy composites can be used directly in Satpy.
 Let's try it with the *fls_day* composite.  This composite determines
 low clouds and ground fog cells from a satellite scene.  It is limited
 to daytime because it requires channels in the visible spectrum to be
-successfully applicable.  We create a fogpy composite for the resampled
-MSG scene::
+successfully applicable and because the cloud microphysical properties
+are only available during the day.  Let's focus on Germany now::
+
+    >>> ls = sc.resample("germ2")
+    
+We create a fogpy composite for the resampled MSG scene::
 
     >>> ls.load(["fls_day"])
 
-This may take a while to complete.
+This may take a while to complete.  Although most Satpy composites use
+dask for postponed evaluation, Fogpy does not currently support this.
 You see that we don't have to import the fogpy package manually.
 It's done automagically in the background after the satpy configuration.
 
@@ -141,12 +148,16 @@ The dataset has two bands:
 - Band ``L`` is an image of a selected channel (Default is the 10.8 IR channel) where only the detected ground fog cells are displayed
 - Band ``A`` is an image for the fog mask
 
-.. image:: ./fogpy_docu_example_10.png
+::
+    
+    >>> ls.show("fls_day")
+
+.. image:: ./fogpy-germ2-fls_day.jpg
 
 The result image shows the area with potential ground fog calculated
-by the algorithm, fine.  But the remaining areas are missing... maybe
+by the algorithm.  But the remaining areas are missing... maybe
 a different visualization could be helpful.  We can improve the image
-output by colorize the fog mask and blending it over an overview composite
+output by colorising the fog mask and blending it over an overview composite
 using trollimage:
 
 .. Wait for this composite to work correctly
@@ -157,22 +168,29 @@ using trollimage:
 
 ::
 
+    >>> import satpy.writers
+    >>> import xarray as xr
+    >>> from trollimage.xrimage import XRImage
+    >>> from trollimage.colormap import Colormap
+    >>> ls.load(["overview"])
     >>> ov = satpy.writers.get_enhanced_image(ls["overview"]).convert("RGBA")
     >>> A = ls["fls_day"].sel(bands="A")
-    >>> Ap = (1-A).where(1-A==0, 0.5)
+    >>> Ap = A.where(A==0, 0.5)
     >>> im = XRImage(Ap)
     >>> im.stretch()
+    >>> fogcol = trollimage.colormap.Colormap(
+    ...     (0.0, (0.0, 0.0, 0.8)),
+    ...     (1.0, (250 / 255, 200 / 255, 40 / 255)))
     >>> im.colorize(fogcol)
     >>> RGBA = xr.concat([im.data, Ap], dim="bands")
     >>> blend = ov.blend(XRImage(RGBA))
 
-.. note::
-	Images not yet updated!
-
-.. image:: ./fogpy_docu_example_11.png
+.. image:: ./fogpy-germ2-blend.jpg
 
 Here are some example algorithm results for the given MSG scene. 
 As described above, the different masks are blendes over the overview RGB composite in yellow, except the right image where the fog RGB is in the background:
+
+.. FIXME: Not updated beyond this point!
 
 +----------------------------------------+----------------------------------------+----------------------------------------+
 | .. image:: ./fogpy_docu_example_13.png | .. image:: ./fogpy_docu_example_12.png | .. image:: ./fogpy_docu_example_14.png |
@@ -245,6 +263,9 @@ clouds than the daytime approach. Therefore a comparison with weather station da
 Gimme some ground truth!
 ========================
 
+.. note::
+    Documentation beyond this point out of date!
+
 Fogpy features some additional utilities for validation and comparison attempts.
 This include methods to plot weather station data from Bufr files over the FLS image results.
 The Bufr data is thereby processed by the `trollbufr`_ PyTroll package and the images are generated with `trollimage`_.
@@ -254,6 +275,8 @@ Here we load visibility data from German weather stations for the nighttime scen
     >>> from fogpy.utils import add_synop
         # Define search path for bufr file
     >>> bufr_dir = '/path/to/bufr/file/'
+    >>> from datetime import datetime
+    >>> ntime = datetime(2013, 12, 12, 4, 0)
     >>> nbufr_file = "result_{}_synop.bufr".format(ntime.strftime("%Y%m%d%H%M"))
     >>> inbufrn = os.path.join(bufr_dir, nbufr_file)
         # Create station image
